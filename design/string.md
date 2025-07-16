@@ -17,7 +17,7 @@
 
 ```
 typedef struct NSTR {
-    uint64_t is_slice:1;               // 片段标志位：0 表示字符串，1 表示片段引用。
+    uint64_t is_ref:1;                 // 片段标志位：0 表示字符串，1 表示片段引用。
     uint64_t code:9;                   // 编码方案代号，最多支持 512 种编码。
 
     union {
@@ -26,21 +26,15 @@ typedef struct NSTR {
             uint64_t      refs:18;     // 片段引用计数，生成字符串时置 1 ，表示对自身的引用。减到 0 时需要释放内存。
             uint64_t      chars:18;    // 按编码方案解释后的字符个数。
             uint64_t      size:18;     // 字符串字节数。
-            union {
-                const char    chr[0];  // ASCII 字符数据内存区。
-                const wchar_t tchr[0]; // 宽字符数据内存区。
-            };
+            const char    chr[1];      // 单字节字符数据内存区。
         } str;
         // 片段引用结构体
         struct {
             uint64_t      begin:18;    // 片段在源字符串内存区的起始位置（相对于起点的字节数）。
             uint64_t      chars:18;    // 按编码方案解释后的字符个数。
             uint64_t      size:18;     // 片段字节数。
-            union {
-                const char *    chr;   // ASCII 字符数据内存区，与 begin 相加得到片段所在内存起点位置。
-                const wchar_t * tchr;  // 宽字符数据内存区，与 begin 相加得到片段所在内存起点位置。
-            };
-        } slc;
+            const char *  chr;         // 单字节字符数据内存区，与 begin 相加得到片段所在内存起点位置。
+        } ref;
     };
 } nstr_t;
 ```
