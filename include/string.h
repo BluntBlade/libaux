@@ -4,17 +4,21 @@
 struct NSTR;
 typedef struct NSTR * nstr_p;
 
-enum {
-    NSTR_ASCII = 0,
-    NSTR_UTF8  = 1,
-    NSTR_ENCODING_COUNT = 1,
-};
+typedef enum STR_ENCODING {
+    STR_ASCII = 0,
+    STR_UTF8  = 1,
+    STR_ENCODING_COUNT = 2,
+    STR_ENCODING_MAX = 1 << (9 - 1),  // 支持最多 512 种编码方案
+} str_encoding_t;
 
 // 需要分配内存字节数
-extern size_t nstr_object_bytes(uint64_t size);
+extern size_t nstr_object_bytes(uint64_t bytes);
 
 // 从原生字符串生成新字符串
-extern nstr_p nstr_new(const char * src, uint64_t size, uint64_t encoding);
+extern nstr_p nstr_new(const char * src, uint64_t bytes, str_encoding_t encoding);
+
+// 从源字符串（或片段引用）生成新字符串
+extern nstr_p nstr_clone(nstr_p s);
 
 // 删除字符串
 extern void nstr_delete(nstr_p * ps);
@@ -54,22 +58,22 @@ extern bool nstr_is_ref(nstr_p s);
 extern bool nstr_verify(nstr_p s);
 
 // 引用字符串片段
-extern nstr_p nstr_refer(nstr_p s, uint64_t begin, uint64_t len);
+extern nstr_p nstr_refer_to(nstr_p s, uint64_t index, uint64_t chars);
 
 // 合并多个字符串
-extern nstr_p nstr_concat(nstr_p * ls, int n, ...);
+extern nstr_p nstr_concat(nstr_p * as, int n, ...);
 
 // 使用间隔符，合并多个字符串
-extern nstr_p nstr_join(nstr_p deli, nstr_p * ls, int n, ...);
+extern nstr_p nstr_join(nstr_p deli, nstr_p * as, int n, ...);
 
 // 使用间隔符，分割字符串
-extern int nstr_split(nstr_p deli, nstr_p s, int max, nstr_p * r);
+extern int nstr_split(nstr_p deli, nstr_p s, int max, nstr_p * ret);
 
 // 搜索子字符串
-extern int64_t nstr_find(nstr_p s, uint64_t begin, nstr_p sub);
+extern const char * nstr_find(nstr_p s, uint64_t offset, nstr_p sub);
 
 // 重新编码
-extern nstr_p nstr_recode(nstr_p s, uint64_t encoding);
+extern nstr_p nstr_recode(nstr_p s, str_encoding_t encoding);
 
 // 遍历元素
 extern uint64_t nstr_first(nstr_p s, const char ** pos, const char ** end, bool by_char);
@@ -87,7 +91,7 @@ inline static uint64_t nstr_next_byte(nstr_p s, const char ** pos, const char **
 } // nstr_next_byte
 
 // 遍历字符
-extern uint64_t nstr_next_char(nstr_p s, const char ** pos, const char ** end, uint64_t skip_bytes);
+extern uint64_t nstr_next_char(nstr_p s, const char ** pos, const char ** end, uint64_t last_bytes);
 
 #endif // _AUX_STRING_H_
 
