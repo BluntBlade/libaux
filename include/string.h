@@ -76,22 +76,22 @@ extern void * nstr_find(nstr_p s, uint64_t offset, nstr_p sub);
 extern nstr_p nstr_recode(nstr_p s, str_encoding_t encoding);
 
 // 遍历元素
-extern uint64_t nstr_first(nstr_p s, void ** pos, void ** end, bool by_char);
+extern bool nstr_first(nstr_p s, bool by_char, void ** pos, void ** end, uint64_t * bytes);
 
 // 遍历字节
-inline static uint64_t nstr_next_byte(nstr_p s, void ** pos, void ** end)
+inline static bool nstr_next_byte(nstr_p s, void ** pos, void ** end)
 {
     *pos += 1;
     if (*pos == *end) {
         *pos = NULL;
         *end = NULL;
-        return 0;
+        return false;
     } // if
-    return 1;
+    return true;
 } // nstr_next_byte
 
 // 遍历字符
-extern uint64_t nstr_next_char(nstr_p s, void ** pos, void ** end, uint64_t last_bytes);
+extern bool nstr_next_char(nstr_p s, void ** pos, void ** end, uint64_t * bytes);
 
 #endif // _AUX_STRING_H_
 
