@@ -15,7 +15,7 @@ typedef enum STR_ENCODING {
 extern size_t nstr_object_bytes(uint64_t bytes);
 
 // 从原生字符串生成新字符串
-extern nstr_p nstr_new(const char * src, uint64_t bytes, str_encoding_t encoding);
+extern nstr_p nstr_new(void * src, uint64_t bytes, str_encoding_t encoding);
 
 // 从源字符串（或片段引用）生成新字符串
 extern nstr_p nstr_clone(nstr_p s);
@@ -43,7 +43,7 @@ inline static uint64_t nstr_length(nstr_p s)
 } // nstr_length
 
 // 返回原生字符串指针（片段引用情况下会生成一个新字符串）
-extern const char * nstr_to_cstr(nstr_p * ps);
+extern void * nstr_to_cstr(nstr_p * ps);
 
 // 返回片段引用数（返回 0 表示这是一个片段引用）
 extern uint64_t nstr_refs(nstr_p s);
@@ -70,16 +70,16 @@ extern nstr_p nstr_join(nstr_p deli, nstr_p * as, int n, ...);
 extern int nstr_split(nstr_p deli, nstr_p s, int max, nstr_p * ret);
 
 // 搜索子字符串
-extern const char * nstr_find(nstr_p s, uint64_t offset, nstr_p sub);
+extern void * nstr_find(nstr_p s, uint64_t offset, nstr_p sub);
 
 // 重新编码
 extern nstr_p nstr_recode(nstr_p s, str_encoding_t encoding);
 
 // 遍历元素
-extern uint64_t nstr_first(nstr_p s, const char ** pos, const char ** end, bool by_char);
+extern uint64_t nstr_first(nstr_p s, void ** pos, void ** end, bool by_char);
 
 // 遍历字节
-inline static uint64_t nstr_next_byte(nstr_p s, const char ** pos, const char ** end)
+inline static uint64_t nstr_next_byte(nstr_p s, void ** pos, void ** end)
 {
     *pos += 1;
     if (*pos == *end) {
@@ -91,7 +91,7 @@ inline static uint64_t nstr_next_byte(nstr_p s, const char ** pos, const char **
 } // nstr_next_byte
 
 // 遍历字符
-extern uint64_t nstr_next_char(nstr_p s, const char ** pos, const char ** end, uint64_t last_bytes);
+extern uint64_t nstr_next_char(nstr_p s, void ** pos, void ** end, uint64_t last_bytes);
 
 #endif // _AUX_STRING_H_
 
