@@ -86,23 +86,27 @@ extern void * nstr_find(nstr_p s, nstr_p sub, void ** pos, void ** end, uint64_t
 // 重新编码
 extern nstr_p nstr_recode(nstr_p s, str_encoding_t encoding);
 
-// 初始化遍历
-extern bool nstr_first(nstr_p s, bool by_char, void ** pos, void ** end, uint64_t * bytes);
+// 初始化遍历字节
+extern void * nstr_first_byte(nstr_p s, void ** pos, void ** end);
 
 // 遍历字节
-inline static bool nstr_next_byte(nstr_p s, void ** pos, void ** end)
+inline static void * nstr_next_byte(nstr_p s, void ** pos, void ** end)
 {
-    *pos += 1;
+    void * loc = *pos;
     if (*pos == *end) {
         *pos = NULL;
         *end = NULL;
-        return false;
+        return NULL;
     } // if
-    return true;
+    *pos += 1;
+    return loc;
 } // nstr_next_byte
 
+// 初始化遍历字符
+extern void * nstr_first_char(nstr_p s, void ** pos, void ** end, uint64_t * bytes);
+
 // 遍历字符
-extern bool nstr_next_char(nstr_p s, void ** pos, void ** end, uint64_t * bytes);
+extern void * nstr_next_char(nstr_p s, void ** pos, void ** end, uint64_t * bytes);
 
 // 返回空字符串
 extern nstr_p nstr_blank(str_encoding_t encoding);

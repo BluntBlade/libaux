@@ -577,30 +577,50 @@ nstr_p nstr_recode(nstr_p s, str_encoding_t encoding)
     return NULL; // TODO
 } // nstr_recode
 
-// 初始化遍历
-bool nstr_first(nstr_p s, bool by_char, void ** pos, void ** end, uint64_t * bytes)
+// 初始化遍历字节
+void * nstr_first_byte(nstr_p s, void ** pos, void ** end)
 {
     *pos = real_buffer(s);
     *end = *pos + s->bytes;
     if (*pos == *end) {
-        *bytes = 0;
-        return false;
+        *pos = NULL;
+        *end = NULL;
+        return NULL;
     } // if
-    bytes = by_char ? measure[s->encoding](*pos) : 1;
-    return true;
-} // nstr_first
+    *pos += 1;
+    return real_buffer(s);
+} // nstr_first_byte
 
-// 遍历字符
-bool nstr_next_char(nstr_p s, void ** pos, void ** end, uint64_t * bytes)
+// 初始化遍历字符
+void * nstr_first_char(nstr_p s, void ** pos, void ** end, uint64_t * bytes)
 {
-    *pos += *bytes;
+    *pos = real_buffer(s);
+    *end = *pos + s->bytes;
     if (*pos == *end) {
         *pos = NULL;
         *end = NULL;
-        return false;
+        *bytes = 0;
+        return NULL;
     } // if
     *bytes = measure[s->encoding](*pos);
-    return true;
+    *pos += *bytes;
+    return real_buffer(s);
+} // nstr_first_char
+
+// 遍历字符
+void * nstr_next_char(nstr_p s, void ** pos, void ** end, uint64_t * bytes)
+{
+    void * loc = NULL;
+    if (*pos == *end) {
+        *pos = NULL;
+        *end = NULL;
+        *bytes = 0;
+        return NULL;
+    } // if
+    loc = *pos;
+    *bytes = measure[s->encoding](*pos);
+    *pos += *bytes;
+    return loc;
 } // nstr_next_char
 
 // 返回空字符串
