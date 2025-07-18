@@ -28,14 +28,14 @@ typedef struct NSTR {
 
 // ---- ASCII related functions ---- //
 
-static uint64_t measure_ascii(void * pos)
+static uint32_t measure_ascii(void * pos)
 {
     return 1;
 } // measure_ascii
 
-static void * locate_ascii(void * begin, void * end, uint64_t index, uint64_t * chars)
+static void * locate_ascii(void * begin, void * end, uint32_t index, uint32_t * chars)
 {
-    uint64_t bytes = end - begin;
+    uint32_t bytes = end - begin;
     if (index >= bytes) {
         *chars = 0;
         return end;
@@ -44,7 +44,7 @@ static void * locate_ascii(void * begin, void * end, uint64_t index, uint64_t * 
     return begin + index;
 } // locate_ascii
 
-static uint64_t count_ascii(void * begin, void * end)
+static uint32_t count_ascii(void * begin, void * end)
 {
     return end - begin;
 } // count_ascii
@@ -65,7 +65,7 @@ static bool verify_ascii(void * begin, void * end)
 // U+0800              U+FFFF             1110wwww    10xxxxyy    10yyzzzz
 // U+010000            U+10FFFF           11110uvv    10vvwwww    10xxxxyy    10yyzzzz
 
-static uint64_t measure_utf8(void * pos)
+static uint32_t measure_utf8(void * pos)
 {
     char_t ch = ((char_t *)pos)[0];
     if ((ch & 0x80) == 0) return 1;
@@ -76,9 +76,9 @@ static uint64_t measure_utf8(void * pos)
     return 0;
 } // measure_utf8
 
-static void * locate_utf8(void * begin, void * end, uint64_t index, uint64_t * chars)
+static void * locate_utf8(void * begin, void * end, uint32_t index, uint32_t * chars)
 {
-    uint64_t cnt = 0;
+    uint32_t cnt = 0;
     void * pos = begin;
     while (cnt < index && pos < end) {
         bytes = measure_utf8(pos);
@@ -90,16 +90,16 @@ static void * locate_utf8(void * begin, void * end, uint64_t index, uint64_t * c
     return pos;
 } // locate_utf8
 
-static uint64_t count_utf8(void * begin, void * end)
+static uint32_t count_utf8(void * begin, void * end)
 {
-    uint64_t cnt = 0;
+    uint32_t cnt = 0;
     locate_utf8(begin, end, 0, &cnt);
     return cnt;
 } // count_utf8
 
 static bool verify_utf8(void * begin, void * end)
 {
-    uint64_t bytes = 0;
+    uint32_t bytes = 0;
     void * pos = begin;
     while (pos < end) {
         bytes = measure_utf8(pos);
@@ -109,19 +109,19 @@ static bool verify_utf8(void * begin, void * end)
     return true;
 } // verify_utf8
 
-typedef uint64_t (*measure_t)(void * pos);
+typedef uint32_t (*measure_t)(void * pos);
 static measure_t measure[NSTR_ENCODING_COUNT] = {
     &measure_ascii,
     &measure_utf8,
 };
 
-typedef void * (*locate_t)(void * begin, void * end, uint64_t index, uint64_t * chars);
+typedef void * (*locate_t)(void * begin, void * end, uint32_t index, uint32_t * chars);
 static locate_t locate[NSTR_ENCODING_COUNT] = {
     &locate_ascii,
     &locate_utf8,
 };
 
-typedef uint64_t (*count_t)(void * begin, void * end);
+typedef uint32_t (*count_t)(void * begin, void * end);
 static count_t count[NSTR_ENCODING_COUNT] = {
     &count_ascii,
     &count_utf8,
@@ -149,12 +149,12 @@ inline static nstr_p real_string(nstr_p s)
 } // real_string
 
 // 需要分配内存字节数
-size_t nstr_object_bytes(uint64_t bytes)
+size_t nstr_object_bytes(uint32_t bytes)
 {
     return sizeof(nstr_t) + bytes;
 } // nstr_object_bytes
 
-inline static void init_string(nstr_p s, bool need_free, uint64_t bytes, uint64_t chars, uint64_t encoding)
+inline static void init_string(nstr_p s, bool need_free, uint32_t bytes, uint32_t chars, uint32_t encoding)
 {
     s->refs = 1;  // 引用自身。
     s->bytes = bytes;
@@ -165,7 +165,7 @@ inline static void init_string(nstr_p s, bool need_free, uint64_t bytes, uint64_
 } // init_string
 
 // 从原生字符串生成新字符串
-nstr_p nstr_new(void * src, uint64_t bytes, str_encoding_t encoding)
+nstr_p nstr_new(void * src, uint32_t bytes, str_encoding_t encoding)
 {
     nstr_p new = NULL;
 
@@ -212,19 +212,19 @@ void nstr_delete_all(nstr_p * as, int n)
 } // nstr_delete_all
 
 // 返回编码方案代号
-uint64_t nstr_encoding(nstr_p s)
+uint32_t nstr_encoding(nstr_p s)
 {
     return s->encoding;
 } // nstr_encoding
 
 // 返回字节数，不包含最后的 NUL 字符
-uint64_t nstr_bytes(nstr_p s)
+uint32_t nstr_bytes(nstr_p s)
 {
     return s->bytes;
 } // nstr_bytes
 
 // 返回字符数，不包含最后的 NUL 字符
-uint64_t nstr_chars(nstr_p s)
+uint32_t nstr_chars(nstr_p s)
 {
     return s->chars;
 } // nstr_chars
@@ -244,7 +244,7 @@ void * nstr_to_cstr(nstr_p * ps)
 } // nstr_to_cstr
 
 // 返回片段引用数（返回 0 表示这是一个片段引用）
-uint64_t nstr_refs(nstr_p s)
+uint32_t nstr_refs(nstr_p s)
 {
     return (s->is_ref) ? 0 : s->refs;
 } // nstr_refs
@@ -267,9 +267,9 @@ bool nstr_verify(nstr_p s)
     return verify[s->encoding](s->buf, s->buf + s->bytes);
 } // nstr_verify
 
-inline static nstr_p new_slice(nstr_p s, void * begin, void * end, uint64_t chars, bool recount)
+inline static nstr_p new_slice(nstr_p s, void * begin, void * end, uint32_t chars, bool recount)
 {
-    uint64_t bytes = end - begin;
+    uint32_t bytes = end - begin;
     nstr_p r = real_string(s);
     nstr_p n = calloc(1, nstr_object_bytes(bytes));
 
@@ -288,11 +288,11 @@ inline static nstr_p new_slice(nstr_p s, void * begin, void * end, uint64_t char
 } // new_slice
 
 // 生成片段引用，或生成新字符串（字符范围）
-nstr_p nstr_slice_chars(nstr_p s, bool no_ref, uint64_t index, uint64_t chars);
+nstr_p nstr_slice_chars(nstr_p s, bool no_ref, uint32_t index, uint32_t chars);
 {
     void * begin = NULL;
     void * end = NULL;
-    uint64_t ret_chars = 0;
+    uint32_t ret_chars = 0;
 
     begin = real_buffer(r);
     end = begin + s->bytes;
@@ -304,15 +304,15 @@ nstr_p nstr_slice_chars(nstr_p s, bool no_ref, uint64_t index, uint64_t chars);
 } // nstr_slice_chars
 
 // 生成片段引用，或生成新字符串（字节范围）
-nstr_p nstr_slice_bytes(nstr_p s, bool no_ref, void * pos, uint64_t bytes)
+nstr_p nstr_slice_bytes(nstr_p s, bool no_ref, void * pos, uint32_t bytes)
 {
     if (no_ref) return nstr_new(pos, bytes, r->encoding);
     return new_slice(s, pos, pos + bytes, 0, true);
 } // nstr_slice_bytes
 
-typedef char_t * (*copy_strings_t)(char_t * pos, nstr_p * as, int n, char_t * dbuf, uint64_t dbytes);
+typedef char_t * (*copy_strings_t)(char_t * pos, nstr_p * as, int n, char_t * dbuf, uint32_t dbytes);
 
-static char_t * copy_strings(char_t * pos, nstr_p * as, int n, char_t * dbuf, uint64_t dbytes)
+static char_t * copy_strings(char_t * pos, nstr_p * as, int n, char_t * dbuf, uint32_t dbytes)
 {
     int i = 0;
     int b = n / 4;
@@ -338,7 +338,7 @@ static char_t * copy_strings(char_t * pos, nstr_p * as, int n, char_t * dbuf, ui
     return pos;
 } // copy_strings
 
-static char_t * copy_strings_with_one_deli(char_t * pos, nstr_p * as, int n, char_t * dbuf, uint64_t dbytes)
+static char_t * copy_strings_with_one_deli(char_t * pos, nstr_p * as, int n, char_t * dbuf, uint32_t dbytes)
 {
     int i = 0;
     int b = n / 4;
@@ -368,7 +368,7 @@ static char_t * copy_strings_with_one_deli(char_t * pos, nstr_p * as, int n, cha
     return pos;
 } // copy_strings_with_one_deli
 
-static char_t * copy_strings_with_long_deli(char_t * pos, nstr_p * as, int n, char_t * dbuf, uint64_t dbytes)
+static char_t * copy_strings_with_long_deli(char_t * pos, nstr_p * as, int n, char_t * dbuf, uint32_t dbytes)
 {
     int i = 0;
     int b = n / 4;
@@ -410,17 +410,17 @@ static nstr_p join_strings(nstr_p deli, nstr_p as, int n, va_list * ap)
     nstr_p as2 = NULL;
     char_t * pos = NULL;
     char_t * dbuf = NULL;
-    uint64_t bytes = 0;
-    uint64_t chars = 0;
+    uint32_t bytes = 0;
+    uint32_t chars = 0;
+    uint32_t dbytes = 0;
     int i = 0;
     int n2 = 0;
     int cnt = 0;
-    uint64_t dbytes = 0;
 
     cnt += n;
     for (i = 0; i < n; ++i) {
-        bytes += (as[i])->bytes;
-        chars += (as[i])->chars;
+        bytes += as[i]->bytes;
+        chars += as[i]->chars;
     } // for
 
     va_copy(cp, *ap);
@@ -502,7 +502,7 @@ nstr_p * nstr_split(nstr_p deli, nstr_p s, bool no_ref, int * max)
     void * end = NULL;
     void * start = NULL;
     void * loc = NULL;
-    uint64_t bytes = 0;
+    uint32_t bytes = 0;
     int rmd = 0;
     int cnt = 0;
     int cap = 0;
@@ -546,7 +546,7 @@ nstr_p * nstr_split(nstr_p deli, nstr_p s, bool no_ref, int * max)
 } // nstr_split
 
 // 搜索子字符串
-void * nstr_find(nstr_p s, nstr_p sub, void ** pos, void ** end, uint64_t * bytes)
+void * nstr_find(nstr_p s, nstr_p sub, void ** pos, void ** end, uint32_t * bytes)
 {
     void * loc = NULL;
 
@@ -592,7 +592,7 @@ void * nstr_first_byte(nstr_p s, void ** pos, void ** end)
 } // nstr_first_byte
 
 // 初始化遍历字符
-void * nstr_first_char(nstr_p s, void ** pos, void ** end, uint64_t * bytes)
+void * nstr_first_char(nstr_p s, void ** pos, void ** end, uint32_t * bytes)
 {
     *pos = real_buffer(s);
     *end = *pos + s->bytes;
@@ -608,7 +608,7 @@ void * nstr_first_char(nstr_p s, void ** pos, void ** end, uint64_t * bytes)
 } // nstr_first_char
 
 // 遍历字符
-void * nstr_next_char(nstr_p s, void ** pos, void ** end, uint64_t * bytes)
+void * nstr_next_char(nstr_p s, void ** pos, void ** end, uint32_t * bytes)
 {
     void * loc = NULL;
     if (*pos == *end) {
