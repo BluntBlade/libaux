@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <string.h>
 
 #include "nstr.h"
 
@@ -132,6 +133,11 @@ inline static void * real_buffer(nstr_p s)
     return (s->is_ref) ? s->src->buf + s->offset : s->buf;
 } // real_buffer
 
+inline static nstr_p real_string(nstr_p s)
+{
+    return (s->is_ref) ? s->src : s;
+} // real_string
+
 // 需要分配内存字节数
 size_t nstr_object_bytes(uint64_t bytes)
 {
@@ -180,6 +186,13 @@ void nstr_delete(nstr_p * ps)
 
     *ps = NULL; // 防止野指针
 } // nstr_delete
+
+// 删除切分后的字符串数组
+void nstr_delete_all(nstr_p * as, int n)
+{
+    while (--n >= 0) nstr_delete(as[n]);
+    free(as);
+} // nstr_delete_all
 
 // 返回编码方案代号
 uint64_t nstr_encoding(nstr_p s)
@@ -237,39 +250,46 @@ bool nstr_verify(nstr_p s)
     return verify[s->encoding](s->buf, s->buf + s->bytes);
 } // nstr_verify
 
-// 引用字符串片段
-nstr_p nstr_refer_to(nstr_p s, uint64_t index, uint64_t chars)
+inline static nstr_p new_slice(nstr_p s, void * begin, void * end, uint64_t chars, bool recount)
 {
-    nstr_p n = NULL;
-    nstr_p r = NULL;
-    void * begin = NULL;
-    void * end = NULL;
-    uint64_t ret_chars = 0;
+    uint64_t bytes = end - begin;
+    nstr_p r = real_string(s);
+    nstr_p n = calloc(1, nstr_object_bytes(bytes));
 
-    n = calloc(1, nstr_object_bytes(0));
     if (! n) return NULL;
-
-    if (s->is_ref) {
-        r = s->src;
-        begin = r->buf + s->offset;
-    } else {
-        r = s;
-        begin = s->buf;
-    } // if
-
-    end = begin + s->bytes;
-    begin = locate[s->encoding](begin, end, index, &ret_chars);
-    end = locate[s->encoding](begin, end, chars, &ret_chars);
 
     n->src = r;
     n->offset = begin - r->buf;
-    n->bytes = end - begin;
-    n->chars = ret_chars;
+    n->bytes = bytes;
+    n->chars = (recount) ? count[encoding](begin, end) : chars;
     n->encoding = r->encoding;
     n->is_ref = 1;
     r->refs += 1; // 增加引用
     return n;
-} // nstr_refer_to
+} // new_slice
+
+// 生成片段引用，或生成新字符串（字符范围）
+nstr_p nstr_slice_chars(nstr_p s, bool no_ref, uint64_t index, uint64_t chars);
+{
+    void * begin = NULL;
+    void * end = NULL;
+    uint64_t ret_chars = 0;
+
+    begin = real_buffer(r);
+    end = begin + s->bytes;
+    begin = locate[s->encoding](begin, end, index, &ret_chars);
+    end = locate[s->encoding](begin, end, chars, &ret_chars);
+
+    if (no_ref) return nstr_new(begin, end - begin, r->encoding);
+    return new_slice(s, begin, end, ret_chars, false);
+} // nstr_slice_chars
+
+// 生成片段引用，或生成新字符串（字节范围）
+nstr_p nstr_slice_bytes(nstr_p s, bool no_ref, void * pos, uint64_t bytes)
+{
+    if (no_ref) return nstr_new(pos, bytes, r->encoding);
+    return new_slice(s, pos, pos + bytes, 0, true);
+} // nstr_slice_bytes
 
 // 合并多个字符串
 extern nstr_p nstr_concat(nstr_p * as, int n, ...);
@@ -278,10 +298,79 @@ extern nstr_p nstr_concat(nstr_p * as, int n, ...);
 extern nstr_p nstr_join(nstr_p deli, nstr_p * as, int n, ...);
 
 // 使用间隔符，分割字符串
-extern int nstr_split(nstr_p deli, nstr_p s, int max, nstr_p * ret);
+nstr_p * nstr_split(nstr_p deli, nstr_p s, bool no_ref, int * max)
+{
+    nstr_p * as = NULL;
+    nstr_p * an = NULL;
+    void * pos = NULL;
+    void * end = NULL;
+    void * start = NULL;
+    void * loc = NULL;
+    uint64_t bytes = 0;
+    int rmd = 0;
+    int cnt = 0;
+    int cap = 0;
+
+    rmd = (max && *max > 0) ? *max : 0;
+    cap = (rmd > 0) ? (rmd + 2) : 12; // max 次分割将产生 max + 1 个子串，再加上 1 个 NULL 终止标志。
+    as = malloc(sizeof(as[0]) * cap);
+    if (! as) return NULL;
+
+    start = real_buffer(s);
+    while ((loc = nstr_find(s, deli, &pos, &end, &bytes)) && --rmd > 0) {
+        if (no_ref) {
+            as[cnt] = nstr_new(start, loc - start, s->encoding);
+        } else {
+            as[cnt] = nstr_slice_bytes(s, start, loc - start);
+        } // if
+        start = loc + bytes;
+
+        if (++cnt < cap - 2) continue; // 保留 2 个空槽给最后的子串和终止标志。
+        an = realloc(as, sizeof(as[0]) * (cap + cap / 2));
+        if (! an) {
+            nstr_delete_all(as, cnt);
+            return NULL;
+        } // if
+        cap = (cap + cap / 2);
+        as = an;
+        an = NULL;
+    } // while
+
+    if (no_ref) {
+        as[cnt] = nstr_new(start, end - start, s->encoding);
+    } else {
+        as[cnt] = nstr_slice_bytes(s, start, end - start);
+    } // if
+    as[++cnt] = NULL;
+
+    if (max) {
+        *max = cnt;
+    } // if
+    return as;
+} // nstr_split
 
 // 搜索子字符串
-extern void * nstr_find(nstr_p s, uint64_t offset, nstr_p sub);
+void * nstr_find(nstr_p s, nstr_p sub, void ** pos, void ** end, uint64_t * bytes)
+{
+    void * loc = NULL;
+
+    if (! *pos) {
+        *pos = real_buffer(s);
+        *end = *pos + s->bytes;
+        *bytes = 0;
+    } // if
+
+    loc = memmem(*pos, *end - *pos, real_buffer(sub), sub->bytes);
+    if (loc) {
+        *pos = loc + sub->bytes;
+        *bytes = sub->bytes;
+    } else {
+        *pos = NULL;
+        *end = NULL;
+        *bytes = 0;
+    } // if
+    return loc;
+} // nstr_find
 
 // 重新编码
 nstr_p nstr_recode(nstr_p s, str_encoding_t encoding)
