@@ -7,14 +7,17 @@
 typedef unsigned char char_t;
 
 typedef struct NSTR {
-    uint64_t is_ref:1;          // 片段标志位：0 表示字符串，1 表示片段引用。
-    uint64_t need_free:1;       // 是否释放内存：0 表示不需要，1 表示需要。
-    uint64_t encoding:8;        // 编码方案代号，最多支持 255 种编码。
-    uint64_t chars:18;          // 按编码方案解释后的字符个数。
-    uint64_t bytes:18;          // 字符串字节数。
+    uint32_t is_ref:1;          // 片段标志位：0 表示字符串，1 表示片段引用。
+    uint32_t need_free:1;       // 是否释放内存：0 表示不需要，1 表示需要。
+    uint32_t encoding:8;        // 编码方案代号，最多支持 255 种编码。
+    uint32_t unused:22;         // 未使用位域，保持边界对齐。
+
+    uint32_t chars;             // 编码后的字符个数。
+    uint32_t bytes;             // 占用内存字节数。
+
     union {
-        uint64_t refs:18;       // 片段引用计数，生成字符串时置 1 ，表示对自身的引用。减到 0 时释放内存。
-        uint64_t offset:18;     // 片段在源字符串内存区的起始位置（相对于起点的字节数）。
+        uint32_t refs;          // 片段引用计数，生成字符串时置 1 ，表示对自身的引用。减到 0 时释放内存。
+        uint32_t offset;        // 片段在源字符串内存区的起始位置（相对于起点的字节数）。
     };
 
     union {
@@ -130,7 +133,7 @@ static verify_t verify[NSTR_ENCODING_COUNT] = {
     &verify_utf8,
 };
 
-static struct NSTR blank_strings[STR_ENCODING_COUNT] = {
+static nstr_t blank_strings[STR_ENCODING_COUNT] = {
     {.encoding = STR_ASCII},
     {.encoding = STR_UTF8},
 };
