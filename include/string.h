@@ -23,6 +23,9 @@ extern nstr_p nstr_clone(nstr_p s);
 // 删除字符串
 extern void nstr_delete(nstr_p * ps);
 
+// 删除切分后的字符串数组
+extern void nstr_delete_all(nstr_p * as, int n);
+
 // 返回编码方案代号
 extern uint64_t nstr_encoding(nstr_p s);
 
@@ -57,8 +60,11 @@ extern bool nstr_is_ref(nstr_p s);
 // 校验完整性
 extern bool nstr_verify(nstr_p s);
 
-// 引用字符串片段
-extern nstr_p nstr_refer_to(nstr_p s, uint64_t index, uint64_t chars);
+// 生成片段引用，或生成新字符串（字符范围）
+extern nstr_p nstr_slice_chars(nstr_p s, bool no_ref, uint64_t index, uint64_t chars);
+
+// 生成片段引用，或生成新字符串（字节范围）
+extern nstr_p nstr_slice_bytes(nstr_p s, bool no_ref, void * pos, uint64_t bytes);
 
 // 合并多个字符串
 extern nstr_p nstr_concat(nstr_p * as, int n, ...);
