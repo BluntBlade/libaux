@@ -17,7 +17,7 @@ enum {
 };
 
 // 需要分配内存字节数
-extern size_t nstr_object_bytes(uint32_t bytes);
+extern size_t nstr_object_size(uint32_t bytes);
 
 // 从原生字符串生成新字符串
 extern nstr_p nstr_new(void * src, uint32_t bytes, str_encoding_t encoding);
@@ -29,7 +29,7 @@ extern nstr_p nstr_clone(nstr_p s);
 extern void nstr_delete(nstr_p * ps);
 
 // 删除切分后的字符串数组
-extern void nstr_delete_all(nstr_p * as, int n);
+extern void nstr_delete_strings(nstr_p * as, int n);
 
 // 返回编码方案代号
 extern uint32_t nstr_encoding(nstr_p s);

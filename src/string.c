@@ -149,10 +149,10 @@ inline static nstr_p real_string(nstr_p s)
 } // real_string
 
 // 需要分配内存字节数
-size_t nstr_object_bytes(uint32_t bytes)
+size_t nstr_object_size(uint32_t bytes)
 {
     return sizeof(nstr_t) + bytes;
-} // nstr_object_bytes
+} // nstr_object_size
 
 inline static void init_string(nstr_p s, bool need_free, uint32_t bytes, uint32_t chars, uint32_t encoding)
 {
@@ -170,7 +170,7 @@ nstr_p nstr_new(void * src, uint32_t bytes, str_encoding_t encoding)
     nstr_p new = NULL;
 
     if (bytes == 0) return nstr_blank(encoding);
-    if ((new = calloc(1, nstr_object_bytes(bytes)))) {
+    if ((new = calloc(1, nstr_object_size(bytes)))) {
         memcpy(new->buf, src, bytes);
         init_string(new, STR_NEED_FREE, bytes, count[encoding](src, src + bytes), encoding);
     } // if
@@ -205,11 +205,11 @@ void nstr_delete(nstr_p * ps)
 } // nstr_delete
 
 // 删除切分后的字符串数组
-void nstr_delete_all(nstr_p * as, int n)
+void nstr_delete_strings(nstr_p * as, int n)
 {
     while (--n >= 0) nstr_delete(as[n]);
     free(as);
-} // nstr_delete_all
+} // nstr_delete_strings
 
 // 返回编码方案代号
 uint32_t nstr_encoding(nstr_p s)
@@ -271,7 +271,7 @@ inline static nstr_p new_slice(nstr_p s, void * begin, void * end, uint32_t char
 {
     uint32_t bytes = end - begin;
     nstr_p r = real_string(s);
-    nstr_p n = calloc(1, nstr_object_bytes(bytes));
+    nstr_p n = calloc(1, nstr_object_size(bytes));
 
     if (! n) return NULL;
 
@@ -452,7 +452,7 @@ static nstr_p join_strings(nstr_p deli, nstr_p as, int n, va_list * ap)
         } // if
     } // if
 
-    new = calloc(1, nstr_object_bytes(bytes));
+    new = calloc(1, nstr_object_size(bytes));
     if (! new) return NULL;
 
     pos = copy(new->buf, as, n, dbuf, dbytes);
