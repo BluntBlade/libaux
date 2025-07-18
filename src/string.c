@@ -1,13 +1,15 @@
 #include <assert.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "nstr.h"
 
-typedef uint8_t char_t;
+typedef unsigned char char_t;
 
 typedef struct NSTR {
     uint64_t is_ref:1;          // 片段标志位：0 表示字符串，1 表示片段引用。
-    uint64_t encoding:9;        // 编码方案代号，最多支持 512 种编码。
+    uint64_t need_free:1;       // 是否释放内存：0 表示不需要，1 表示需要。
+    uint64_t encoding:8;        // 编码方案代号，最多支持 255 种编码。
     uint64_t chars:18;          // 按编码方案解释后的字符个数。
     uint64_t bytes:18;          // 字符串字节数。
     union {
@@ -128,6 +130,11 @@ static verify_t verify[NSTR_ENCODING_COUNT] = {
     &verify_utf8,
 };
 
+static struct NSTR blank_strings[STR_ENCODING_COUNT] = {
+    {.encoding = STR_ASCII},
+    {.encoding = STR_UTF8},
+};
+
 inline static void * real_buffer(nstr_p s)
 {
     return (s->is_ref) ? s->src->buf + s->offset : s->buf;
@@ -144,22 +151,27 @@ size_t nstr_object_bytes(uint64_t bytes)
     return sizeof(nstr_t) + bytes;
 } // nstr_object_bytes
 
+inline static void init_string(nstr_p s, bool need_free, uint64_t bytes, uint64_t chars, uint64_t encoding)
+{
+    s->refs = 1;  // 引用自身。
+    s->bytes = bytes;
+    s->chars = chars;
+    s->encoding = encoding;
+    s->need_free = need_free ? 1 : 0;
+    s->is_ref = 0;
+} // init_string
+
 // 从原生字符串生成新字符串
 nstr_p nstr_new(void * src, uint64_t bytes, str_encoding_t encoding)
 {
-    nstr_p s = NULL;
-    
-    assert(verify[encoding](src, src + bytes));
+    nstr_p new = NULL;
 
-    if ((s = calloc(1, nstr_object_bytes(bytes)))) {
-        memcpy(s->buf, src, bytes);
-        s->refs = 1;  // 引用自身。
-        s->bytes = bytes;
-        s->chars = count[encoding](src, src + bytes);
-        s->encoding = encoding;
-        s->is_ref = 0;
+    if (bytes == 0) return nstr_blank(encoding);
+    if ((new = calloc(1, nstr_object_bytes(bytes)))) {
+        memcpy(new->buf, src, bytes);
+        init_string(new, STR_NEED_FREE, bytes, count[encoding](src, src + bytes), encoding);
     } // if
-    return s;
+    return new;
 } // nstr_new
 
 // 从源字符串（或片段引用）生成新字符串
@@ -179,8 +191,10 @@ void nstr_delete(nstr_p * ps)
         free(*ps); // 释放片段引用
     } // if
 
+    if (s == blank_strings[s->encoding]) return; // 空字符串不需要释放。
+
     s->refs -= 1;
-    if (s->refs == 0) {
+    if (s->refs == 0 && s->need_free == 1) {
         free(s); // 释放字符串
     } // if
 
@@ -264,7 +278,9 @@ inline static nstr_p new_slice(nstr_p s, void * begin, void * end, uint64_t char
     n->chars = (recount) ? count[encoding](begin, end) : chars;
     n->encoding = r->encoding;
     n->is_ref = 1;
-    r->refs += 1; // 增加引用
+    if (r != blank_strings[r->encoding]) {
+        r->refs += 1; // 非空字符串需要增加引用计数。
+    } // if
     return n;
 } // new_slice
 
@@ -291,11 +307,188 @@ nstr_p nstr_slice_bytes(nstr_p s, bool no_ref, void * pos, uint64_t bytes)
     return new_slice(s, pos, pos + bytes, 0, true);
 } // nstr_slice_bytes
 
+typedef char_t * (*copy_strings_t)(char_t * pos, nstr_p * as, int n, char_t * dbuf, uint64_t dbytes);
+
+static char_t * copy_strings(char_t * pos, nstr_p * as, int n, char_t * dbuf, uint64_t dbytes)
+{
+    int i = 0;
+    int b = n / 4;
+
+    if (n <= 0) return pos;
+    switch (n % 4) {
+        case 0:
+        do {
+            memcpy(pos, real_buffer(as[i]), (as[i])->bytes);
+            pos += (as[i++])->bytes;
+        case 3:
+            memcpy(pos, real_buffer(as[i]), (as[i])->bytes);
+            pos += (as[i++])->bytes;
+        case 2:
+            memcpy(pos, real_buffer(as[i]), (as[i])->bytes);
+            pos += (as[i++])->bytes;
+        case 1:
+            memcpy(pos, real_buffer(as[i]), (as[i])->bytes);
+            pos += (as[i++])->bytes;
+        } while (b-- > 0);
+        default: break;
+    } // switch
+    return pos;
+} // copy_strings
+
+static char_t * copy_strings_with_one_deli(char_t * pos, nstr_p * as, int n, char_t * dbuf, uint64_t dbytes)
+{
+    int i = 0;
+    int b = n / 4;
+
+    if (n <= 0) return pos;
+    switch (n % 4) {
+        case 0:
+        do {
+            memcpy(pos, real_buffer(as[i]), (as[i])->bytes);
+            pos += (as[i++])->bytes;
+            (*pos++) = dbuf[0];
+        case 3:
+            memcpy(pos, real_buffer(as[i]), (as[i])->bytes);
+            pos += (as[i++])->bytes;
+            (*pos++) = dbuf[0];
+        case 2:
+            memcpy(pos, real_buffer(as[i]), (as[i])->bytes);
+            pos += (as[i++])->bytes;
+            (*pos++) = dbuf[0];
+        case 1:
+            memcpy(pos, real_buffer(as[i]), (as[i])->bytes);
+            pos += (as[i++])->bytes;
+            (*pos++) = dbuf[0];
+        } while (b-- > 0);
+        default: break;
+    } // switch
+    return pos;
+} // copy_strings_with_one_deli
+
+static char_t * copy_strings_with_long_deli(char_t * pos, nstr_p * as, int n, char_t * dbuf, uint64_t dbytes)
+{
+    int i = 0;
+    int b = n / 4;
+
+    if (n <= 0) return pos;
+    switch (n % 4) {
+        case 0:
+        do {
+            memcpy(pos, real_buffer(as[i]), (as[i])->bytes);
+            pos += (as[i++])->bytes;
+            memcpy(pos, dbuf, dbytes);
+            pos += dbytes;
+        case 3:
+            memcpy(pos, real_buffer(as[i]), (as[i])->bytes);
+            pos += (as[i++])->bytes;
+            memcpy(pos, dbuf, dbytes);
+            pos += dbytes;
+        case 2:
+            memcpy(pos, real_buffer(as[i]), (as[i])->bytes);
+            pos += (as[i++])->bytes;
+            memcpy(pos, dbuf, dbytes);
+            pos += dbytes;
+        case 1:
+            memcpy(pos, real_buffer(as[i]), (as[i])->bytes);
+            pos += (as[i++])->bytes;
+            memcpy(pos, dbuf, dbytes);
+            pos += dbytes;
+        } while (b-- > 0);
+        default: break;
+    } // switch
+    return pos;
+} // copy_strings_with_long_deli
+
+static nstr_p join_strings(nstr_p deli, nstr_p as, int n, va_list * ap)
+{
+    va_list cp;
+    copy_strings_t copy = &copy_strings;
+    nstr_p new = NULL;
+    nstr_p as2 = NULL;
+    char_t * pos = NULL;
+    char_t * dbuf = NULL;
+    uint64_t bytes = 0;
+    uint64_t chars = 0;
+    int i = 0;
+    int n2 = 0;
+    int cnt = 0;
+    uint64_t dbytes = 0;
+
+    cnt += n;
+    for (i = 0; i < n; ++i) {
+        bytes += (as[i])->bytes;
+        chars += (as[i])->chars;
+    } // for
+
+    va_copy(cp, *ap);
+    while ((as2 = va_arg(cp, nstr_p *))) {
+        n2 = va_arg(cp, int);
+        cnt += n2;
+        for (i = 0; i < n2; ++i) {
+            bytes += (as2[i])->bytes;
+            chars += (as2[i])->chars;
+        } // for
+    } // while
+    va_end(cp);
+
+    if (cnt == 0) {
+        return nstr_blank(as[0]->encoding);
+    } // if
+
+    if (deli) {
+        dbuf = real_buffer(deli);
+        dbytes = deli->bytes;
+
+        bytes += dbytes * cnt; // 字节总数包含尾部间隔符，简化拷贝逻辑。
+        chars += deli->chars * (cnt - 1); // 字符总数不包含尾部间隔符。
+
+        if (deli->bytes == 1) {
+            copy = &copy_strings_with_one_deli;
+        } else {
+            copy = &copy_strings_with_long_deli;
+        } // if
+    } // if
+
+    new = calloc(1, nstr_object_bytes(bytes));
+    if (! new) return NULL;
+
+    pos = copy(new->buf, as, n, dbuf, dbytes);
+
+    va_copy(cp, *ap);
+    while ((as2 = va_arg(cp, nstr_p *))) {
+        pos = copy(pos, as2, va_args(cp, int), dbuf, dbytes);
+    } // while
+    va_end(cp);
+
+    bytes -= dbytes; // 去掉多余的尾部间隔符。
+    new->buf[bytes] = 0; // 设置终止 NUL 字符。
+    init_string(new, STR_NEED_FREE, bytes, chars, as[0]->encoding);
+    return new;
+} // join_strings
+
 // 合并多个字符串
-extern nstr_p nstr_concat(nstr_p * as, int n, ...);
+nstr_p nstr_concat(nstr_p * as, int n, ...)
+{
+    va_list ap;
+    nstr_p new = NULL;
+
+    va_start(ap, n);
+    new = join_strings(NULL, as, n, &ap);
+    va_end(ap);
+    return new;
+} // nstr_concat
 
 // 使用间隔符，合并多个字符串
-extern nstr_p nstr_join(nstr_p deli, nstr_p * as, int n, ...);
+nstr_p nstr_join(nstr_p deli, nstr_p * as, int n, ...)
+{
+    va_list ap;
+    nstr_p new = NULL;
+
+    va_start(ap, n);
+    new = join_strings(deli, as, n, &ap);
+    va_end(ap);
+    return new;
+} // nstr_join
 
 // 使用间隔符，分割字符串
 nstr_p * nstr_split(nstr_p deli, nstr_p s, bool no_ref, int * max)
@@ -406,3 +599,9 @@ bool nstr_next_char(nstr_p s, void ** pos, void ** end, uint64_t * bytes)
     *bytes = measure[s->encoding](*pos);
     return true;
 } // nstr_next_char
+
+// 返回空字符串
+nstr_p nstr_blank(str_encoding_t encoding);
+{
+    return blank_strings[encoding];
+} // nstr_blank
