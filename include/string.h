@@ -8,8 +8,13 @@ typedef enum STR_ENCODING {
     STR_ASCII = 0,
     STR_UTF8  = 1,
     STR_ENCODING_COUNT = 2,
-    STR_ENCODING_MAX = 1 << (9 - 1),  // 支持最多 512 种编码方案
+    STR_ENCODING_MAX = (1 << 8) - 1,  // 支持最多 255 种编码方案
 } str_encoding_t;
+
+enum {
+    STR_NEED_FREE = true,
+    STR_DONT_FREE = false,
+};
 
 // 需要分配内存字节数
 extern size_t nstr_object_bytes(uint64_t bytes);
@@ -98,6 +103,9 @@ inline static bool nstr_next_byte(nstr_p s, void ** pos, void ** end)
 
 // 遍历字符
 extern bool nstr_next_char(nstr_p s, void ** pos, void ** end, uint64_t * bytes);
+
+// 返回空字符串
+extern nstr_p nstr_blank(str_encoding_t encoding);
 
 #endif // _AUX_STRING_H_
 
