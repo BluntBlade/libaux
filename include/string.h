@@ -67,15 +67,15 @@ extern nstr_p nstr_concat(nstr_p * as, int n, ...);
 extern nstr_p nstr_join(nstr_p deli, nstr_p * as, int n, ...);
 
 // 使用间隔符，分割字符串
-extern int nstr_split(nstr_p deli, nstr_p s, int max, nstr_p * ret);
+extern nstr_p * nstr_split(nstr_p deli, nstr_p s, bool no_ref, int * max);
 
 // 搜索子字符串
-extern void * nstr_find(nstr_p s, uint64_t offset, nstr_p sub);
+extern void * nstr_find(nstr_p s, nstr_p sub, void ** pos, void ** end, uint64_t * bytes);
 
 // 重新编码
 extern nstr_p nstr_recode(nstr_p s, str_encoding_t encoding);
 
-// 遍历元素
+// 初始化遍历
 extern bool nstr_first(nstr_p s, bool by_char, void ** pos, void ** end, uint64_t * bytes);
 
 // 遍历字节
