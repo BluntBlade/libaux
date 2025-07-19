@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdarg.h>
 
-#include "nstr.h"
+#include "string.h"
 
 typedef unsigned char char_t;
 
@@ -21,7 +21,7 @@ typedef struct NSTR {
     };
 
     union {
-        char_t        buf[1];   // 单字节字符数据内存区，包含结尾的 NUL 字符。
+        char_t        buf[4];   // 单字节字符数据内存区，包含结尾的 NUL 字符。
         struct NSTR * src;      // 指向被引用的字符串，其 buf 与 offset 相加得到片段所在内存起点位置。
     };
 } nstr_t;
