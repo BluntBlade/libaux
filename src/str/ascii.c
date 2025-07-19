@@ -1,16 +1,16 @@
 #include "types.h"
 #include "str/ascii.h"
 
-void * ascii_check(void * begin, void * end, uint32_t index, uint32_t * chars)
+void * ascii_check(void * begin, void * end, uint32_t index, uint32_t * chars, uint32_t * bytes)
 {
     uint32_t cnt = 0;
     uint32_t bound = index;
     void * loc = NULL;
     char_t * pos = (char_t *)begin;
 
-ASCII_LOCATE_AGAIN:
+ASCII_CHECK_AGAIN:
     while (cnt < bound && pos < end) {
-        if (measure_ascii(pos) == 0) goto ASCII_LOCATE_ERROR; // 提前终止，返回空串。
+        if (measure_ascii(pos) == 0) goto ASCII_CHECK_ERROR; // 提前终止，返回空串。
         cnt += 1;
         pos += 1;
     } // while
@@ -19,13 +19,14 @@ ASCII_LOCATE_AGAIN:
         loc = pos;
         cnt = 0;
         bount = *chars;
-        goto ASCII_LOCATE_AGAIN;
+        goto ASCII_CHECK_AGAIN;
     } // if
     
     *chars = cnt;
+    *bytes = cnt;
     return loc;
 
-ASCII_LOCATE_ERROR:
+ASCII_CHECK_ERROR:
     *chars = 0;
     return NULL;
 } // ascii_check
