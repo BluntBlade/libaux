@@ -1,6 +1,6 @@
 #include "str/utf8.h"
 
-void * utf8_locate(void * begin, void * end, uint32_t index, uint32_t * chars)
+void * utf8_check(void * begin, void * end, uint32_t index, uint32_t * chars)
 {
     char_t follower = 0xC0;
     uint32_t bytes = 0;
@@ -38,4 +38,4 @@ UTF8_LOCATE_AGAIN:
 UTF8_LOCATE_ERROR:
     *chars = 0;
     return NULL;
-} // utf8_locate
+} // utf8_check

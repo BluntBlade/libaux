@@ -10,14 +10,14 @@ inline static uint32_t ascii_measure(void * pos)
     return ch && (ch & 0x80 == 0) ? 1: 0;
 } // ascii_measure
 
-// 查找 [index:index + chars] 的 ASCII 子串（chars 给出最大长度），返回其地址和长度。如范围内存在异常字节，返回 NULL 和 0 。
-extern void * ascii_locate(void * begin, void * end, uint32_t index, uint32_t * chars);
+// 检查 [index:index + chars] 是否为正确的 ASCII 子串（chars 给出最大长度），返回其地址和长度。如范围内存在异常字节，返回 NULL 和 0 。
+extern void * ascii_check(void * begin, void * end, uint32_t index, uint32_t * chars);
 
 // 计算给定字节范围内有多少个 ASCII 字符。
 inline static uint32_t ascii_count(void * begin, void * end)
 {
     uint32_t chars = 0;
-    ascii_locate(begin, end, 0, &chars);
+    ascii_check(begin, end, 0, &chars);
     return chars;
 } // ascii_count
 
@@ -25,7 +25,7 @@ inline static uint32_t ascii_count(void * begin, void * end)
 inline static bool ascii_verify(void * begin, void * end)
 {
     uint32_t chars = 0;
-    return ascii_locate(begin, end, 0, &chars) != NULL;
+    return ascii_check(begin, end, 0, &chars) != NULL;
 } // ascii_verify
 
 #endif // _AUX_ASCII_H_

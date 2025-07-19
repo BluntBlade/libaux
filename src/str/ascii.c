@@ -1,7 +1,7 @@
 #include "types.h"
 #include "str/ascii.h"
 
-void * ascii_locate(void * begin, void * end, uint32_t index, uint32_t * chars)
+void * ascii_check(void * begin, void * end, uint32_t index, uint32_t * chars)
 {
     uint32_t cnt = 0;
     uint32_t bound = index;
@@ -28,4 +28,4 @@ ASCII_LOCATE_AGAIN:
 ASCII_LOCATE_ERROR:
     *chars = 0;
     return NULL;
-} // ascii_locate
+} // ascii_check

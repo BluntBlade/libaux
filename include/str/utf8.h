@@ -23,14 +23,14 @@ inline static uint32_t utf8_measure(void * pos)
     return 0;
 } // utf8_measure
 
-// 查找 [index:index + chars] 的 UTF-8 子串（chars 给出最大长度），返回其地址和长度。如范围内存在异常字节，返回 NULL 和 0 。
-extern void * utf8_locate(void * begin, void * end, uint32_t index, uint32_t * chars);
+// 检查 [index:index + chars] 是否为正确的 UTF-8 子串（chars 给出最大长度），返回其地址和长度。如范围内存在异常字节，返回 NULL 和 0 。
+extern void * utf8_check(void * begin, void * end, uint32_t index, uint32_t * chars);
 
 // 计算给定字节范围内有多少个 UTF-8 字符。
 inline static uint32_t utf8_count(void * begin, void * end)
 {
     uint32_t chars = end - begin; // UTF-8 字符数必然少于或等于字节数。
-    locate_utf8(begin, end, 0, &chars);
+    check_utf8(begin, end, 0, &chars);
     return chars;
 } // utf8_count
 
@@ -38,7 +38,7 @@ inline static uint32_t utf8_count(void * begin, void * end)
 inline static bool utf8_verify(void * begin, void * end)
 {
     uint32_t chars = end - begin; // UTF-8 字符数必然少于或等于字节数。
-    return locate_utf8(begin, end, 0, &chars) != NULL;
+    return check_utf8(begin, end, 0, &chars) != NULL;
 } // if
 
 #endif // _AUX_UTF8_H_

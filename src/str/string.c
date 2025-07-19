@@ -31,10 +31,10 @@ static measure_t measure[NSTR_ENCODING_COUNT] = {
     &utf8_measure,
 };
 
-typedef void * (*locate_t)(void * begin, void * end, uint32_t index, uint32_t * chars);
-static locate_t locate[NSTR_ENCODING_COUNT] = {
-    &ascii_locate,
-    &utf8_locate,
+typedef void * (*check_t)(void * begin, void * end, uint32_t index, uint32_t * chars);
+static check_t check[NSTR_ENCODING_COUNT] = {
+    &ascii_check,
+    &utf8_check,
 };
 
 typedef uint32_t (*count_t)(void * begin, void * end);
@@ -212,8 +212,12 @@ nstr_p nstr_slice_chars(nstr_p s, bool no_ref, uint32_t index, uint32_t chars);
 
     begin = real_buffer(r);
     end = begin + s->bytes;
-    begin = locate[s->encoding](begin, end, index, &ret_chars);
-    end = locate[s->encoding](begin, end, chars, &ret_chars);
+
+    begin = check[s->encoding](begin, end, index, &ret_chars);
+    if (! begin) return NULL;
+
+    end = check[s->encoding](begin, end, chars, &ret_chars);
+    if (! end) return NULL;
 
     if (no_ref) return nstr_new(begin, end - begin, r->encoding);
     return new_slice(s, begin, end, ret_chars, false);
