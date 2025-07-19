@@ -113,14 +113,14 @@ extern void * nstr_next_char(nstr_p s, void ** pos, void ** end, uint32_t * byte
 // 获取空字符串常量
 extern nstr_p nstr_blank(str_encoding_t encoding);
 
-// 生成（字符范围的）片段引用，或新字符串
+// 基于字符范围切片，生成片段引用或新字符串
 extern nstr_p nstr_slice(nstr_p s, bool no_ref, uint32_t index, uint32_t chars);
 
-// 生成（字节范围的）片段引用，或新字符串
+// 基于字字范围切片，生成片段引用或新字符串
 extern nstr_p nstr_slice_from(nstr_p s, bool no_ref, void * pos, uint32_t bytes);
 
 // 切分字符串
-extern nstr_p * nstr_split(nstr_p deli, nstr_p s, bool no_ref, int * max);
+extern nstr_p * nstr_split(nstr_p deli, bool no_ref, nstr_p s, int * max);
 
 // 拼接字符串
 extern nstr_p nstr_concat(nstr_p * as, int n, ...);
@@ -143,35 +143,53 @@ inline static nstr_p nstr_join2(nstr_p deli, nstr_p s1, nstr_p s2)
     return nstr_concat3(s1, deli, s2);
 } // nstr_join2
 
-// 在给定位置插入子串
-extern nstr_p nstr_insert(nstr_p s, uint32_t index, nstr_p sub);
-
-// 在给定位置插入单字节字符
-extern nstr_p nstr_insert_char(nstr_p s, uint32_t index, char_t ch);
-
-// 在串头前插入子串
-extern nstr_p nstr_prepend(nstr_p s, nstr_p sub);
-
-// 在串头前插入单字节字符
-extern nstr_p nstr_prepend_char(nstr_p s, char_t ch);
-
-// 在串尾后插入子串
-extern nstr_p nstr_append(nstr_p s, nstr_p sub);
-
-// 在串尾后插入单字节字符
-extern nstr_p nstr_append_char(nstr_p s, char_t ch);
-
 // 将给定位置处的固定长度子串替换成新串
-extern nstr_p nstr_replace(nstr_p s, uint32_t index, uint32_t chars, nstr_p sub);
+extern nstr_p nstr_replace(nstr_p s, bool no_ref, uint32_t index, uint32_t chars, nstr_p sub);
 
 // 将给定位置处的固定长度子串替换成单字节字符
-extern nstr_p nstr_replace_char(nstr_p s, uint32_t index, uint32_t chars, char_t ch);
+extern nstr_p nstr_replace_char(nstr_p s, bool no_ref, uint32_t index, uint32_t chars, char_t ch);
 
 // 将子串替换成新串
 extern nstr_p nstr_substitue(nstr_p s, bool all, nstr_p before, nstr_p after);
 
 // 将子串替换成单字节字符
 extern nstr_p nstr_substitue_char(nstr_p s, bool all, nstr_p sub, char_t ch);
+
+// 在给定位置插入子串
+inline static nstr_p nstr_insert(nstr_p s, bool no_ref, uint32_t index, nstr_p sub)
+{
+    return nstr_replace(s, no_ref, index, 0, sub);
+} // nstr_insert
+
+// 在给定位置插入单字节字符
+inline static nstr_p nstr_insert_char(nstr_p s, bool no_ref, uint32_t index, char_t ch)
+{
+    return nstr_replace_char(s, no_ref, index, 0, ch);
+} // nstr_insert_char
+
+// 在串头前插入子串
+inline static nstr_p nstr_prepend(nstr_p s, bool no_ref, nstr_p sub)
+{
+    return nstr_replace(s, no_ref, 0, 0, sub);
+} // nstr_prepend
+
+// 在串头前插入单字节字符
+inline static nstr_p nstr_prepend_char(nstr_p s, bool no_ref, char_t ch)
+{
+    return nstr_replace_char(s, no_ref, 0, 0, ch);
+} // nstr_prepend_char
+
+// 在串尾后插入子串
+inline static nstr_p nstr_append(nstr_p s, bool no_ref, nstr_p sub)
+{
+    return nstr_replace(s, no_ref, nstr_chars(s), 0, sub);
+} // nstr_append
+
+// 在串尾后插入单字节字符
+inline static nstr_p nstr_append_char(nstr_p s, bool no_ref, char_t ch)
+{
+    return nstr_replace_char(s, no_ref, nstr_chars(s), 0, ch);
+} // nstr_append_char
 
 // 删除定位置处的固定长度子串
 extern nstr_p nstr_remove(nstr_p s, bool no_ref, uint32_t index, uint32_t chars);
