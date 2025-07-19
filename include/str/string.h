@@ -1,6 +1,8 @@
 #ifndef _AUX_STRING_H_
 #define _AUX_STRING_H_ 1
 
+#include "types.h"
+
 struct NSTR;
 typedef struct NSTR * nstr_p;
 

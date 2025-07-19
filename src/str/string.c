@@ -4,8 +4,6 @@
 
 #include "str/string.h"
 
-typedef unsigned char char_t;
-
 typedef struct NSTR {
     uint32_t is_ref:1;          // 片段标志位：0 表示字符串，1 表示片段引用。
     uint32_t need_free:1;       // 是否释放内存：0 表示不需要，1 表示需要。
