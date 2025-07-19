@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdarg.h>
 
+#include "str/ascii.h"
 #include "str/string.h"
 
 typedef struct NSTR {
@@ -24,111 +25,28 @@ typedef struct NSTR {
     };
 } nstr_t;
 
-// ---- ASCII related functions ---- //
-
-static uint32_t measure_ascii(void * pos)
-{
-    return 1;
-} // measure_ascii
-
-static void * locate_ascii(void * begin, void * end, uint32_t index, uint32_t * chars)
-{
-    uint32_t bytes = end - begin;
-    if (index >= bytes) {
-        *chars = 0;
-        return end;
-    } // if
-    *chars = index;
-    return begin + index;
-} // locate_ascii
-
-static uint32_t count_ascii(void * begin, void * end)
-{
-    return end - begin;
-} // count_ascii
-
-static bool verify_ascii(void * begin, void * end)
-{
-    void * pos = memchr(begin, 0, end - begin);
-    return (pos == NULL);
-} // verify_ascii
-
-// ---- UTF-8 related functions ---- //
-
-// UTF-8 encodes code points in one to four bytes, depending on the value of the code point. In the following table, the characters u to z are replaced by the bits of the code point, from the positions U+uvwxyz:
-// Code point ↔  UTF-8 conversion 
-// First Code Point    Last Code Point    Byte 1      Byte 2      Byte 3      Byte 4
-// U+0000              U+007F             0yyyzzzz
-// U+0080              U+07FF             110xxxyy    10yyzzzz
-// U+0800              U+FFFF             1110wwww    10xxxxyy    10yyzzzz
-// U+010000            U+10FFFF           11110uvv    10vvwwww    10xxxxyy    10yyzzzz
-
-static uint32_t measure_utf8(void * pos)
-{
-    char_t ch = ((char_t *)pos)[0];
-    if ((ch & 0x80) == 0) return 1;
-    if (((ch <<= 1) & 0x80) == 0) return 0;
-    if (((ch <<= 1) & 0x80) == 0) return 2;
-    if (((ch <<= 1) & 0x80) == 0) return 3;
-    if (((ch <<= 1) & 0x80) == 0) return 4;
-    return 0;
-} // measure_utf8
-
-static void * locate_utf8(void * begin, void * end, uint32_t index, uint32_t * chars)
-{
-    uint32_t cnt = 0;
-    void * pos = begin;
-    while (cnt < index && pos < end) {
-        bytes = measure_utf8(pos);
-        if (bytes == 0) break;
-        cnt += 1;
-        pos += bytes;
-    } // while
-    *chars = cnt;
-    return pos;
-} // locate_utf8
-
-static uint32_t count_utf8(void * begin, void * end)
-{
-    uint32_t cnt = 0;
-    locate_utf8(begin, end, 0, &cnt);
-    return cnt;
-} // count_utf8
-
-static bool verify_utf8(void * begin, void * end)
-{
-    uint32_t bytes = 0;
-    void * pos = begin;
-    while (pos < end) {
-        bytes = measure_utf8(pos);
-        if (bytes == 0) return false;
-        pos += bytes;
-    } // while
-    return true;
-} // verify_utf8
-
 typedef uint32_t (*measure_t)(void * pos);
 static measure_t measure[NSTR_ENCODING_COUNT] = {
-    &measure_ascii,
-    &measure_utf8,
+    &ascii_measure,
+    &utf8_measure,
 };
 
 typedef void * (*locate_t)(void * begin, void * end, uint32_t index, uint32_t * chars);
 static locate_t locate[NSTR_ENCODING_COUNT] = {
-    &locate_ascii,
-    &locate_utf8,
+    &ascii_locate,
+    &utf8_locate,
 };
 
 typedef uint32_t (*count_t)(void * begin, void * end);
 static count_t count[NSTR_ENCODING_COUNT] = {
-    &count_ascii,
-    &count_utf8,
+    &ascii_count,
+    &utf8_count,
 };
 
 typedef bool (*verify_t)(void * begin, void * end);
 static verify_t verify[NSTR_ENCODING_COUNT] = {
-    &verify_ascii,
-    &verify_utf8,
+    &ascii_verify,
+    &utf8_verify,
 };
 
 static nstr_t blank_strings[STR_ENCODING_COUNT] = {
