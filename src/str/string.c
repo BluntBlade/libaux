@@ -64,7 +64,6 @@ inline static nstr_p real_string(nstr_p s)
     return (s->is_ref) ? s->src : s;
 } // real_string
 
-// 需要分配内存字节数
 size_t nstr_object_size(uint32_t bytes)
 {
     return sizeof(nstr_t) + bytes;
@@ -80,7 +79,6 @@ inline static void init_string(nstr_p s, bool need_free, uint32_t bytes, uint32_
     s->is_ref = 0;
 } // init_string
 
-// 从原生字符串生成新字符串
 nstr_p nstr_new(void * src, uint32_t bytes, str_encoding_t encoding)
 {
     nstr_p new = NULL;
@@ -93,13 +91,11 @@ nstr_p nstr_new(void * src, uint32_t bytes, str_encoding_t encoding)
     return new;
 } // nstr_new
 
-// 从源字符串（或片段引用）生成新字符串
 nstr_p nstr_clone(nstr_p s)
 {
     return nstr_new(real_buffer(s), s->bytes, s->encoding);
 } // nstr_clone
 
-// 删除字符串
 void nstr_delete(nstr_p * ps)
 {
     nstr_p s = *ps;
@@ -120,32 +116,27 @@ void nstr_delete(nstr_p * ps)
     *ps = NULL; // 防止野指针
 } // nstr_delete
 
-// 删除切分后的字符串数组
 void nstr_delete_strings(nstr_p * as, int n)
 {
     while (--n >= 0) nstr_delete(as[n]);
     free(as);
 } // nstr_delete_strings
 
-// 返回编码方案代号
 uint32_t nstr_encoding(nstr_p s)
 {
     return s->encoding;
 } // nstr_encoding
 
-// 返回字节数，不包含最后的 NUL 字符
 uint32_t nstr_bytes(nstr_p s)
 {
     return s->bytes;
 } // nstr_bytes
 
-// 返回字符数，不包含最后的 NUL 字符
 uint32_t nstr_chars(nstr_p s)
 {
     return s->chars;
 } // nstr_chars
 
-// 返回原生字符串指针（片段引用情况下会生成一个新字符串）
 void * nstr_to_cstr(nstr_p * ps)
 {
     nstr_p n = NULL;
@@ -159,19 +150,16 @@ void * nstr_to_cstr(nstr_p * ps)
     return (*ps)->buf;
 } // nstr_to_cstr
 
-// 返回片段引用数（返回 0 表示这是一个片段引用）
 uint32_t nstr_refs(nstr_p s)
 {
     return (s->is_ref) ? 0 : s->refs;
 } // nstr_refs
 
-// 测试是否为字符串
 bool nstr_is_str(nstr_p s)
 {
     return (! s->is_ref);
 } // nstr_is_str
 
-// 测试是否为片段引用
 bool nstr_is_ref(nstr_p s)
 {
     return s->is_ref;
@@ -204,7 +192,6 @@ void * nstr_find(nstr_p s, nstr_p sub, void ** pos, void ** end, uint32_t * byte
     return loc;
 } // nstr_find
 
-// 初始化遍历字节
 void * nstr_first_byte(nstr_p s, void ** pos, void ** end)
 {
     *pos = real_buffer(s);
@@ -218,7 +205,6 @@ void * nstr_first_byte(nstr_p s, void ** pos, void ** end)
     return real_buffer(s);
 } // nstr_first_byte
 
-// 初始化遍历字符
 void * nstr_first_char(nstr_p s, void ** pos, void ** end, uint32_t * bytes)
 {
     *pos = real_buffer(s);
@@ -234,7 +220,6 @@ void * nstr_first_char(nstr_p s, void ** pos, void ** end, uint32_t * bytes)
     return real_buffer(s);
 } // nstr_first_char
 
-// 遍历字符
 void * nstr_next_char(nstr_p s, void ** pos, void ** end, uint32_t * bytes)
 {
     void * loc = NULL;
@@ -510,7 +495,6 @@ static nstr_p join_strings(nstr_p deli, nstr_p as, int n, va_list * ap)
     return new;
 } // join_strings
 
-// 合并多个字符串
 nstr_p nstr_concat(nstr_p * as, int n, ...)
 {
     va_list ap;
@@ -522,7 +506,37 @@ nstr_p nstr_concat(nstr_p * as, int n, ...)
     return new;
 } // nstr_concat
 
-// 使用间隔符，合并多个字符串
+nstr_p nstr_concat2(nstr_p s1, nstr_p s2)
+{
+    nstr_p new = NULL;
+    uint32_t bytes = 0;
+
+    bytes = s1->bytes + s2->bytes;
+    new = calloc(1, nstr_object_size(bytes));
+    if (! new) return NULL;
+
+    memcpy(new->buf, real_buffer(s1), s1->bytes);
+    memcpy(new->buf + s1->bytes, real_buffer(s2), s2->bytes);
+    init_string(new, STR_NEED_FREE, bytes, s1->chars + s2->chars, s1->encoding);
+    return new;
+} // nstr_concat2
+
+nstr_p nstr_concat3(nstr_p s1, nstr_p s2, nstr_p s3)
+{
+    nstr_p new = NULL;
+    uint32_t bytes = 0;
+
+    bytes = s1->bytes + s2->bytes + s3->bytes;
+    new = calloc(1, nstr_object_size(bytes));
+    if (! new) return NULL;
+
+    memcpy(new->buf, real_buffer(s1), s1->bytes);
+    memcpy(new->buf + s1->bytes, real_buffer(s2), s2->bytes);
+    memcpy(new->buf + s1->bytes + s2->bytes, real_buffer(s3), s3->bytes);
+    init_string(new, STR_NEED_FREE, bytes, s1->chars + s2->chars + s3->chars, s1->encoding);
+    return new;
+} // nstr_concat3
+
 nstr_p nstr_join(nstr_p deli, nstr_p * as, int n, ...)
 {
     va_list ap;
@@ -534,7 +548,21 @@ nstr_p nstr_join(nstr_p deli, nstr_p * as, int n, ...)
     return new;
 } // nstr_join
 
-// 重新编码
+nstr_p nstr_join_with_char(char_t deli, nstr_p * as, int n, ...)
+{
+    va_list ap;
+    nstr_t d = {0};
+    nstr_p new = NULL;
+
+    d->buf[0] = deli;
+    init_string(&d, STR_NEED_FREE, 1, 1, STR_ASCII);
+
+    va_start(ap, n);
+    new = join_strings(d, as, n, &ap);
+    va_end(ap);
+    return new;
+} // nstr_join_with_char
+
 nstr_p nstr_recode(nstr_p s, str_encoding_t encoding)
 {
     if (s->encoding == encoding) {
