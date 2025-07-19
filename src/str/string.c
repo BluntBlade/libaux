@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdarg.h>
 
-#include "string.h"
+#include "str/string.h"
 
 typedef unsigned char char_t;
 
