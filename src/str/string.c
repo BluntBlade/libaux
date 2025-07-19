@@ -562,11 +562,3 @@ nstr_p nstr_join_with_char(char_t deli, nstr_p * as, int n, ...)
     va_end(ap);
     return new;
 } // nstr_join_with_char
-
-nstr_p nstr_recode(nstr_p s, str_encoding_t encoding)
-{
-    if (s->encoding == encoding) {
-        return s;
-    } // if
-    return NULL; // TODO
-} // nstr_recode

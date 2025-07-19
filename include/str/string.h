@@ -194,8 +194,5 @@ extern nstr_p nstr_ltrim(nstr_s, bool no_ref);
 // 删除串尾的空白字符（SPACE/TAB/CR/NL等）
 extern nstr_p nstr_rtrim(nstr_s, bool no_ref);
 
-// 重新编码
-extern nstr_p nstr_recode(nstr_p s, str_encoding_t encoding);
-
 #endif // _AUX_STRING_H_
 
