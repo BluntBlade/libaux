@@ -6,7 +6,7 @@
 #include "str/string.h"
 
 typedef struct NSTR {
-    uint32_t is_ref:1;          // 片段标志位：0 表示字符串，1 表示片段引用。
+    uint32_t is_slice:1;        // 类型标志位：0 表示字符串，1 表示切片。
     uint32_t need_free:1;       // 是否释放内存：0 表示不需要，1 表示需要。
     uint32_t encoding:8;        // 编码方案代号，最多支持 255 种编码。
     uint32_t unused:22;         // 未使用位域，保持边界对齐。
@@ -15,7 +15,7 @@ typedef struct NSTR {
     uint32_t bytes;             // 占用内存字节数。
 
     union {
-        uint32_t refs;          // 片段引用计数，生成字符串时置 1 ，表示对自身的引用。减到 0 时释放内存。
+        uint32_t refs;          // 切片计数，生成字符串时置 1 ，表示对自身的引用。减到 0 时释放内存。
         uint32_t offset;        // 片段在源字符串内存区的起始位置（相对于起点的字节数）。
     };
 
@@ -56,12 +56,12 @@ static nstr_t blank_strings[STR_ENCODING_COUNT] = {
 
 inline static void * real_buffer(nstr_p s)
 {
-    return (s->is_ref) ? s->src->buf + s->offset : s->buf;
+    return (s->is_slice) ? s->src->buf + s->offset : s->buf;
 } // real_buffer
 
 inline static nstr_p real_string(nstr_p s)
 {
-    return (s->is_ref) ? s->src : s;
+    return (s->is_slice) ? s->src : s;
 } // real_string
 
 size_t nstr_object_size(uint32_t bytes)
@@ -76,7 +76,7 @@ inline static void init_string(nstr_p s, bool need_free, uint32_t bytes, uint32_
     s->chars = chars;
     s->encoding = encoding;
     s->need_free = need_free ? 1 : 0;
-    s->is_ref = 0;
+    s->is_slice = 0;
 } // init_string
 
 inline static void init_slice(nstr_p s, bool need_free, nstr_p src, uint32_t offset, uint32_t bytes, uint32_t chars, uint32_t encoding)
@@ -86,7 +86,7 @@ inline static void init_slice(nstr_p s, bool need_free, nstr_p src, uint32_t off
     s->chars = chars;
     s->encoding = encoding;
     s->need_free = need_free ? 1 : 0;
-    s->is_ref = 1;
+    s->is_slice = 1;
     src->refs += 1;
 } // init_slice
 
@@ -112,9 +112,9 @@ void nstr_delete(nstr_p * ps)
     nstr_p s = *ps;
 
     if (! s) return;
-    if (s->is_ref) {
+    if (s->is_slice) {
         s = s->src;
-        free(*ps); // 释放片段引用
+        free(*ps); // 释放切片
     } // if
 
     if (s == blank_strings[s->encoding]) return; // 空字符串不需要释放。
@@ -153,7 +153,7 @@ void * nstr_to_cstr(nstr_p * ps)
     nstr_p n = NULL;
     nstr_p s = *ps;
 
-    if (s->is_ref) {
+    if (s->is_slice) {
         n = nstr_new(s->src->buf + s->offset, s->bytes, s->encoding);
         if (! n) return NULL;
         *ps = n;
@@ -163,18 +163,18 @@ void * nstr_to_cstr(nstr_p * ps)
 
 uint32_t nstr_refs(nstr_p s)
 {
-    return (s->is_ref) ? 0 : s->refs;
+    return (s->is_slice) ? 0 : s->refs;
 } // nstr_refs
 
-bool nstr_is_str(nstr_p s)
+bool nstr_is_string(nstr_p s)
 {
-    return (! s->is_ref);
-} // nstr_is_str
+    return (! s->is_slice);
+} // nstr_is_string
 
-bool nstr_is_ref(nstr_p s)
+bool nstr_is_slice(nstr_p s)
 {
-    return s->is_ref;
-} // nstr_is_ref
+    return s->is_slice;
+} // nstr_is_slice
 
 bool nstr_verify(nstr_p s)
 {
@@ -266,7 +266,7 @@ inline static nstr_p new_slice(nstr_p s, void * loc, uint32_t bytse, uint32_t ch
     n->bytes = bytes;
     n->chars = chars;
     n->encoding = r->encoding;
-    n->is_ref = 1;
+    n->is_slice = 1;
 
     r->refs += 1; // 增加引用计数。
     return n;
@@ -281,11 +281,11 @@ nstr_p nstr_slice(nstr_p s, bool can_new, uint32_t index, uint32_t chars);
     // CASE-1: 切片起点超出范围。
     // CASE-2: 源串是空串。
     // CASE-3: 切片长度是零。
-    // NOTE: 不生成片段引用，直接返回空串。
+    // NOTE: 不生成切片，直接返回空串。
     if (index >= s->chars || s->chars == 0 || chars == 0) return nstr_blank(s->encoding);
 
     // CASE-4: 源字符串不是空串。
-    ret_chars = s->chars; // 最长引用范围是整个源串。
+    ret_chars = s->chars - index; // 最大切片范围是整个源串。
     loc = real_buffer(r);
     loc = check[s->encoding](loc, loc + s->bytes, index, &ret_chars, &ret_bytes);
     if (! loc) return NULL; // 有异常字节。

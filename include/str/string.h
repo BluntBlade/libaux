@@ -26,7 +26,7 @@ extern size_t nstr_object_size(uint32_t bytes);
 // 从原生字符串生成新字符串
 extern nstr_p nstr_new(void * src, uint32_t bytes, str_encoding_t encoding);
 
-// 从源字符串（或片段引用）生成新字符串
+// 从源字符串（或切片）生成新字符串
 extern nstr_p nstr_clone(nstr_p s);
 
 // 删除字符串
@@ -54,17 +54,17 @@ inline static uint32_t nstr_length(nstr_p s)
     return nstr_chars(s);
 } // nstr_length
 
-// 返回原生字符串指针（片段引用情况下会生成一个新字符串）
+// 返回原生字符串指针（切片情况下会生成一个新字符串）
 extern void * nstr_to_cstr(nstr_p * ps);
 
-// 返回片段引用数（返回 0 表示这是一个片段引用）
+// 返回切片数（返回 0 表示这是一个切片）
 extern uint32_t nstr_refs(nstr_p s);
 
 // 测试是否为字符串
-extern bool nstr_is_str(nstr_p s);
+extern bool nstr_is_string(nstr_p s);
 
-// 测试是否为片段引用
-extern bool nstr_is_ref(nstr_p s);
+// 测试是否为切片
+extern bool nstr_is_slice(nstr_p s);
 
 // 测试是否存在子串
 extern bool nstr_contain(nstr_p s, nstr_p sub);
@@ -115,10 +115,10 @@ extern void * nstr_next_char(nstr_p s, void ** pos, void ** end, uint32_t * byte
 // 获取空字符串常量
 extern nstr_p nstr_blank(str_encoding_t encoding);
 
-// 基于字符范围切片，生成片段引用或新字符串
+// 基于字符范围切片，生成切片或新字符串
 extern nstr_p nstr_slice(nstr_p s, bool can_new, uint32_t index, uint32_t chars);
 
-// 基于字字范围切片，生成片段引用或新字符串
+// 基于字字范围切片，生成切片或新字符串
 extern nstr_p nstr_slice_from(nstr_p s, bool can_new, void * pos, uint32_t bytes);
 
 // 切分字符串
