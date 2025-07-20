@@ -318,7 +318,7 @@ nstr_p * nstr_split(nstr_p deli, bool can_new, nstr_p s, int * max);
     void * start = NULL; // 查找范围起点
     uint32_t size = 0; // 查找范围字节数
     int rmd = 0; // 剩余切分次数，零表示停止，负数表示无限次
-    int cnt = 0; // 子串数量
+    int cnt = 0; // 子串数量，用于下标时始终指向下一个空槽
     int cap = 0; // 数组容量
 
     rmd = (max && *max > 0) ? *max : 0;
@@ -341,10 +341,10 @@ nstr_p * nstr_split(nstr_p deli, bool can_new, nstr_p s, int * max);
         as = an;
     } // while
 
-    as[cnt] = nstr_slice_from(s, can_new, pos, s->bytes - (pos - real_buffer(s))); // 最后子串。
-    as[++cnt] = NULL; // 设置终止标志
-
+    as[cnt++] = nstr_slice_from(s, can_new, pos, s->bytes - (pos - real_buffer(s))); // 最后子串。
     if (max) *max = cnt;
+
+    as[cnt] = NULL; // 设置终止标志
     return as;
 } // nstr_split
 
