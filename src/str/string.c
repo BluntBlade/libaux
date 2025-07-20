@@ -64,10 +64,10 @@ inline static nstr_p real_string(nstr_p s)
     return (s->is_slice) ? s->ent : s;
 } // real_string
 
-size_t nstr_object_size(uint32_t bytes)
+size_t nstr_entity_size(uint32_t bytes)
 {
     return sizeof(nstr_t) + bytes;
-} // nstr_object_size
+} // nstr_entity_size
 
 inline static void init_string(nstr_p s, bool need_free, uint32_t bytes, uint32_t chars, uint32_t encoding)
 {
@@ -96,7 +96,7 @@ nstr_p nstr_new(void * src, uint32_t bytes, str_encoding_t encoding)
     nstr_p new = NULL;
 
     if (bytes == 0) return nstr_blank(encoding);
-    if ((new = calloc(1, nstr_object_size(bytes)))) {
+    if ((new = calloc(1, nstr_entity_size(bytes)))) {
         memcpy(new->buf, src, bytes);
         init_string(new, STR_NEED_FREE, bytes, count[encoding](src, src + bytes), encoding);
     } // if
@@ -261,7 +261,7 @@ nstr_p nstr_blank(str_encoding_t encoding);
 inline static nstr_p new_slice(nstr_p s, void * loc, uint32_t bytse, uint32_t chars)
 {
     nstr_p ent = real_string(s);
-    nstr_p new = calloc(1, nstr_object_size(bytes));
+    nstr_p new = calloc(1, nstr_entity_size(bytes));
     if (! new) return NULL;
     init_slice(new, STR_NEED_FREE, ent, loc - ent->buf, bytes, chars);
     return nstr_add_ref(s); // 增加引用计数。
@@ -482,7 +482,7 @@ static nstr_p join_strings(nstr_p deli, nstr_p as, int n, va_list * ap)
         } // if
     } // if
 
-    new = calloc(1, nstr_object_size(bytes));
+    new = calloc(1, nstr_entity_size(bytes));
     if (! new) return NULL;
 
     pos = copy(new->buf, as, n, dbuf, dbytes);
@@ -513,7 +513,7 @@ nstr_p nstr_repeat(nstr_p s, int n)
     if (s->bytes == 0) return nstr_blank(s->encoding); // CASE-1: s 是空串。
     if (n <= 1) return nstr_add_ref(s);
 
-    new = calloc(1, nstr_object_size(s->bytes * n));
+    new = calloc(1, nstr_entity_size(s->bytes * n));
     if (! new) return NULL;
 
     pos = copy_strings(new->buf, as, n % (sizeof(as) / sizeof(as[0])), NULL, 0);
@@ -544,7 +544,7 @@ nstr_p nstr_concat2(nstr_p s1, nstr_p s2)
     bytes = s1->bytes + s2->bytes;
     if (bytes == 0) return nstr_blank(s1->encoding);
 
-    new = calloc(1, nstr_object_size(bytes));
+    new = calloc(1, nstr_entity_size(bytes));
     if (! new) return NULL;
 
     memcpy(new->buf, real_buffer(s1), s1->bytes);
@@ -561,7 +561,7 @@ nstr_p nstr_concat3(nstr_p s1, nstr_p s2, nstr_p s3)
     bytes = s1->bytes + s2->bytes + s3->bytes;
     if (bytes == 0) return nstr_blank(s1->encoding);
 
-    new = calloc(1, nstr_object_size(bytes));
+    new = calloc(1, nstr_entity_size(bytes));
     if (! new) return NULL;
 
     memcpy(new->buf, real_buffer(s1), s1->bytes);

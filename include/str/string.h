@@ -20,8 +20,14 @@ enum {
     STR_NOT_NEW = false,
 };
 
-// 需要分配内存字节数
-extern size_t nstr_object_size(uint32_t bytes);
+// 字符串对象占用字节数
+extern size_t nstr_entity_size(uint32_t bytes);
+
+// 切片对象占用字节数
+inline static size_t nstr_slice_size(void)
+{
+    return nstr_entity_size(0);
+} // nstr_slice_size
 
 // 从原生字符串生成新字符串
 extern nstr_p nstr_new(void * src, uint32_t bytes, str_encoding_t encoding);
