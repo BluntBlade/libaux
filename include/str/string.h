@@ -35,6 +35,15 @@ extern void nstr_delete(nstr_p * ps);
 // 删除切分后的字符串数组
 extern void nstr_delete_strings(nstr_p * as, int n);
 
+// 增加引用计数
+extern nstr_p nstr_add_ref(nstr_p s);
+
+// 减少引用计数
+inline static nstr_p nstr_del_ref(nstr_p * ps)
+{
+    nstr_delete(ps);
+} // nstr_del_ref
+
 // 返回编码方案代号
 extern uint32_t nstr_encoding(nstr_p s);
 

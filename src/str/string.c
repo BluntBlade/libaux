@@ -79,15 +79,16 @@ inline static void init_string(nstr_p s, bool need_free, uint32_t bytes, uint32_
     s->is_slice = 0;
 } // init_string
 
-inline static void init_slice(nstr_p s, bool need_free, nstr_p src, uint32_t offset, uint32_t bytes, uint32_t chars, uint32_t encoding)
+inline static void init_slice(nstr_p s, bool need_free, nstr_p src, uint32_t offset, uint32_t bytes, uint32_t chars)
 {
+    s->src = src;
     s->offset = offset;
     s->bytes = bytes;
     s->chars = chars;
-    s->encoding = encoding;
+    s->encoding = src->encoding;
     s->need_free = need_free ? 1 : 0;
     s->is_slice = 1;
-    src->refs += 1;
+    nstr_add_ref(src);
 } // init_slice
 
 nstr_p nstr_new(void * src, uint32_t bytes, str_encoding_t encoding)
@@ -132,6 +133,12 @@ void nstr_delete_strings(nstr_p * as, int n)
     while (--n >= 0) nstr_delete(as[n]);
     free(as);
 } // nstr_delete_strings
+
+nstr_p nstr_add_ref(nstr_p s)
+{
+    real_string(s)->refs += 1;
+    return s;
+} // nstr_add_ref
 
 uint32_t nstr_encoding(nstr_p s)
 {
@@ -248,28 +255,16 @@ void * nstr_next_char(nstr_p s, void ** pos, void ** end, uint32_t * bytes)
 
 nstr_p nstr_blank(str_encoding_t encoding);
 {
-    nstr_p ret = blank_strings[encoding];
-    ret.refs += 1;
-    return ret;
+    return nstr_add_ref(blank_strings[encoding]);
 } // nstr_blank
 
 inline static nstr_p new_slice(nstr_p s, void * loc, uint32_t bytse, uint32_t chars)
 {
-    uint32_t bytes = end - begin;
     nstr_p r = real_string(s);
     nstr_p n = calloc(1, nstr_object_size(bytes));
-
     if (! n) return NULL;
-
-    n->src = r;
-    n->offset = begin - r->buf;
-    n->bytes = bytes;
-    n->chars = chars;
-    n->encoding = r->encoding;
-    n->is_slice = 1;
-
-    r->refs += 1; // 增加引用计数。
-    return n;
+    init_slice(n, STR_NEED_FREE, r, loc - r->buf, bytes, chars);
+    return nstr_add_ref(s); // 增加引用计数。
 } // new_slice
 
 nstr_p nstr_slice(nstr_p s, bool can_new, uint32_t index, uint32_t chars);
@@ -286,7 +281,7 @@ nstr_p nstr_slice(nstr_p s, bool can_new, uint32_t index, uint32_t chars);
 
     // CASE-4: 源字符串不是空串。
     ret_chars = s->chars - index; // 最大切片范围是整个源串。
-    loc = real_buffer(r);
+    loc = real_buffer(s);
     loc = check[s->encoding](loc, loc + s->bytes, index, &ret_chars, &ret_bytes);
     if (! loc) return NULL; // 有异常字节。
 
@@ -297,7 +292,7 @@ nstr_p nstr_slice(nstr_p s, bool can_new, uint32_t index, uint32_t chars);
 nstr_p nstr_slice_from(nstr_p s, bool can_new, void * pos, uint32_t bytes)
 {
     if (s->chars == 0) return nstr_blank(s->encoding); // CASE-1: 源串是空串。
-    if (can_new) return nstr_new(pos, bytes, r->encoding);
+    if (can_new) return nstr_new(pos, bytes, s->encoding);
     return new_slice(s, pos, bytes, count[encoding](begin, end));
 } // nstr_slice_from
 
@@ -516,10 +511,7 @@ nstr_p nstr_repeat(nstr_p s, int n)
     uint32_t b = 0;
 
     if (s->bytes == 0) return nstr_blank(s->encoding); // CASE-1: s 是空串。
-    if (n <= 1) {
-        real_string(s)->refs += 1;
-        return s;
-    } // if
+    if (n <= 1) return nstr_add_ref(s);
 
     new = calloc(1, nstr_object_size(s->bytes * n));
     if (! new) return NULL;
@@ -609,11 +601,12 @@ nstr_p nstr_replace(nstr_p s, bool can_new, uint32_t index, uint32_t chars, nstr
 {
     nstr_t s1 = {0};
     nstr_t s3 = {0};
+    nstr_p ent = NULL; // 最终字符串对象
     void * begin = NULL;
-    void * loc = NULL;
-    void * end = NULL;
-    uint32_t ret_chars = 0;
-    uint32_t ret_bytes = 0;
+    void * mid = NULL;
+    uint32_t offset = 0;
+    uint32_t mid_chars = 0;
+    uint32_t mid_bytes = 0;
 
     if (s->chars == 0) return nstr_slice_from(sub, can_new, real_buffer(sub), sub->bytes); // CASE-1: s 是空串。
     if (sub->chars == 0) return nstr_slice_from(s, can_new, real_buffer(s), s->bytes); // CASE-2: sub 是空串。
@@ -621,16 +614,22 @@ nstr_p nstr_replace(nstr_p s, bool can_new, uint32_t index, uint32_t chars, nstr
     if (index >= s->chars) return nstr_concat2(s, sub); // CASE-3: 替换位置在串尾。
     if (index == 0 && chars == 0) return nstr_concat2(sub, s); // CASE-4: 替换位置在串头且替换长度为零。
 
-    // CASE-5: 替换位置在串中且替换长度不为零。
-    begin = real_buffer(s);
-    end = s + s->bytes;
+    // CASE-5: 待替换部分在源串中间且长度不为零。
+    if (s->is_slice) {
+        ent = s->src;
+        offset = s->offset;
+    } else {
+        ent = s;
+        offset = 0;
+    } // if
 
-    ret_chars = chars;
-    loc = check[s->encoding](begin, end, index, &ret_chars, &ret_bytes);
-    if (! loc) return NULL;
+    mid_chars = s->chars;
+    begin = ent->buf + offset;
+    mid = check[s->encoding](begin, begin + s->bytes, index, &mid_chars, &mid_bytes);
+    if (! mid) return NULL;
 
-    init_slice(&s1, STR_DONT_FREE, s, 0, loc - begin, index, s->encoding);
-    init_slice(&s3, STR_DONT_FREE, s, loc - begin + ret_bytes, ret_bytes, ret_chars, s->encoding);
+    init_slice(&s1, STR_DONT_FREE, ent, offset, mid - begin, index);
+    init_slice(&s3, STR_DONT_FREE, ent, offset + (mid - begin), s->bytes - (mid - begin) - mid_bytes, s->chars - index - mid_chars);
     return nstr_concat3(s1, sub, s2);
 } // nstr_replace
 
