@@ -64,12 +64,14 @@ inline static nstr_p real_string(nstr_p s)
     return (s->is_slice) ? s->ent : s;
 } // real_string
 
-size_t nstr_entity_size(uint32_t bytes)
+// 字符串对象占用字节数
+inline static size_t entity_size(uint32_t bytes)
 {
     return sizeof(nstr_t) + bytes;
-} // nstr_entity_size
+} // entity_size
 
-inline static void init_string(nstr_p s, bool need_free, uint32_t bytes, uint32_t chars, uint32_t encoding)
+// 初始化字符串对象
+inline static void init_entity(nstr_p s, bool need_free, uint32_t bytes, uint32_t chars, uint32_t encoding)
 {
     s->refs = 1;  // 引用自身。
     s->bytes = bytes;
@@ -77,9 +79,14 @@ inline static void init_string(nstr_p s, bool need_free, uint32_t bytes, uint32_
     s->encoding = encoding;
     s->need_free = need_free ? 1 : 0;
     s->is_slice = 0;
-} // init_string
+} // init_entity
 
-inline static void init_slice(nstr_p s, bool need_free, nstr_p src, uint32_t offset, uint32_t bytes, uint32_t chars)
+size_t nstr_slice_size(void)
+{
+    return sizeof(nstr_t);
+} // nstr_slice_size
+
+void nstr_init_slice(nstr_p s, bool need_free, nstr_p src, uint32_t offset, uint32_t bytes, uint32_t chars)
 {
     s->ent = src;
     s->offset = offset;
@@ -89,16 +96,16 @@ inline static void init_slice(nstr_p s, bool need_free, nstr_p src, uint32_t off
     s->need_free = need_free ? 1 : 0;
     s->is_slice = 1;
     nstr_add_ref(src);
-} // init_slice
+} // nstr_init_slice
 
 nstr_p nstr_new(void * src, uint32_t bytes, str_encoding_t encoding)
 {
     nstr_p new = NULL;
 
     if (bytes == 0) return nstr_blank(encoding);
-    if ((new = calloc(1, nstr_entity_size(bytes)))) {
+    if ((new = calloc(1, entity_size(bytes)))) {
         memcpy(new->buf, src, bytes);
-        init_string(new, STR_NEED_FREE, bytes, count[encoding](src, src + bytes), encoding);
+        init_entity(new, STR_NEED_FREE, bytes, count[encoding](src, src + bytes), encoding);
     } // if
     return new;
 } // nstr_new
@@ -261,9 +268,9 @@ nstr_p nstr_blank(str_encoding_t encoding);
 inline static nstr_p new_slice(nstr_p s, void * loc, uint32_t bytse, uint32_t chars)
 {
     nstr_p ent = real_string(s);
-    nstr_p new = calloc(1, nstr_entity_size(bytes));
+    nstr_p new = calloc(1, entity_size(bytes));
     if (! new) return NULL;
-    init_slice(new, STR_NEED_FREE, ent, loc - ent->buf, bytes, chars);
+    nstr_init_slice(new, STR_NEED_FREE, ent, loc - ent->buf, bytes, chars);
     return nstr_add_ref(s); // 增加引用计数。
 } // new_slice
 
@@ -482,7 +489,7 @@ static nstr_p join_strings(nstr_p deli, nstr_p as, int n, va_list * ap)
         } // if
     } // if
 
-    new = calloc(1, nstr_entity_size(bytes));
+    new = calloc(1, entity_size(bytes));
     if (! new) return NULL;
 
     pos = copy(new->buf, as, n, dbuf, dbytes);
@@ -495,7 +502,7 @@ static nstr_p join_strings(nstr_p deli, nstr_p as, int n, va_list * ap)
 
     bytes -= dbytes; // 去掉多余的尾部间隔符。
     new->buf[bytes] = 0; // 设置终止 NUL 字符。
-    init_string(new, STR_NEED_FREE, bytes, chars, as[0]->encoding);
+    init_entity(new, STR_NEED_FREE, bytes, chars, as[0]->encoding);
     return new;
 } // join_strings
 
@@ -513,7 +520,7 @@ nstr_p nstr_repeat(nstr_p s, int n)
     if (s->bytes == 0) return nstr_blank(s->encoding); // CASE-1: s 是空串。
     if (n <= 1) return nstr_add_ref(s);
 
-    new = calloc(1, nstr_entity_size(s->bytes * n));
+    new = calloc(1, entity_size(s->bytes * n));
     if (! new) return NULL;
 
     pos = copy_strings(new->buf, as, n % (sizeof(as) / sizeof(as[0])), NULL, 0);
@@ -521,7 +528,7 @@ nstr_p nstr_repeat(nstr_p s, int n)
     b = n / (sizeof(as) / sizeof(as[0]));
     while (b-- > 0) pos = copy_strings(pos, as, (sizeof(as) / sizeof(as[0])), NULL, 0);
 
-    init_string(new, STR_NEED_FREE, s->bytes * n, s->chars * n, s->encoding);
+    init_entity(new, STR_NEED_FREE, s->bytes * n, s->chars * n, s->encoding);
     return new;
 } // repeat
 
@@ -544,12 +551,12 @@ nstr_p nstr_concat2(nstr_p s1, nstr_p s2)
     bytes = s1->bytes + s2->bytes;
     if (bytes == 0) return nstr_blank(s1->encoding);
 
-    new = calloc(1, nstr_entity_size(bytes));
+    new = calloc(1, entity_size(bytes));
     if (! new) return NULL;
 
     memcpy(new->buf, real_buffer(s1), s1->bytes);
     memcpy(new->buf + s1->bytes, real_buffer(s2), s2->bytes);
-    init_string(new, STR_NEED_FREE, bytes, s1->chars + s2->chars, s1->encoding);
+    init_entity(new, STR_NEED_FREE, bytes, s1->chars + s2->chars, s1->encoding);
     return new;
 } // nstr_concat2
 
@@ -561,13 +568,13 @@ nstr_p nstr_concat3(nstr_p s1, nstr_p s2, nstr_p s3)
     bytes = s1->bytes + s2->bytes + s3->bytes;
     if (bytes == 0) return nstr_blank(s1->encoding);
 
-    new = calloc(1, nstr_entity_size(bytes));
+    new = calloc(1, entity_size(bytes));
     if (! new) return NULL;
 
     memcpy(new->buf, real_buffer(s1), s1->bytes);
     memcpy(new->buf + s1->bytes, real_buffer(s2), s2->bytes);
     memcpy(new->buf + s1->bytes + s2->bytes, real_buffer(s3), s3->bytes);
-    init_string(new, STR_NEED_FREE, bytes, s1->chars + s2->chars + s3->chars, s1->encoding);
+    init_entity(new, STR_NEED_FREE, bytes, s1->chars + s2->chars + s3->chars, s1->encoding);
     return new;
 } // nstr_concat3
 
@@ -589,7 +596,7 @@ nstr_p nstr_join_with_char(char_t deli, nstr_p * as, int n, ...)
     nstr_p new = NULL;
 
     d->buf[0] = deli;
-    init_string(&d, STR_NEED_FREE, 1, 1, STR_ASCII);
+    init_entity(&d, STR_NEED_FREE, 1, 1, STR_ASCII);
 
     va_start(ap, n);
     new = join_strings(d, as, n, &ap);
@@ -628,8 +635,8 @@ nstr_p nstr_replace(nstr_p s, bool can_new, uint32_t index, uint32_t chars, nstr
     mid = check[s->encoding](begin, begin + s->bytes, index, &mid_chars, &mid_bytes);
     if (! mid) return NULL;
 
-    init_slice(&s1, STR_DONT_FREE, ent, offset, mid - begin, index);
-    init_slice(&s3, STR_DONT_FREE, ent, offset + (mid - begin), s->bytes - (mid - begin) - mid_bytes, s->chars - index - mid_chars);
+    nstr_init_slice(&s1, STR_DONT_FREE, ent, offset, mid - begin, index);
+    nstr_init_slice(&s3, STR_DONT_FREE, ent, offset + (mid - begin), s->bytes - (mid - begin) - mid_bytes, s->chars - index - mid_chars);
     return nstr_concat3(s1, sub, s2);
 } // nstr_replace
 
@@ -638,7 +645,7 @@ nstr_p nstr_replace_char(nstr_p s, bool can_new, uint32_t index, uint32_t chars,
     nstr_t sub = {0};
 
     sub->buf[0] = ch;
-    init_string(sub, STR_DONT_FREE, 1, 1, s->encoding);
+    init_entity(sub, STR_DONT_FREE, 1, 1, s->encoding);
     return nstr_replace(s, can_new, index, chars, &sub);
 } // nstr_replace_char
 

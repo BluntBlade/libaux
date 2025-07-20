@@ -20,14 +20,15 @@ enum {
     STR_NOT_NEW = false,
 };
 
-// 字符串对象占用字节数
-extern size_t nstr_entity_size(uint32_t bytes);
+// ---- 元函数 ---- //
 
 // 切片对象占用字节数
-inline static size_t nstr_slice_size(void)
-{
-    return nstr_entity_size(0);
-} // nstr_slice_size
+extern size_t nstr_slice_size(void);
+
+// 初始化切片对象
+extern void nstr_init_slice(nstr_p s, bool need_free, nstr_p src, uint32_t offset, uint32_t bytes, uint32_t chars);
+
+// ---- 方法函数 ---- //
 
 // 从原生字符串生成新字符串
 extern nstr_p nstr_new(void * src, uint32_t bytes, str_encoding_t encoding);
