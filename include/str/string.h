@@ -103,13 +103,10 @@ extern bool nstr_end_with_char(nstr_p s, char_t ch);
 // 校验编码正确性和完整性
 extern bool nstr_verify(nstr_p s);
 
-// 查找子串
-extern void * nstr_find(nstr_p s, nstr_p sub, void ** start, uint32_t * size);
-
-// 初始化遍历字节
+// 获取第一个字节
 extern void * nstr_first_byte(nstr_p s, void ** pos, void ** end);
 
-// 遍历字节
+// 获取下一个字节
 inline static void * nstr_next_byte(nstr_p s, void ** pos, void ** end)
 {
     void * loc = *pos;
@@ -122,11 +119,26 @@ inline static void * nstr_next_byte(nstr_p s, void ** pos, void ** end)
     return loc;
 } // nstr_next_byte
 
-// 初始化遍历字符
+// 获取第一个字符
 extern void * nstr_first_char(nstr_p s, void ** pos, void ** end, uint32_t * bytes);
 
-// 遍历字符
+// 获取下一个字符
 extern void * nstr_next_char(nstr_p s, void ** pos, void ** end, uint32_t * bytes);
+
+// 定位第一个子串位置
+extern void * nstr_first_sub(nstr_p s, nstr_p sub, void ** start, uint32_t * size, uint32_t * index);
+
+// 定位下一个子串位置
+extern void * nstr_next_sub(nstr_p s, nstr_p sub, void ** start, uint32_t * size, uint32_t * index);
+
+// 查找第一个或下一个子串
+inline static void * nstr_find(nstr_p s, nstr_p sub, void ** start, uint32_t * size, uint32_t * index)
+{
+    if (! *start) {
+        return nstr_first_sub(s, sub, start, size, index);
+    } // if
+    return nstr_next_sub(s, sub, start, size, index);
+} // nstr_find
 
 // 获取空字符串常量
 extern nstr_p nstr_blank(str_encoding_t encoding);

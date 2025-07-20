@@ -193,43 +193,6 @@ bool nstr_verify(nstr_p s)
     return verify[s->encoding](s->buf, s->buf + s->bytes);
 } // nstr_verify
 
-void * nstr_find(nstr_p s, nstr_p sub, void ** start, uint32_t * size)
-{
-    void * loc = NULL;
-
-    *bytes = 0;
-
-    if (sub->chars == 0) {
-        // 子串为空
-        loc = real_buffer(s);
-        goto NSTR_FIND_END;
-    } // if
-    if (s->chars == 0) goto NSTR_FIND_END; // 源串为空，找不到子串
-
-    if (! *start) {
-        *start = real_buffer(s);
-        *size = s->bytes;
-    } // if
-    if (*size < sub->bytes) goto NSTR_FIND_END; // 查找范围小于子串长度
-
-    if (sub->bytes == 1) {
-        // 子串只有一个字节长
-        loc = memchr(*start, real_buffer(sub)[0], *size);
-    } else {
-        loc = memmem(*start, *size, real_buffer(sub), sub->bytes);
-    } // if
-    if (! loc) goto NSTR_FIND_END; // 找不到子串
-
-    *size -= ((loc - *start) + sub->bytes); // 缩小字节范围
-    *start = loc + sub->bytes; // 移到下一个起点
-    return loc;
-
-NSTR_FIND_END:
-    *start = NULL;
-    *size = 0;
-    return loc;
-} // nstr_find
-
 void * nstr_first_byte(nstr_p s, void ** pos, void ** end)
 {
     *pos = real_buffer(s);
@@ -272,6 +235,63 @@ void * nstr_next_char(nstr_p s, void ** pos, void ** end, uint32_t * bytes)
     *pos += *bytes;
     return loc;
 } // nstr_next_char
+
+void * nstr_first_sub(nstr_p s, nstr_p sub, void ** start, uint32_t * size, uint32_t * index)
+{
+    void * loc = NULL;
+
+    if (sub->chars == 0) {
+        // 子串为空
+        loc = real_buffer(s);
+        goto NSTR_FIRST_SUB_END;
+    } // if
+    if (s->chars == 0) goto NSTR_FIRST_SUB_END; // 源串为空，找不到子串
+
+    if (! *start) {
+        *start = real_buffer(s);
+        *size = s->bytes;
+    } // if
+    if (*size < sub->bytes) goto NSTR_FIRST_SUB_END; // 查找范围小于子串长度
+
+    loc = nstr_next_sub(s, pub, start, size, index);
+    if (loc) {
+        *index -= sub->chars;
+        return loc;
+    } // if
+
+NSTR_FIRST_SUB_END:
+    *start = NULL;
+    *size = 0;
+    *index = 0;
+    return loc;
+} // nstr_first_sub
+
+void * nstr_next_sub(nstr_p s, nstr_p sub, void ** start, uint32_t * size, uint32_t * index)
+{
+    void * loc = NULL;
+    
+    if (! *start || *size < sub->bytes) goto NSTR_NEXT_SUB_END; // 查找范围耗尽
+
+    if (sub->bytes == 1) {
+        // 子串只有一个字节长
+        loc = memchr(*start, real_buffer(sub)[0], *size);
+    } else {
+        loc = memmem(*start, *size, real_buffer(sub), sub->bytes);
+    } // if
+    if (! loc) goto NSTR_NEXT_SUB_END; // 找不到子串
+
+    *index += sub->chars + count[s->encoding](start, loc);
+
+    *size -= ((loc - *start) + sub->bytes); // 缩小字节范围
+    *start = loc + sub->bytes; // 移到下一个起点
+    return loc;
+
+NSTR_NEXT_SUB_END:
+    *start = NULL;
+    *size = 0;
+    *index = 0;
+    return loc;
+} // nstr_next_sub
 
 nstr_p nstr_blank(str_encoding_t encoding);
 {
@@ -324,6 +344,7 @@ nstr_p * nstr_split(nstr_p deli, bool can_new, nstr_p s, int * max);
     void * loc = NULL; // 分隔符起点
     void * start = NULL; // 查找范围起点
     uint32_t size = 0; // 查找范围字节数
+    uint32_t index = 0; // 分隔符首字符的索引
     int rmd = 0; // 剩余切分次数，零表示停止，负数表示无限次
     int cnt = 0; // 子串数量，用于下标时始终指向下一个空槽
     int cap = 0; // 数组容量
@@ -334,9 +355,9 @@ nstr_p * nstr_split(nstr_p deli, bool can_new, nstr_p s, int * max);
     if (! as) return NULL;
 
     pos = real_buffer(s);
-    while ((loc = nstr_find(s, deli, &start, &size)) && --rmd != 0) {
+    while ((loc = nstr_find(s, deli, &start, &size, &index)) && rmd-- != 0) {
         as[cnt] = nstr_slice_from(s, can_new, pos, loc - pos);
-        pos = loc + deli->bytes; // 移到下一个子串起点
+        pos = start; // 移到下一个子串起点
 
         if (++cnt < cap - 2) continue; // 保留 2 个空槽给最后的子串和终止标志。
         an = realloc(as, sizeof(as[0]) * (cap + cap / 2)); // 数组扩容
