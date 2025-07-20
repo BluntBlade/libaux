@@ -117,28 +117,26 @@ nstr_p nstr_clone(nstr_p s)
 
 void nstr_delete(nstr_p * ps)
 {
-    nstr_p s = *ps;
+    nstr_p ent = *ps;
 
-    if (! s) return;
-    if (s->is_slice) {
-        s = s->ent;
-        free(*ps); // 释放切片
-    } // if
-
-    if (s == blank_strings[s->encoding]) return; // 空字符串不需要释放。
-
-    s->refs -= 1;
-    if (s->refs == 0 && s->need_free == 1) {
-        free(s); // 释放字符串
+    if (! ent) return;
+    if (ent->is_slice) {
+        ent = (*ps)->ent;
+        if ((*ps)->need_free) free(*ps); // 释放切片
     } // if
 
     *ps = NULL; // 防止野指针
+
+    ent->refs -= 1;
+    if (ent == blank_strings[ent->encoding] && ent->refs == 0 && ent->need_free) free(ent); // 释放非空字符串
 } // nstr_delete
 
 void nstr_delete_strings(nstr_p * as, int n)
 {
-    while (--n >= 0) nstr_delete(as[n]);
-    free(as);
+    if (as) {
+        while (--n >= 0) nstr_delete(as[n]);
+        free(as);
+    } // if
 } // nstr_delete_strings
 
 nstr_p nstr_add_ref(nstr_p s)
