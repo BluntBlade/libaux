@@ -15,13 +15,13 @@ typedef struct NSTR {
     uint32_t bytes;             // 占用内存字节数。
 
     union {
-        uint32_t refs;          // 切片计数，生成字符串时置 1 ，表示对自身的引用。减到 0 时释放内存。
-        uint32_t offset;        // 片段在源字符串内存区的起始位置（相对于起点的字节数）。
+        uint32_t refs;          // 引用计数，生成字符串时置 1 ，表示对自身的引用。减到 0 时释放内存。
+        uint32_t offset;        // 切片在源串的偏移位置
     };
 
     union {
         char_t        buf[4];   // 单字节字符数据内存区，包含结尾的 NUL 字符。
-        struct NSTR * src;      // 指向被引用的字符串，其 buf 与 offset 相加得到片段所在内存起点位置。
+        struct NSTR * ent;      // 指向被引用的字符串实体，其 buf 与 offset 相加得到切片所在内存起点位置。
     };
 } nstr_t;
 
@@ -56,12 +56,12 @@ static nstr_t blank_strings[STR_ENCODING_COUNT] = {
 
 inline static void * real_buffer(nstr_p s)
 {
-    return (s->is_slice) ? s->src->buf + s->offset : s->buf;
+    return (s->is_slice) ? s->ent->buf + s->offset : s->buf;
 } // real_buffer
 
 inline static nstr_p real_string(nstr_p s)
 {
-    return (s->is_slice) ? s->src : s;
+    return (s->is_slice) ? s->ent : s;
 } // real_string
 
 size_t nstr_object_size(uint32_t bytes)
@@ -81,7 +81,7 @@ inline static void init_string(nstr_p s, bool need_free, uint32_t bytes, uint32_
 
 inline static void init_slice(nstr_p s, bool need_free, nstr_p src, uint32_t offset, uint32_t bytes, uint32_t chars)
 {
-    s->src = src;
+    s->ent = src;
     s->offset = offset;
     s->bytes = bytes;
     s->chars = chars;
@@ -114,7 +114,7 @@ void nstr_delete(nstr_p * ps)
 
     if (! s) return;
     if (s->is_slice) {
-        s = s->src;
+        s = s->ent;
         free(*ps); // 释放切片
     } // if
 
@@ -161,7 +161,7 @@ void * nstr_to_cstr(nstr_p * ps)
     nstr_p s = *ps;
 
     if (s->is_slice) {
-        n = nstr_new(s->src->buf + s->offset, s->bytes, s->encoding);
+        n = nstr_new(s->ent->buf + s->offset, s->bytes, s->encoding);
         if (! n) return NULL;
         *ps = n;
     } // if
@@ -616,7 +616,7 @@ nstr_p nstr_replace(nstr_p s, bool can_new, uint32_t index, uint32_t chars, nstr
 
     // CASE-5: 待替换部分在源串中间且长度不为零。
     if (s->is_slice) {
-        ent = s->src;
+        ent = s->ent;
         offset = s->offset;
     } else {
         ent = s;
