@@ -104,7 +104,7 @@ extern bool nstr_end_with_char(nstr_p s, char_t ch);
 extern bool nstr_verify(nstr_p s);
 
 // 查找子串
-extern void * nstr_find(nstr_p s, nstr_p sub, void ** pos, void ** end, uint32_t * bytes);
+extern void * nstr_find(nstr_p s, nstr_p sub, void ** start, uint32_t * size);
 
 // 初始化遍历字节
 extern void * nstr_first_byte(nstr_p s, void ** pos, void ** end);
