@@ -336,43 +336,79 @@ nstr_p nstr_slice_from(nstr_p s, bool can_new, void * pos, uint32_t bytes)
     return new_slice(s, pos, bytes, count[encoding](begin, end));
 } // nstr_slice_from
 
+inline static bool augment_array(nstr_p ** as, int * cap, int delta)
+{
+    nstr_p * an = realloc(*as, sizeof((*as)[0]) * (*cap + delta)); // 数组扩容
+    if (! an) return false;
+    *cap += delta;
+    *as = an;
+    return true;
+} // augment_array
+
+static void * next_char_to_split(nstr_p s, nstr_p sub, void ** start, uint32_t * size, uint32_t * index)
+{
+    uint32_t ret_bytes = 0;
+    uint32_t ret_chars = 1;
+    *start = check[s->encoding](*start, *start + *size, 0, &ret_chars, &ret_bytes);
+    *size -= ret_bytes;
+    return *start;
+} // next_char_to_split
+
 nstr_p * nstr_split(nstr_p deli, bool can_new, nstr_p s, int * max);
 {
+    static void * (*next[2])(nstr_p, nstr_p, void **, uint32_t *, uint32_t *) = {
+        &next_char_to_split, // 将每个字符切分为一个子串
+        &nstr_next_sub, // 寻找分隔符并切分相邻子串
+    };
+
     nstr_p * as = NULL; // 子串数组
-    nstr_p * an = NULL; // 扩容数组
     void * pos = NULL; // 子串起点
     void * loc = NULL; // 分隔符起点
     void * start = NULL; // 查找范围起点
     uint32_t size = 0; // 查找范围字节数
     uint32_t index = 0; // 分隔符首字符的索引
     int rmd = 0; // 剩余切分次数，零表示停止，负数表示无限次
-    int cnt = 0; // 子串数量，用于下标时始终指向下一个空槽
+    int cnt = 0; // 子串数量，用于下标时始终指向下一个可用元素
     int cap = 0; // 数组容量
+    int delta = 0; // 减量
+    int sel = 0; // 选择子
 
-    rmd = (max && *max > 0) ? *max : 0;
-    cap = (rmd > 0) ? (rmd + 2) : 12; // max 次分割将产生 max + 1 个子串，再加上 1 个 NULL 终止标志。
+    if (s->chars == 0) {
+        // CASE-1: 源串是空串
+        as = malloc(sizeof(as[0]) * 2);
+        if (! as) return NULL;
+        as[0] = nstr_blank(s->encoding);
+        as[1] = NULL;
+        if (max) *max = 1;
+        return as;
+    } // if
+
+    rmd = (max && *max > 0) ? *max : -1;
+    delta = (rmd > 0) ? 1 : 0;
+
+    // max 次分割将产生 max + 1 个子串，再加上 1 个 NULL 终止标志
+    // 保留 2 个元素给最后的子串和终止标志
+    cap = (rmd < 16 - 2) ? 16 : (rmd + 2);
+
     as = malloc(sizeof(as[0]) * cap);
-    if (! as) return NULL;
+    if (! as) goto NSTR_SPLIT_END;
 
     pos = real_buffer(s);
-    while ((loc = nstr_find(s, deli, &start, &size, &index)) && rmd-- != 0) {
-        as[cnt] = nstr_slice_from(s, can_new, pos, loc - pos);
+    start = pos;
+    size = s->bytse;
+    sel = (deli->chars > 0) 1 : 0;
+    while (rmd != 0 && (loc = next[sel](s, deli, &start, &size, &index))) {
+        as[cnt++] = nstr_slice_from(s, can_new, pos, loc - pos);
+        if (cnt >= cap - 2 && ! augment_array(&as, &cap, 16)) goto NSTR_SPLIT_END;
+        rmd -= delta;
         pos = start; // 移到下一个子串起点
-
-        if (++cnt < cap - 2) continue; // 保留 2 个空槽给最后的子串和终止标志。
-        an = realloc(as, sizeof(as[0]) * (cap + cap / 2)); // 数组扩容
-        if (! an) {
-            nstr_delete_all(as, cnt);
-            return NULL;
-        } // if
-        cap = (cap + cap / 2);
-        as = an;
     } // while
 
     as[cnt++] = nstr_slice_from(s, can_new, pos, s->bytes - (pos - real_buffer(s))); // 最后子串。
-    if (max) *max = cnt;
-
     as[cnt] = NULL; // 设置终止标志
+
+NSTR_SPLIT_END:
+    if (max) *max = cnt;
     return as;
 } // nstr_split
 
