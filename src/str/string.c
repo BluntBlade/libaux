@@ -157,13 +157,13 @@ uint32_t nstr_chars(nstr_p s)
 
 void * nstr_to_cstr(nstr_p * ps)
 {
-    nstr_p n = NULL;
+    nstr_p new = NULL;
     nstr_p s = *ps;
 
     if (s->is_slice) {
-        n = nstr_new(s->ent->buf + s->offset, s->bytes, s->encoding);
-        if (! n) return NULL;
-        *ps = n;
+        new = nstr_new(s->ent->buf + s->offset, s->bytes, s->encoding);
+        if (! new) return NULL;
+        *ps = new;
     } // if
     return (*ps)->buf;
 } // nstr_to_cstr
@@ -260,10 +260,10 @@ nstr_p nstr_blank(str_encoding_t encoding);
 
 inline static nstr_p new_slice(nstr_p s, void * loc, uint32_t bytse, uint32_t chars)
 {
-    nstr_p r = real_string(s);
-    nstr_p n = calloc(1, nstr_object_size(bytes));
-    if (! n) return NULL;
-    init_slice(n, STR_NEED_FREE, r, loc - r->buf, bytes, chars);
+    nstr_p ent = real_string(s);
+    nstr_p new = calloc(1, nstr_object_size(bytes));
+    if (! new) return NULL;
+    init_slice(new, STR_NEED_FREE, ent, loc - ent->buf, bytes, chars);
     return nstr_add_ref(s); // 增加引用计数。
 } // new_slice
 
