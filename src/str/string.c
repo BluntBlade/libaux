@@ -278,21 +278,17 @@ nstr_p nstr_slice(nstr_p s, bool can_new, uint32_t index, uint32_t chars);
     uint32_t ret_chars = 0;
     uint32_t ret_bytes = 0;
 
-    // CASE-1: 引用位置超出范围。
-    // CASE-2: s 是空串。
-    // CASE-3: 引用长度是零。
-    // NOTE: 空串不会生成片段引用，直接返回空串本身。
+    // CASE-1: 切片起点超出范围。
+    // CASE-2: 源串是空串。
+    // CASE-3: 切片长度是零。
+    // NOTE: 不生成片段引用，直接返回空串。
     if (index >= s->chars || s->chars == 0 || chars == 0) return nstr_blank(s->encoding);
 
-    // CASE-4: s 不是空串。
-    begin = real_buffer(r);
-    end = begin + s->bytes;
-
-    ret_chars = s->chars;
-    loc = check[s->encoding](begin, end, index, &ret_chars, &ret_bytes);
-    if (! loc) return NULL;
-
-    end = begin + ret_bytes;
+    // CASE-4: 源字符串不是空串。
+    ret_chars = s->chars; // 最长引用范围是整个源串。
+    loc = real_buffer(r);
+    loc = check[s->encoding](loc, loc + s->bytes, index, &ret_chars, &ret_bytes);
+    if (! loc) return NULL; // 有异常字节。
 
     if (can_new) return nstr_new(loc, ret_bytes, s->encoding);
     return new_slice(s, loc, ret_bytes, ret_chars);
@@ -300,7 +296,7 @@ nstr_p nstr_slice(nstr_p s, bool can_new, uint32_t index, uint32_t chars);
 
 nstr_p nstr_slice_from(nstr_p s, bool can_new, void * pos, uint32_t bytes)
 {
-    if (s->chars == 0) return nstr_blank(s->encoding); // CASE-1: s 是空串。
+    if (s->chars == 0) return nstr_blank(s->encoding); // CASE-1: 源串是空串。
     if (can_new) return nstr_new(pos, bytes, r->encoding);
     return new_slice(s, pos, bytes, count[encoding](begin, end));
 } // nstr_slice_from
