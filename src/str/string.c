@@ -128,7 +128,7 @@ void nstr_delete(nstr_p * ps)
     *ps = NULL; // 防止野指针
 
     ent->refs -= 1;
-    if (ent == blank_strings[ent->encoding] && ent->refs == 0 && ent->need_free) free(ent); // 释放非空字符串
+    if (ent->refs == 0 && ent->need_free) free(ent); // 释放非空字符串
 } // nstr_delete
 
 void nstr_delete_strings(nstr_p * as, int n)
