@@ -210,9 +210,16 @@ void * nstr_find(nstr_p s, nstr_p sub, void ** start, uint32_t * size)
         *start = real_buffer(s);
         *size = s->bytes;
     } // if
+    if (*size < sub->bytes) goto NSTR_FIND_END; // 查找范围小于子串长度
 
-    loc = memmem(*start, *size, real_buffer(sub), sub->bytes);
+    if (sub->bytes == 1) {
+        // 子串只有一个字节长
+        loc = memchr(*start, real_buffer(sub)[0], *size);
+    } else {
+        loc = memmem(*start, *size, real_buffer(sub), sub->bytes);
+    } // if
     if (! loc) goto NSTR_FIND_END; // 找不到子串
+
     *size -= ((loc - *start) + sub->bytes); // 缩小字节范围
     *start = loc + sub->bytes; // 移到下一个起点
     return loc;
