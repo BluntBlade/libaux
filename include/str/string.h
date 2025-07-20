@@ -16,6 +16,8 @@ typedef enum STR_ENCODING {
 enum {
     STR_NEED_FREE = true,
     STR_DONT_FREE = false,
+    STR_AND_NEW = true,
+    STR_NOT_NEW = false,
 };
 
 // 需要分配内存字节数
@@ -114,13 +116,13 @@ extern void * nstr_next_char(nstr_p s, void ** pos, void ** end, uint32_t * byte
 extern nstr_p nstr_blank(str_encoding_t encoding);
 
 // 基于字符范围切片，生成片段引用或新字符串
-extern nstr_p nstr_slice(nstr_p s, bool no_ref, uint32_t index, uint32_t chars);
+extern nstr_p nstr_slice(nstr_p s, bool can_new, uint32_t index, uint32_t chars);
 
 // 基于字字范围切片，生成片段引用或新字符串
-extern nstr_p nstr_slice_from(nstr_p s, bool no_ref, void * pos, uint32_t bytes);
+extern nstr_p nstr_slice_from(nstr_p s, bool can_new, void * pos, uint32_t bytes);
 
 // 切分字符串
-extern nstr_p * nstr_split(nstr_p deli, bool no_ref, nstr_p s, int * max);
+extern nstr_p * nstr_split(nstr_p deli, bool can_new, nstr_p s, int * max);
 
 // 重复拼接字符串
 extern nstr_p nstr_repeat(nstr_p s, int n);
@@ -147,10 +149,10 @@ inline static nstr_p nstr_join2(nstr_p deli, nstr_p s1, nstr_p s2)
 } // nstr_join2
 
 // 将给定位置处的固定长度子串替换成新串
-extern nstr_p nstr_replace(nstr_p s, bool no_ref, uint32_t index, uint32_t chars, nstr_p sub);
+extern nstr_p nstr_replace(nstr_p s, bool can_new, uint32_t index, uint32_t chars, nstr_p sub);
 
 // 将给定位置处的固定长度子串替换成单字节字符
-extern nstr_p nstr_replace_char(nstr_p s, bool no_ref, uint32_t index, uint32_t chars, char_t ch);
+extern nstr_p nstr_replace_char(nstr_p s, bool can_new, uint32_t index, uint32_t chars, char_t ch);
 
 // 将子串替换成新串
 extern nstr_p nstr_substitue(nstr_p s, bool all, nstr_p before, nstr_p after);
@@ -159,61 +161,61 @@ extern nstr_p nstr_substitue(nstr_p s, bool all, nstr_p before, nstr_p after);
 extern nstr_p nstr_substitue_char(nstr_p s, bool all, nstr_p sub, char_t ch);
 
 // 在给定位置插入子串
-inline static nstr_p nstr_insert(nstr_p s, bool no_ref, uint32_t index, nstr_p sub)
+inline static nstr_p nstr_insert(nstr_p s, bool can_new, uint32_t index, nstr_p sub)
 {
-    return nstr_replace(s, no_ref, index, 0, sub);
+    return nstr_replace(s, can_new, index, 0, sub);
 } // nstr_insert
 
 // 在给定位置插入单字节字符
-inline static nstr_p nstr_insert_char(nstr_p s, bool no_ref, uint32_t index, char_t ch)
+inline static nstr_p nstr_insert_char(nstr_p s, bool can_new, uint32_t index, char_t ch)
 {
-    return nstr_replace_char(s, no_ref, index, 0, ch);
+    return nstr_replace_char(s, can_new, index, 0, ch);
 } // nstr_insert_char
 
 // 在串头前插入子串
-inline static nstr_p nstr_prepend(nstr_p s, bool no_ref, nstr_p sub)
+inline static nstr_p nstr_prepend(nstr_p s, bool can_new, nstr_p sub)
 {
-    return nstr_replace(s, no_ref, 0, 0, sub);
+    return nstr_replace(s, can_new, 0, 0, sub);
 } // nstr_prepend
 
 // 在串头前插入单字节字符
-inline static nstr_p nstr_prepend_char(nstr_p s, bool no_ref, char_t ch)
+inline static nstr_p nstr_prepend_char(nstr_p s, bool can_new, char_t ch)
 {
-    return nstr_replace_char(s, no_ref, 0, 0, ch);
+    return nstr_replace_char(s, can_new, 0, 0, ch);
 } // nstr_prepend_char
 
 // 在串尾后插入子串
-inline static nstr_p nstr_append(nstr_p s, bool no_ref, nstr_p sub)
+inline static nstr_p nstr_append(nstr_p s, bool can_new, nstr_p sub)
 {
-    return nstr_replace(s, no_ref, nstr_chars(s), 0, sub);
+    return nstr_replace(s, can_new, nstr_chars(s), 0, sub);
 } // nstr_append
 
 // 在串尾后插入单字节字符
-inline static nstr_p nstr_append_char(nstr_p s, bool no_ref, char_t ch)
+inline static nstr_p nstr_append_char(nstr_p s, bool can_new, char_t ch)
 {
-    return nstr_replace_char(s, no_ref, nstr_chars(s), 0, ch);
+    return nstr_replace_char(s, can_new, nstr_chars(s), 0, ch);
 } // nstr_append_char
 
 // 删除定位置处的固定长度子串
-extern nstr_p nstr_remove(nstr_p s, bool no_ref, uint32_t index, uint32_t chars);
+extern nstr_p nstr_remove(nstr_p s, bool can_new, uint32_t index, uint32_t chars);
 
 // 删除串头的固定长度子串
-extern nstr_p nstr_cut_head(nstr_p s, bool no_ref, uint32_t chars);
+extern nstr_p nstr_cut_head(nstr_p s, bool can_new, uint32_t chars);
 
 // 删除串尾的固定长度子串
-extern nstr_p nstr_cut_tail(nstr_p s, bool no_ref, uint32_t chars);
+extern nstr_p nstr_cut_tail(nstr_p s, bool can_new, uint32_t chars);
 
 // 删除串尾的换行符（以及可能的回车符）
-extern nstr_p nstr_chomp(nstr_p s, bool no_ref);
+extern nstr_p nstr_chomp(nstr_p s, bool can_new);
 
 // 删除串头和串尾的空白字符（SPACE/TAB/CR/NL等）
-extern nstr_p nstr_trim(nstr_s, bool no_ref);
+extern nstr_p nstr_trim(nstr_s, bool can_new);
 
 // 删除串头的空白字符（SPACE/TAB/CR/NL等）
-extern nstr_p nstr_ltrim(nstr_s, bool no_ref);
+extern nstr_p nstr_ltrim(nstr_s, bool can_new);
 
 // 删除串尾的空白字符（SPACE/TAB/CR/NL等）
-extern nstr_p nstr_rtrim(nstr_s, bool no_ref);
+extern nstr_p nstr_rtrim(nstr_s, bool can_new);
 
 #endif // _AUX_STRING_H_
 
