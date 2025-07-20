@@ -122,6 +122,9 @@ extern nstr_p nstr_slice_from(nstr_p s, bool no_ref, void * pos, uint32_t bytes)
 // 切分字符串
 extern nstr_p * nstr_split(nstr_p deli, bool no_ref, nstr_p s, int * max);
 
+// 重复拼接字符串
+extern nstr_p nstr_repeat(nstr_p s, int n);
+
 // 拼接字符串
 extern nstr_p nstr_concat(nstr_p * as, int n, ...);
 

@@ -359,7 +359,7 @@ static char_t * copy_strings(char_t * pos, nstr_p * as, int n, char_t * dbuf, ui
     if (n <= 0) return pos;
     switch (n % 4) {
         case 0:
-        do {
+    while (b-- > 0) {
             memcpy(pos, real_buffer(as[i]), (as[i])->bytes);
             pos += (as[i++])->bytes;
         case 3:
@@ -371,7 +371,7 @@ static char_t * copy_strings(char_t * pos, nstr_p * as, int n, char_t * dbuf, ui
         case 1:
             memcpy(pos, real_buffer(as[i]), (as[i])->bytes);
             pos += (as[i++])->bytes;
-        } while (b-- > 0);
+    } // while
         default: break;
     } // switch
     return pos;
@@ -385,7 +385,7 @@ static char_t * copy_strings_with_one_deli(char_t * pos, nstr_p * as, int n, cha
     if (n <= 0) return pos;
     switch (n % 4) {
         case 0:
-        do {
+    while (b-- > 0) {
             memcpy(pos, real_buffer(as[i]), (as[i])->bytes);
             pos += (as[i++])->bytes;
             (*pos++) = dbuf[0];
@@ -401,7 +401,7 @@ static char_t * copy_strings_with_one_deli(char_t * pos, nstr_p * as, int n, cha
             memcpy(pos, real_buffer(as[i]), (as[i])->bytes);
             pos += (as[i++])->bytes;
             (*pos++) = dbuf[0];
-        } while (b-- > 0);
+    } // while
         default: break;
     } // switch
     return pos;
@@ -415,7 +415,7 @@ static char_t * copy_strings_with_long_deli(char_t * pos, nstr_p * as, int n, ch
     if (n <= 0) return pos;
     switch (n % 4) {
         case 0:
-        do {
+    while (b-- > 0) {
             memcpy(pos, real_buffer(as[i]), (as[i])->bytes);
             pos += (as[i++])->bytes;
             memcpy(pos, dbuf, dbytes);
@@ -435,7 +435,7 @@ static char_t * copy_strings_with_long_deli(char_t * pos, nstr_p * as, int n, ch
             pos += (as[i++])->bytes;
             memcpy(pos, dbuf, dbytes);
             pos += dbytes;
-        } while (b-- > 0);
+    } // while
         default: break;
     } // switch
     return pos;
@@ -507,6 +507,35 @@ static nstr_p join_strings(nstr_p deli, nstr_p as, int n, va_list * ap)
     init_string(new, STR_NEED_FREE, bytes, chars, as[0]->encoding);
     return new;
 } // join_strings
+
+nstr_p nstr_repeat(nstr_p s, int n)
+{
+    nstr_p as[16] = {
+        s, s, s, s,
+        s, s, s, s,
+        s, s, s, s,
+        s, s, s, s,
+    };
+    nstr_p new = NULL;
+    uint32_t b = 0;
+
+    if (s->bytes == 0) return nstr_blank(s->encoding); // CASE-1: s 是空串。
+    if (n <= 1) {
+        real_string(s)->refs += 1;
+        return s;
+    } // if
+
+    new = calloc(1, nstr_object_size(s->bytes * n));
+    if (! new) return NULL;
+
+    pos = copy_strings(new->buf, as, n % (sizeof(as) / sizeof(as[0])), NULL, 0);
+
+    b = n / (sizeof(as) / sizeof(as[0]));
+    while (b-- > 0) pos = copy_strings(pos, as, (sizeof(as) / sizeof(as[0])), NULL, 0);
+
+    init_string(new, STR_NEED_FREE, s->bytes * n, s->chars * n, s->encoding);
+    return new;
+} // repeat
 
 nstr_p nstr_concat(nstr_p * as, int n, ...)
 {
