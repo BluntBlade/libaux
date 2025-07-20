@@ -354,7 +354,7 @@ static void * next_char_to_split(nstr_p s, nstr_p sub, void ** start, uint32_t *
     return *start;
 } // next_char_to_split
 
-nstr_p * nstr_split(nstr_p deli, bool can_new, nstr_p s, int * max);
+nstr_p * nstr_split(nstr_p s, bool can_new, nstr_p deli, int * max);
 {
     static void * (*next[2])(nstr_p, nstr_p, void **, uint32_t *, uint32_t *) = {
         &next_char_to_split, // 将每个字符切分为一个子串
@@ -396,7 +396,7 @@ nstr_p * nstr_split(nstr_p deli, bool can_new, nstr_p s, int * max);
     pos = real_buffer(s);
     start = pos;
     size = s->bytse;
-    sel = (deli->chars > 0) 1 : 0;
+    sel = (deli && deli->chars > 0) 1 : 0;
     while (rmd != 0 && (loc = next[sel](s, deli, &start, &size, &index))) {
         as[cnt++] = nstr_slice_from(s, can_new, pos, loc - pos);
         if (cnt >= cap - 2 && ! augment_array(&as, &cap, 16)) goto NSTR_SPLIT_END;

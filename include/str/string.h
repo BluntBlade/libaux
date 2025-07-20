@@ -28,7 +28,7 @@ extern size_t nstr_slice_size(void);
 // 初始化切片对象
 extern void nstr_init_slice(nstr_p s, bool need_free, nstr_p src, uint32_t offset, uint32_t bytes, uint32_t chars);
 
-// ---- 方法函数 ---- //
+// ---- 功能函数 ---- //
 
 // 从原生字符串生成新字符串
 extern nstr_p nstr_new(void * src, uint32_t bytes, str_encoding_t encoding);
@@ -149,8 +149,17 @@ extern nstr_p nstr_slice(nstr_p s, bool can_new, uint32_t index, uint32_t chars)
 // 基于字字范围切片，生成切片或新字符串
 extern nstr_p nstr_slice_from(nstr_p s, bool can_new, void * pos, uint32_t bytes);
 
-// 切分字符串
-extern nstr_p * nstr_split(nstr_p deli, bool can_new, nstr_p s, int * max);
+// 功能：切分字符串
+// 参数：
+//     s        IN  入参：源字符串，必须传入 non-NULL
+//     can_new  IN  入参：true 表示生成新字符串；false 表示生成切片
+//     deli     IN  入参：分隔符，NULL 表示将每个字符切分成单独字符串
+//     max      IO  入参：最大切分次数，NULL 或 < 0 表示无限次
+//                  出参：子串数量
+// 返回值：
+//     non-NULL     指针数组，包含 max 个子串和 1 个 NULL 终止标志，共 max + 1 个元素
+//     NULL         发生错误，内存不足
+extern nstr_p * nstr_split(nstr_p s, bool can_new, nstr_p deli, int * max);
 
 // 重复拼接字符串
 extern nstr_p nstr_repeat(nstr_p s, int n);
