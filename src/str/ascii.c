@@ -3,30 +3,28 @@
 
 void * ascii_check(void * begin, void * end, uint32_t index, uint32_t * chars, uint32_t * bytes)
 {
-    uint32_t cnt = 0;
-    uint32_t bound = index;
     void * loc = NULL;
     char_t * pos = (char_t *)begin;
+    uint32_t rmd = index + 1;
 
 ASCII_CHECK_AGAIN:
-    while (cnt < bound && pos < end) {
-        if (measure_ascii(pos) == 0) goto ASCII_CHECK_ERROR; // 提前终止，返回空串。
-        cnt += 1;
+    while (--rmd > 0 && pos < end) {
+        if (measure_ascii(pos) == 0) {
+            // 提前终止，返回空串。
+            *chars = 0;
+            *bytes = 0;
+            return NULL;
+        } // if
         pos += 1;
     } // while
 
     if (! loc) {
         loc = pos;
-        cnt = 0;
-        bount = *chars;
+        rmd = *chars + 1;
         goto ASCII_CHECK_AGAIN;
     } // if
     
-    *chars = cnt;
-    *bytes = cnt;
+    *chars -= rmd;
+    *bytes = pos - loc;
     return loc;
-
-ASCII_CHECK_ERROR:
-    *chars = 0;
-    return NULL;
 } // ascii_check

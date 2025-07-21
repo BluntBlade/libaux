@@ -10,7 +10,17 @@ inline static uint32_t ascii_measure(void * pos)
     return ch && (ch & 0x80 == 0) ? 1: 0;
 } // ascii_measure
 
-// 检查 [index:index + chars] 是否为正确的 ASCII 子串（chars 给出最大长度），返回其地址和长度。如范围内存在异常字节，返回 NULL 和 0 。
+// 功能：检查 [index:index + chars] 是否包含正确的 ASCII 子串，返回其地址和长度。
+// 参数：
+//     begin     IN   入参：检查范围起点
+//     end       IN   入参：检查范围终点
+//     index     IN   入参：从起点开始计算的字符索引
+//     chars     IO   入参：子串最长字符数；出参：子串实长字符数
+//     bytes     OUT  出参：子串占用字节数
+// 返回值：
+//     non-NULL       小于 end ：包含正确子串，chars 为子串实长字符数，bytes 为子串占用字节数
+//                    等于 end ：没有包含子串，chars 为 0 ，bytes 为 0
+//     NULL           给定范围内存在异常字节，chars 为 0 ，bytes 为 0
 extern void * ascii_check(void * begin, void * end, uint32_t index, uint32_t * chars, uint32_t * bytes);
 
 // 计算给定字节范围内有多少个 ASCII 字符。
