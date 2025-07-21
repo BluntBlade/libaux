@@ -20,6 +20,10 @@ enum {
     STR_NOT_NEW = false,
 };
 
+typedef enum STR_LOCALE {
+    STR_LOC_C = 0,
+} str_locale_t;
+
 // ---- 元函数 ---- //
 
 // 切片对象占用字节数
@@ -99,6 +103,34 @@ extern bool nstr_end_with(nstr_p s, nstr_p sub);
 
 // 测试串尾是否为给定单字节字符
 extern bool nstr_end_with_char(nstr_p s, char_t ch);
+
+// 比较字符串（排序）
+extern int nstr_compare(nstr_p s1, nstr_p s2, str_locale_t locale);
+
+inline static bool nstr_equal(nstr_p s1, nstr_p s2, str_locale_t locale)
+{
+    return nstr_compare(s1, s2, locale) == 0;
+} // nstr_equal
+
+inline static bool nstr_lesser(nstr_p s1, nstr_p s2, str_locale_t locale)
+{
+    return nstr_compare(s1, s2, locale) < 0;
+} // nstr_lesser
+
+inline static bool nstr_lesser_or_equal(nstr_p s1, nstr_p s2, str_locale_t locale)
+{
+    return nstr_compare(s1, s2, locale) <= 0;
+} // nstr_lesser_or_equal
+
+inline static bool nstr_greater(nstr_p s1, nstr_p s2, str_locale_t locale)
+{
+    return nstr_compare(s1, s2, locale) > 0;
+} // nstr_greater
+
+inline static bool nstr_greater_or_equal(nstr_p s1, nstr_p s2, str_locale_t locale)
+{
+    return nstr_compare(s1, s2, locale) >= 0;
+} // nstr_greater_or_equal
 
 // 校验编码正确性和完整性
 extern bool nstr_verify(nstr_p s);
