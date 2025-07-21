@@ -7,10 +7,10 @@ struct NSTR;
 typedef struct NSTR * nstr_p;
 
 typedef enum STR_ENCODING {
-    STR_ASCII = 0,
-    STR_UTF8  = 1,
-    STR_ENCODING_COUNT = 2,
-    STR_ENCODING_MAX = (1 << 8) - 1,  // 支持最多 255 种编码方案
+    STR_ENC_ASCII = 0,
+    STR_ENC_UTF8  = 1,
+    STR_ENC_COUNT = 2,
+    STR_ENC_MAX = (1 << 8) - 1,  // 支持最多 255 种编码方案
 } str_encoding_t;
 
 enum {

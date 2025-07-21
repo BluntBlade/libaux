@@ -49,9 +49,9 @@ static verify_t verify[NSTR_ENCODING_COUNT] = {
     &utf8_verify,
 };
 
-static nstr_t blank_strings[STR_ENCODING_COUNT] = {
-    {.encoding = STR_ASCII},
-    {.encoding = STR_UTF8},
+static nstr_t blank_strings[STR_ENC_COUNT] = {
+    {.encoding = STR_ENC_ASCII},
+    {.encoding = STR_ENC_UTF8},
 };
 
 inline static void * get_start(nstr_p s)
@@ -672,7 +672,7 @@ nstr_p nstr_join_with_char(char_t deli, nstr_p * as, int n, ...)
     nstr_p new = NULL;
 
     d->buf[0] = deli;
-    init_entity(&d, STR_NEED_FREE, 1, 1, STR_ASCII);
+    init_entity(&d, STR_NEED_FREE, 1, 1, STR_ENC_ASCII);
 
     va_start(ap, n);
     new = join_strings(d, as, n, &ap);
