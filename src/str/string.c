@@ -313,17 +313,17 @@ nstr_p nstr_slice(nstr_p s, bool can_new, uint32_t index, uint32_t chars);
     uint32_t ret_chars = 0;
     uint32_t ret_bytes = 0;
 
-    // CASE-1: 切片起点超出范围。
-    // CASE-2: 源串是空串。
-    // CASE-3: 切片长度是零。
-    // NOTE: 不生成切片，直接返回空串。
+    // CASE-1: 切片起点超出范围
+    // CASE-2: 源串是空串
+    // CASE-3: 切片长度是零
+    // NOTE: 不生成切片，直接返回空串
     if (index >= s->chars || s->chars == 0 || chars == 0) return nstr_blank(s->encoding);
 
-    // CASE-4: 源字符串不是空串。
-    ret_chars = s->chars - index; // 最大切片范围是整个源串。
+    // CASE-4: 源字符串不是空串
+    ret_chars = s->chars - index; // 最大切片范围是整个源串
     loc = real_buffer(s);
     loc = check[s->encoding](loc, loc + s->bytes, index, &ret_chars, &ret_bytes);
-    if (! loc) return NULL; // 有异常字节。
+    if (! loc) return NULL; // 源串包含异常字节
 
     if (can_new) return nstr_new(loc, ret_bytes, s->encoding);
     return new_slice(s, loc, ret_bytes, ret_chars);
@@ -331,7 +331,7 @@ nstr_p nstr_slice(nstr_p s, bool can_new, uint32_t index, uint32_t chars);
 
 nstr_p nstr_slice_from(nstr_p s, bool can_new, void * pos, uint32_t bytes)
 {
-    if (s->chars == 0) return nstr_blank(s->encoding); // CASE-1: 源串是空串。
+    if (s->chars == 0) return nstr_blank(s->encoding); // CASE-1: 源串是空串
     if (can_new) return nstr_new(pos, bytes, s->encoding);
     return new_slice(s, pos, bytes, count[encoding](begin, end));
 } // nstr_slice_from
@@ -365,6 +365,7 @@ nstr_p * nstr_split(nstr_p s, bool can_new, nstr_p deli, int * max);
     void * pos = NULL; // 子串起点
     void * loc = NULL; // 分隔符起点
     void * start = NULL; // 查找范围起点
+    void * end = NULL; // 查找范围终点
     uint32_t size = 0; // 查找范围字节数
     uint32_t index = 0; // 分隔符首字符的索引
     int rmd = 0; // 剩余切分次数，零表示停止，负数表示无限次
@@ -396,9 +397,19 @@ nstr_p * nstr_split(nstr_p s, bool can_new, nstr_p deli, int * max);
     pos = real_buffer(s);
     start = pos;
     size = s->bytse;
+    end = start + size;
     sel = (deli && deli->chars > 0) 1 : 0;
-    while (rmd != 0 && (loc = next[sel](s, deli, &start, &size, &index))) {
+    while (rmd != 0) {
+        loc = next[sel](s, deli, &start, &size, &index);
+        if (! loc) {
+            // 源串包含异常字节
+            nstr_delete_all(as, cnt);
+            return NULL;
+        } // if
+        if (loc == end) break; // 找不到切分位置
+
         as[cnt++] = nstr_slice_from(s, can_new, pos, loc - pos);
+
         if (cnt >= cap - 2 && ! augment_array(&as, &cap, 16)) goto NSTR_SPLIT_END;
         rmd -= delta;
         pos = start; // 移到下一个子串起点
@@ -698,10 +709,11 @@ nstr_p nstr_replace(nstr_p s, bool can_new, uint32_t index, uint32_t chars, nstr
     mid_chars = s->chars;
     begin = ent->buf + offset;
     mid = check[s->encoding](begin, begin + s->bytes, index, &mid_chars, &mid_bytes);
-    if (! mid) return NULL;
+    if (! mid) return NULL; // 源串包含异常字节
 
-    nstr_init_slice(&s1, STR_DONT_FREE, ent, offset, mid - begin, index);
-    nstr_init_slice(&s3, STR_DONT_FREE, ent, offset + (mid - begin), s->bytes - (mid - begin) - mid_bytes, s->chars - index - mid_chars);
+    s1_bytes = mid - begin;
+    nstr_init_slice(&s1, STR_DONT_FREE, ent, offset, s1_bytes, index);
+    nstr_init_slice(&s3, STR_DONT_FREE, ent, offset + s1_bytes, s->bytes - s1_bytes - mid_bytes, s->chars - index - mid_chars);
     return nstr_concat3(s1, sub, s2);
 } // nstr_replace
 
