@@ -112,15 +112,15 @@ inline static bool nstr_equal(nstr_p s1, nstr_p s2, str_locale_t locale)
     return nstr_compare(s1, s2, locale) == 0;
 } // nstr_equal
 
-inline static bool nstr_lesser(nstr_p s1, nstr_p s2, str_locale_t locale)
+inline static bool nstr_less(nstr_p s1, nstr_p s2, str_locale_t locale)
 {
     return nstr_compare(s1, s2, locale) < 0;
-} // nstr_lesser
+} // nstr_less
 
-inline static bool nstr_lesser_or_equal(nstr_p s1, nstr_p s2, str_locale_t locale)
+inline static bool nstr_less_or_equal(nstr_p s1, nstr_p s2, str_locale_t locale)
 {
     return nstr_compare(s1, s2, locale) <= 0;
-} // nstr_lesser_or_equal
+} // nstr_less_or_equal
 
 inline static bool nstr_greater(nstr_p s1, nstr_p s2, str_locale_t locale)
 {
