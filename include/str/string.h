@@ -90,6 +90,9 @@ extern bool nstr_is_string(nstr_p s);
 // 测试是否为切片
 extern bool nstr_is_slice(nstr_p s);
 
+// 测试是否为空字符串
+extern bool nstr_is_blank(nstr_p s);
+
 // 测试是否存在子串
 extern bool nstr_contain(nstr_p s, nstr_p sub);
 
@@ -177,7 +180,7 @@ inline static void * nstr_find(nstr_p s, nstr_p sub, void ** start, uint32_t * s
 } // nstr_find
 
 // 获取空字符串常量
-extern nstr_p nstr_blank(str_encoding_t encoding);
+extern nstr_p nstr_blank(void);
 
 // 基于字符范围切片，生成切片或新字符串
 extern nstr_p nstr_slice(nstr_p s, bool can_new, uint32_t index, uint32_t chars);
