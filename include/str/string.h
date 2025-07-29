@@ -144,23 +144,23 @@ extern bool nstr_verify(nstr_p s);
 
 // 功能：获取串内容首字节的地址
 // 参数：
-//     pos    IO    入参：临时变量的指针，不能为 NULL
-//                  出参：内部使用的遍历变量，保存下一个字节的地址
-//     end    IO    入参：临时变量的指针，不能为 NULL
-//                  出参：内部使用的遍历变量，保存终止地址
+//     pos    IO    入参：遍历状态变量的指针，不能为 NULL
+//                  出参：将遍历的下一字节地址
+//     end    IO    入参：遍历状态变量的指针，不能为 NULL
+//                  出参：遍历终止地址
 // 返回值：
-//     non-NULL     首字节的地址
+//     non-NULL     首字节地址
 //     NULL         没有首字节，遍历结束
 extern void * nstr_first_byte(nstr_p s, void ** pos, void ** end);
 
 // 功能：获取串内容下一字节的地址
 // 参数：
-//     pos    IO    入参：临时变量的指针，不能为 NULL
-//                  出参：内部使用的遍历变量，保存下一个字节的地址
-//     end    IO    入参：临时变量的指针，不能为 NULL
-//                  出参：内部使用的遍历变量，保存终止地址
+//     pos    IO    入参：遍历状态变量的指针，不能为 NULL
+//                  出参：将遍历的下一字节地址
+//     end    IO    入参：遍历状态变量的指针，不能为 NULL
+//                  出参：遍历终止地址
 // 返回值：
-//     non-NULL     下一字节的地址
+//     non-NULL     下一字节地址
 //     NULL         没有下一字节，遍历结束
 inline static void * nstr_next_byte(nstr_p s, void ** pos, void ** end)
 {
@@ -172,11 +172,25 @@ inline static void * nstr_next_byte(nstr_p s, void ** pos, void ** end)
     return *pos++;
 } // nstr_next_byte
 
-// 获取第一个字符
-extern void * nstr_first_char(nstr_p s, void ** pos, void ** end, uint32_t * bytes);
+// 功能：获取串内容首字符
+// 参数：
+//     slice  IO    入参：遍历状态变量的指针，不能为 NULL
+//                        允许指向外部分配的内存，或内部分配内存（结束时释放），以容纳临时切片对象
+//                  出参：切片对象，保存字符元信息
+// 返回值：
+//     non-NULL     指向首字符切片对象的地址
+//     NULL         没有首字符，遍历结束
+extern nstr_p nstr_first_char(nstr_p s, nstr_p * slice);
 
-// 获取下一个字符
-extern void * nstr_next_char(nstr_p s, void ** pos, void ** end, uint32_t * bytes);
+// 功能：获取串内容下一字符
+// 参数：
+//     slice  IO    入参：遍历状态变量的指针，不能为 NULL
+//                        允许指向外部分配的内存，或内部分配内存（结束时释放），以容纳临时切片对象
+//                  出参：切片对象，保存字符元信息
+// 返回值：
+//     non-NULL     指向下一字符切片对象的地址
+//     NULL         没有下一字符，遍历结束
+extern nstr_p nstr_next_char(nstr_p s, nstr_p * slice);
 
 // 定位第一个子串位置
 extern void * nstr_first_sub(nstr_p s, nstr_p sub, void ** start, uint32_t * size, uint32_t * index);

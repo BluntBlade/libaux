@@ -132,13 +132,18 @@ void nstr_delete(nstr_p * ps)
 {
     nstr_p ent = *ps;
 
-    if (! ent) return;
+    if (! ent) return; // 空指针
     if (ent->is_slice) {
         ent = (*ps)->ent;
-        if ((*ps)->need_free) free(*ps); // 释放切片
+        if ((*ps)->need_free) {
+            free(*ps); // 释放切片
+            *ps = NULL; // 防止野指针
+        } else {
+            // 调用者分配的内存无须释放，无须防止野指针
+        } // if
+    } else {
+        *ps = NULL; // 防止野指针
     } // if
-
-    *ps = NULL; // 防止野指针
 
     ent->str.refs -= 1;
     if (ent->str.refs == 0 && ent->need_free) free(ent); // 释放非空字符串
@@ -224,34 +229,44 @@ void * nstr_first_byte(nstr_p s, void ** pos, void ** end)
     return get_start(s);
 } // nstr_first_byte
 
-void * nstr_first_char(nstr_p s, void ** pos, void ** end, uint32_t * bytes)
+nstr_p nstr_first_char(nstr_p s, nstr_p * slice)
 {
-    *pos = get_start(s);
-    *end = *pos + s->bytes;
-    if (*pos == *end) {
-        *pos = NULL;
-        *end = NULL;
-        *bytes = 0;
-        return NULL;
+    bool free = STR_DONT_FREE;
+    int32_t ret_bytes = 0;
+    int32_t ret_chars = 0;
+
+    if (s->chars == 0) return NULL; // 源串为空
+    if (! *slice) {
+        *slice = malloc(nstr_slice_size());
+        free = STR_NEED_FREE;
     } // if
-    *bytes = get_vtable(s)->measure(*pos);
-    *pos += *bytes;
-    return get_start(s);
+    if (*slice) {
+        ret_chars = 1;
+        get_vtable(s)->check(get_start(s), get_start(s) + s->bytes, 0, &ret_chars, &ret_bytes);
+        nstr_init_slice(*slice, free, s, 0, ret_bytes, ret_chars);
+    } // if
+    return *slice;
 } // nstr_first_char
 
-void * nstr_next_char(nstr_p s, void ** pos, void ** end, uint32_t * bytes)
+nstr_p nstr_next_char(nstr_p s, nstr_p * slice)
 {
+    void * start = NULL;
+    void * end = NULL;
     void * loc = NULL;
-    if (*pos == *end) {
-        *pos = NULL;
-        *end = NULL;
-        *bytes = 0;
+
+    if (! *slice) return NULL;
+
+    (*slice)->slc.index += 1;
+    (*slice)->slc.offset += (*slice)->bytes;
+
+    start = get_start(s) + (*slice)->slc.offset;
+    end = get_start(s) + s->bytes;
+    loc = get_vtable(s)->check(begin, end, 0, &(*slice)->chars, &(*slice)->bytes);
+    if (! loc) {
+        nstr_delete(slice);
         return NULL;
     } // if
-    loc = *pos;
-    *bytes = get_vtables(s)->measure(*pos);
-    *pos += *bytes;
-    return loc;
+    return *slice;
 } // nstr_next_char
 
 void * nstr_first_sub(nstr_p s, nstr_p sub, void ** start, uint32_t * size, uint32_t * index)
