@@ -66,6 +66,21 @@ inline static void * get_start(nstr_p s)
     return (s->is_slice) ? s->slc->ent->str.buf + s->slc.offset : s->str.buf;
 } // get_start
 
+inline static void * get_end(nstr_p s)
+{
+    return get_start(s) + s->bytes;
+} // get_end
+
+inline static int32_t get_index(nstr_p s)
+{
+    return (s->is_slice) ? s->slc.index : 0;
+} // if
+
+inline static int32_t get_offset(nstr_p s)
+{
+    return (s->is_slice) ? s->slc.offset : 0;
+} // get_end
+
 inline static nstr_p get_entity(nstr_p s)
 {
     return (s->is_slice) ? s->slc->ent : s;
@@ -229,44 +244,45 @@ void * nstr_first_byte(nstr_p s, void ** pos, void ** end)
     return get_start(s);
 } // nstr_first_byte
 
-nstr_p nstr_first_char(nstr_p s, nstr_p * slice)
+int32_t nstr_first_char(nstr_p s, nstr_p * slice)
 {
     bool free = STR_DONT_FREE;
-    int32_t ret_bytes = 0;
-    int32_t ret_chars = 0;
+    void * loc = NULL;
+    int32_t r_bytes = 0;
+    int32_t r_chars = 1;
 
-    if (s->chars == 0) return NULL; // 源串为空
+    if (s->chars == 0) return -1; // 源串为空
+
+    loc = get_vtable(s)->check(get_start(s), get_end(s), 0, &r_chars, &r_bytes);
+    if (! loc) return -2;
+
     if (! *slice) {
         *slice = malloc(nstr_slice_size());
+        if (! *slice) return -3;
         free = STR_NEED_FREE;
     } // if
-    if (*slice) {
-        ret_chars = 1;
-        get_vtable(s)->check(get_start(s), get_start(s) + s->bytes, 0, &ret_chars, &ret_bytes);
-        nstr_init_slice(*slice, free, s, 0, ret_bytes, ret_chars);
-    } // if
-    return *slice;
+
+    nstr_init_slice(*slice, free, get_entity(s), get_offset(s), r_bytes, r_chars);
+    return 0;
 } // nstr_first_char
 
-nstr_p nstr_next_char(nstr_p s, nstr_p * slice)
+int32_t nstr_next_char(nstr_p s, nstr_p * slice)
 {
-    void * start = NULL;
-    void * end = NULL;
     void * loc = NULL;
+    int32_t ret = -2;
 
     if (! *slice) return NULL;
 
     (*slice)->slc.index += 1;
     (*slice)->slc.offset += (*slice)->bytes;
 
-    start = get_start(s) + (*slice)->slc.offset;
-    end = get_start(s) + s->bytes;
-    loc = get_vtable(s)->check(begin, end, 0, &(*slice)->chars, &(*slice)->bytes);
-    if (! loc) {
-        nstr_delete(slice);
-        return NULL;
+    loc = get_vtable(s)->check(get_start(*slice), get_end(s), 0, &(*slice)->chars, &(*slice)->bytes);
+    if (loc) {
+        if (loc < get_end(s)) return (*slice)->slc.index;
+        ret = -1;
     } // if
-    return *slice;
+    nstr_delete(slice);
+    return ret;
 } // nstr_next_char
 
 void * nstr_first_sub(nstr_p s, nstr_p sub, void ** start, uint32_t * size, uint32_t * index)

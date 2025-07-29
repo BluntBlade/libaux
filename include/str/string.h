@@ -176,20 +176,23 @@ inline static void * nstr_next_byte(nstr_p s, void ** pos, void ** end)
 // 参数：
 //     slice  IO    入参：遍历状态变量的指针，不能为 NULL
 //                        允许指向外部分配的内存，或内部分配内存（结束时释放），以容纳临时切片对象
-//                  出参：切片对象，保存字符元信息
+//                  出参：切片对象，引用单个字符
 // 返回值：
-//     non-NULL     指向首字符切片对象的地址
-//     NULL         没有首字符，遍历结束
-extern nstr_p nstr_first_char(nstr_p s, nstr_p * slice);
+//     >= 0         字符下标
+//     -1           没有更多字符，遍历结束
+//     -2           源字符串包含异常字节（未正确编码）
+//     -3           无充足内存可用
+extern int32_t nstr_first_char(nstr_p s, nstr_p * slice);
 
 // 功能：获取串内容下一字符
 // 参数：
 //     slice  IO    入参：遍历状态变量的指针，不能为 NULL
 //                        允许指向外部分配的内存，或内部分配内存（结束时释放），以容纳临时切片对象
-//                  出参：切片对象，保存字符元信息
+//                  出参：切片对象，引用单个字符
 // 返回值：
-//     non-NULL     指向下一字符切片对象的地址
-//     NULL         没有下一字符，遍历结束
+//     > 0          字符下标
+//     -1           没有更多字符，遍历结束
+//     -2           源字符串包含异常字节（未正确编码）
 extern nstr_p nstr_next_char(nstr_p s, nstr_p * slice);
 
 // 定位第一个子串位置
