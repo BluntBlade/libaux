@@ -142,20 +142,34 @@ inline static bool nstr_greater_or_equal(nstr_p s1, nstr_p s2, str_locale_t loca
 // 校验编码正确性和完整性
 extern bool nstr_verify(nstr_p s);
 
-// 获取第一个字节
+// 功能：获取串内容首字节的地址
+// 参数：
+//     pos    IO    入参：临时变量的指针，不能为 NULL
+//                  出参：内部使用的遍历变量，保存下一个字节的地址
+//     end    IO    入参：临时变量的指针，不能为 NULL
+//                  出参：内部使用的遍历变量，保存终止地址
+// 返回值：
+//     non-NULL     首字节的地址
+//     NULL         没有首字节，遍历结束
 extern void * nstr_first_byte(nstr_p s, void ** pos, void ** end);
 
-// 获取下一个字节
+// 功能：获取串内容下一字节的地址
+// 参数：
+//     pos    IO    入参：临时变量的指针，不能为 NULL
+//                  出参：内部使用的遍历变量，保存下一个字节的地址
+//     end    IO    入参：临时变量的指针，不能为 NULL
+//                  出参：内部使用的遍历变量，保存终止地址
+// 返回值：
+//     non-NULL     下一字节的地址
+//     NULL         没有下一字节，遍历结束
 inline static void * nstr_next_byte(nstr_p s, void ** pos, void ** end)
 {
-    void * loc = *pos;
     if (*pos == *end) {
         *pos = NULL;
         *end = NULL;
         return NULL;
     } // if
-    *pos += 1;
-    return loc;
+    return *pos++;
 } // nstr_next_byte
 
 // 获取第一个字符
