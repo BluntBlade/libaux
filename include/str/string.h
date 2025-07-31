@@ -215,13 +215,10 @@ extern int32_t nstr_first_sub(nstr_p s, nstr_p sub, nstr_p * slice);
 //     -3           没有找到子串，查找结束
 extern int32_t nstr_next_sub(nstr_p s, nstr_p sub, nstr_p * slice);
 
-// 查找第一个或下一个子串
-inline static void * nstr_find(nstr_p s, nstr_p sub, void ** start, uint32_t * size, uint32_t * index)
+// 查找首个或下一子串
+inline static int32_t nstr_find(nstr_p s, nstr_p sub, nstr_p * slice)
 {
-    if (! *start) {
-        return nstr_first_sub(s, sub, start, size, index);
-    } // if
-    return nstr_next_sub(s, sub, start, size, index);
+    return (*slice) ? nstr_next_sub(s, sub, slice) : nstr_first_sub(s, sub, slice);
 } // nstr_find
 
 // 获取空字符串常量
