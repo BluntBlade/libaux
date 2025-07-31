@@ -231,11 +231,8 @@ inline static int32_t nstr_find(nstr_p s, nstr_p sub, nstr_p * slice)
 // 获取空字符串常量
 extern nstr_p nstr_blank(void);
 
-// 基于字符范围切片，生成切片或新字符串
+// 基于字符范围，生成切片或新字符串
 extern nstr_p nstr_slice(nstr_p s, bool can_new, uint32_t index, uint32_t chars);
-
-// 基于字字范围切片，生成切片或新字符串
-extern nstr_p nstr_slice_from(nstr_p s, bool can_new, void * pos, uint32_t bytes);
 
 // 功能：切分字符串
 // 参数：
