@@ -285,64 +285,48 @@ int32_t nstr_next_char(nstr_p s, nstr_p * slice)
     return ret;
 } // nstr_next_char
 
-void * nstr_first_sub(nstr_p s, nstr_p sub, void ** start, uint32_t * size, uint32_t * index)
+int32_t nstr_first_sub(nstr_p s, nstr_p sub, nstr_p * slice)
 {
     void * loc = NULL;
 
-    if (sub->chars == 0) {
-        // 子串为空
-        loc = get_start(s);
-        goto NSTR_FIRST_SUB_END;
-    } // if
-    if (s->chars == 0) goto NSTR_FIRST_SUB_END; // 源串为空，找不到子串
-
-    if (! *start) {
-        *start = get_start(s);
-        *size = s->bytes;
-    } // if
-    if (*size < sub->bytes) goto NSTR_FIRST_SUB_END; // 查找范围小于子串长度
-
-    loc = nstr_next_sub(s, pub, start, size, index);
-    if (loc) {
-        *index -= sub->chars;
-        return loc;
-    } // if
-
-NSTR_FIRST_SUB_END:
-    *start = NULL;
-    *size = 0;
-    *index = 0;
-    return loc;
-} // nstr_first_sub
-
-void * nstr_next_sub(nstr_p s, nstr_p sub, void ** start, uint32_t * size, uint32_t * index)
-{
-    void * loc = NULL;
-    
-    if (! *start || *size < sub->bytes) goto NSTR_NEXT_SUB_END; // 查找范围耗尽
+    if (s->chars == 0) -2; // 源串为空，找不到子串
+    if (sub->chars == 0) return -3; // 子串为空
 
     if (sub->bytes == 1) {
-        // 子串只有一个字节长
-        loc = memchr(*start, get_start(sub)[0], *size);
+        // 子串只包含单个字节
+        loc = memchr(get_start(s), ((char_t *)get_start(sub))[0], sub->bytes);
     } else {
-        loc = memmem(*start, *size, get_start(sub), sub->bytes);
+        loc = memmem(get_start(s), s->bytes, get_start(sub), sub->bytes);
     } // if
-    if (! loc) goto NSTR_NEXT_SUB_END; // 找不到子串
+    if (! loc) return -3;
 
-    *index += sub->chars + get_vtable(s)->count(start, loc);
+    *slice = malloc(nstr_slice_size());
+    if (! *slice) return -1;
 
-    *size -= ((loc - *start) + sub->bytes); // 缩小字节范围
-    *start = loc + sub->bytes; // 移到下一个起点
-    return loc;
+    nstr_init_slice(*slice, STR_NEED_FREE, get_entity(s), loc - get_start(s), sub->bytes, sub->chars);
+    return (*slice)->slc.index = get_vtable(s)->count(get_start(s), loc);
+} // nstr_first_sub
 
-NSTR_NEXT_SUB_END:
-    *start = NULL;
-    *size = 0;
-    *index = 0;
-    return loc;
+int32_t nstr_next_sub(nstr_p s, nstr_p sub, nstr_p * slice)
+{
+    void * start = NULL;
+    void * loc = NULL;
+    
+    start = get_end(*slice);
+    if (sub->bytes == 1) {
+        // 子串只包含单个字节
+        loc = memchr(start, ((char_t *)get_start(sub))[0], sub->bytes);
+    } else {
+        loc = memmem(start, get_end(s) - start, get_start(sub), sub->bytes);
+    } // if
+    if (! loc) {
+        nstr_delete(slice);
+        return -3;
+    } // if
+    return (*slice)->slc.index += (*slice)->chars + get_vtable(s)->count(start, loc);
 } // nstr_next_sub
 
-nstr_p nstr_blank(void);
+nstr_p nstr_blank(void)
 {
     return nstr_add_ref(&blank);
 } // nstr_blank

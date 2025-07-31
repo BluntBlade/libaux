@@ -144,6 +144,7 @@ extern bool nstr_verify(nstr_p s);
 
 // 功能：获取串内容首字节的地址
 // 参数：
+//     s      IN    入参：源串或切片，不能为 NULL
 //     pos    IO    入参：遍历状态变量的指针，不能为 NULL
 //                  出参：将遍历的下一字节地址
 //     end    IO    入参：遍历状态变量的指针，不能为 NULL
@@ -155,6 +156,7 @@ extern void * nstr_first_byte(nstr_p s, void ** pos, void ** end);
 
 // 功能：获取串内容下一字节的地址
 // 参数：
+//     s      IN    入参：源串或切片，不能为 NULL
 //     pos    IO    入参：遍历状态变量的指针，不能为 NULL
 //                  出参：将遍历的下一字节地址
 //     end    IO    入参：遍历状态变量的指针，不能为 NULL
@@ -174,6 +176,7 @@ inline static void * nstr_next_byte(nstr_p s, void ** pos, void ** end)
 
 // 功能：获取串内容首字符
 // 参数：
+//     s      IN    入参：源串或切片，不能为 NULL
 //     slice  IO    入参：遍历状态变量的指针，不能为 NULL
 //                        允许指向外部分配的内存，或内部分配内存（结束时释放），以容纳临时切片对象
 //                  出参：切片对象，引用单个字符
@@ -186,6 +189,7 @@ extern int32_t nstr_first_char(nstr_p s, nstr_p * slice);
 
 // 功能：获取串内容下一字符
 // 参数：
+//     s      IN    入参：源串或切片，不能为 NULL
 //     slice  IO    入参：遍历状态变量的指针，不能为 NULL
 //                        允许指向外部分配的内存，或内部分配内存（结束时释放），以容纳临时切片对象
 //                  出参：切片对象，引用单个字符
@@ -195,11 +199,33 @@ extern int32_t nstr_first_char(nstr_p s, nstr_p * slice);
 //     -2           源字符串包含异常字节（未正确编码）
 extern nstr_p nstr_next_char(nstr_p s, nstr_p * slice);
 
-// 定位第一个子串位置
-extern void * nstr_first_sub(nstr_p s, nstr_p sub, void ** start, uint32_t * size, uint32_t * index);
+// 功能：查找子串首个位置
+// 参数：
+//     s      IN    入参：源串或切片，不能为 NULL
+//     sub    IN    入参：目标子串或切片，不能为 NULL
+//     slice  IO    入参：遍历状态变量的指针，不能为 NULL
+//                        允许指向外部分配的内存，或内部分配内存（结束时释放），以容纳临时切片对象
+//                  出参：切片对象，引用找到的子串
+// 返回值：
+//     >= 0         子串首字符下标
+//     -1           内存不足
+//     -2           源字符串包含异常字节（未正确编码）
+//     -3           没有找到子串，查找结束
+//     -4           子串为空，查找结束
+extern int32_t nstr_first_sub(nstr_p s, nstr_p sub, nstr_p * slice);
 
-// 定位下一个子串位置
-extern void * nstr_next_sub(nstr_p s, nstr_p sub, void ** start, uint32_t * size, uint32_t * index);
+// 功能：查找子串下一位置
+// 参数：
+//     s      IN    入参：源串或切片，不能为 NULL
+//     sub    IN    入参：目标子串或切片，不能为 NULL
+//     slice  IO    入参：遍历状态变量的指针，不能为 NULL
+//                        允许指向外部分配的内存，或内部分配内存（结束时释放），以容纳临时切片对象
+//                  出参：切片对象，引用找到的子串
+// 返回值：
+//     >= 0         子串首字符下标
+//     -2           源字符串包含异常字节（未正确编码）
+//     -3           没有找到子串，查找结束
+extern int32_t nstr_next_sub(nstr_p s, nstr_p sub, nstr_p * slice);
 
 // 查找第一个或下一个子串
 inline static void * nstr_find(nstr_p s, nstr_p sub, void ** start, uint32_t * size, uint32_t * index)
