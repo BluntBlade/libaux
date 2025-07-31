@@ -24,18 +24,6 @@ typedef enum STR_LOCALE {
     STR_LOC_C = 0,
 } str_locale_t;
 
-// ---- 元函数 ---- //
-
-// 功能：返回切片对象应占字节数，以便预分配内存（并嵌入到其它数据结构中）
-// 参数：
-//     无
-// 返回值：
-//     > 0    切片对象需要的固定大小的内存字节数，调用方自行圆整并对齐到内存边界
-extern size_t nstr_slice_size(void);
-
-// 初始化切片对象
-extern void nstr_init_slice(nstr_p s, bool need_free, nstr_p src, uint32_t offset, uint32_t bytes, uint32_t chars);
-
 // ---- 功能函数 ---- //
 
 // 从原生字符串生成新字符串

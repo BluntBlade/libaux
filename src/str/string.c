@@ -108,12 +108,14 @@ inline static void init_entity(nstr_p s, bool need_free, uint32_t bytes, uint32_
     s->str.vtbl = vtbl;
 } // init_entity
 
-size_t nstr_slice_size(void)
+// 功能：返回切片对象应占字节数
+inline static size_t slice_size(void)
 {
     return sizeof(nstr_t);
-} // nstr_slice_size
+} // slice_size
 
-void nstr_init_slice(nstr_p s, bool need_free, nstr_p src, uint32_t offset, uint32_t bytes, uint32_t index, uint32_t chars)
+// 功能：初始化切片对象
+inline static void nstr_init_slice(nstr_p s, bool need_free, nstr_p src, uint32_t offset, uint32_t bytes, uint32_t index, uint32_t chars)
 {
     s->is_slice = 1;
     s->need_free = need_free ? 1 : 0;
@@ -257,12 +259,12 @@ int32_t nstr_first_char(nstr_p s, nstr_p * slice)
     if (! loc) return -2;
 
     if (! *slice) {
-        *slice = malloc(nstr_slice_size());
+        *slice = malloc(slice_size());
         if (! *slice) return -3;
         free = STR_NEED_FREE;
     } // if
 
-    nstr_init_slice(*slice, free, get_entity(s), get_offset(s), r_bytes, r_chars);
+    nstr_init_slice(*slice, free, get_entity(s), get_offset(s), r_bytes, 0, r_chars);
     return 0;
 } // nstr_first_char
 
@@ -288,9 +290,10 @@ int32_t nstr_next_char(nstr_p s, nstr_p * slice)
 int32_t nstr_first_sub(nstr_p s, nstr_p sub, nstr_p * slice)
 {
     void * loc = NULL;
+    int32_t index = 0;
 
-    if (s->chars == 0) -2; // 源串为空，找不到子串
-    if (sub->chars == 0) return -3; // 子串为空
+    if (s->chars == 0) -3; // 源串为空，找不到子串
+    if (sub->chars == 0) return -4; // 子串为空
 
     if (sub->bytes == 1) {
         // 子串只包含单个字节
@@ -298,13 +301,16 @@ int32_t nstr_first_sub(nstr_p s, nstr_p sub, nstr_p * slice)
     } else {
         loc = memmem(get_start(s), s->bytes, get_start(sub), sub->bytes);
     } // if
-    if (! loc) return -3;
+    if (! loc) return -4;
 
-    *slice = malloc(nstr_slice_size());
+    index = get_vtable(s)->count(get_start(s), loc);
+    if (index < 0) return -2; // 源串包含异常字节
+
+    *slice = malloc(slice_size());
     if (! *slice) return -1;
 
-    nstr_init_slice(*slice, STR_NEED_FREE, get_entity(s), loc - get_start(s), sub->bytes, sub->chars);
-    return (*slice)->slc.index = get_vtable(s)->count(get_start(s), loc);
+    nstr_init_slice(*slice, STR_NEED_FREE, get_entity(s), loc - get_start(s), sub->bytes, index, sub->chars);
+    return index;
 } // nstr_first_sub
 
 int32_t nstr_next_sub(nstr_p s, nstr_p sub, nstr_p * slice)
@@ -323,6 +329,7 @@ int32_t nstr_next_sub(nstr_p s, nstr_p sub, nstr_p * slice)
         nstr_delete(slice);
         return -3;
     } // if
+    (*slice)->slc.offset += (*slice)->bytes + (loc - start);
     return (*slice)->slc.index += (*slice)->chars + get_vtable(s)->count(start, loc);
 } // nstr_next_sub
 
