@@ -292,8 +292,8 @@ int32_t nstr_first_sub(nstr_p s, nstr_p sub, nstr_p * slice)
     void * loc = NULL;
     int32_t index = 0;
 
-    if (s->chars == 0) -3; // 源串为空，找不到子串
-    if (sub->chars == 0) return -4; // 子串为空
+    if (s->chars == 0) return STR_NOT_FOUND; // 源串为空，找不到子串
+    if (sub->chars == 0) return STR_BLANK_SUB; // 子串为空
 
     if (sub->bytes == 1) {
         // 子串只包含单个字节
@@ -301,13 +301,13 @@ int32_t nstr_first_sub(nstr_p s, nstr_p sub, nstr_p * slice)
     } else {
         loc = memmem(get_start(s), s->bytes, get_start(sub), sub->bytes);
     } // if
-    if (! loc) return -4;
+    if (! loc) return STR_NOT_FOUND; // 找不到子串
 
     index = get_vtable(s)->count(get_start(s), loc);
-    if (index < 0) return -2; // 源串包含异常字节
+    if (index < 0) return STR_UNKNOWN_BYTE; // 源串包含异常字节
 
     *slice = malloc(slice_size());
-    if (! *slice) return -1;
+    if (! *slice) return STR_OUT_OF_MEMORY; // 内存不足
 
     nstr_init_slice(*slice, STR_NEED_FREE, get_entity(s), loc - get_start(s), sub->bytes, index, sub->chars);
     return index;
@@ -317,6 +317,7 @@ int32_t nstr_next_sub(nstr_p s, nstr_p sub, nstr_p * slice)
 {
     void * start = NULL;
     void * loc = NULL;
+    int32_t chars = 0;
     
     start = get_end(*slice);
     if (sub->bytes == 1) {
@@ -327,10 +328,16 @@ int32_t nstr_next_sub(nstr_p s, nstr_p sub, nstr_p * slice)
     } // if
     if (! loc) {
         nstr_delete(slice);
-        return -3;
+        return STR_NOT_FOUND; // 找不到子串
     } // if
+    chars = get_vtable(s)->count(start, loc);
+    if (chars < 0) {
+        nstr_delete(slice);
+        return STR_UNKNOWN_BYTE; // 源串包含异常字节
+    } // if
+
     (*slice)->slc.offset += (*slice)->bytes + (loc - start);
-    return (*slice)->slc.index += (*slice)->chars + get_vtable(s)->count(start, loc);
+    return (*slice)->slc.index += (*slice)->chars + chars;
 } // nstr_next_sub
 
 nstr_p nstr_blank(void)

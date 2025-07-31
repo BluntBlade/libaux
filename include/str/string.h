@@ -20,6 +20,13 @@ enum {
     STR_NOT_NEW = false,
 };
 
+enum {
+    STR_OUT_OF_MEMORY = -1,
+    STR_UNKNOWN_BYTE = -2,
+    STR_NOT_FOUND = -101,
+    STR_BLANK_SUB = -102,
+};
+
 typedef enum STR_LOCALE {
     STR_LOC_C = 0,
 } str_locale_t;
@@ -195,11 +202,11 @@ extern nstr_p nstr_next_char(nstr_p s, nstr_p * slice);
 //                        允许指向外部分配的内存，或内部分配内存（结束时释放），以容纳临时切片对象
 //                  出参：切片对象，引用找到的子串
 // 返回值：
-//     >= 0         子串首字符下标
-//     -1           内存不足
-//     -2           源字符串包含异常字节（未正确编码）
-//     -3           没有找到子串，查找结束
-//     -4           子串为空，查找结束
+//     >= 0                 子串位置下标
+//     STR_OUT_OF_MEMORY    内存不足
+//     STR_UNKNOWN_BYTE     源串包含异常字节（未正确编码）
+//     STR_NOT_FOUND        没有找到子串，查找结束
+//     STR_BLANK_SUB        子串为空，查找结束
 extern int32_t nstr_first_sub(nstr_p s, nstr_p sub, nstr_p * slice);
 
 // 功能：查找子串下一位置
@@ -210,9 +217,9 @@ extern int32_t nstr_first_sub(nstr_p s, nstr_p sub, nstr_p * slice);
 //                        允许指向外部分配的内存，或内部分配内存（结束时释放），以容纳临时切片对象
 //                  出参：切片对象，引用找到的子串
 // 返回值：
-//     >= 0         子串首字符下标
-//     -2           源字符串包含异常字节（未正确编码）
-//     -3           没有找到子串，查找结束
+//     >= 0                 子串位置下标
+//     STR_UNKNOWN_BYTE     源串包含异常字节（未正确编码）
+//     STR_NOT_FOUND        没有找到子串，查找结束
 extern int32_t nstr_next_sub(nstr_p s, nstr_p sub, nstr_p * slice);
 
 // 查找首个或下一子串
