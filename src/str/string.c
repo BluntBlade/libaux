@@ -291,10 +291,13 @@ int32_t nstr_first_sub(nstr_p s, nstr_p sub, nstr_p * slice)
 {
     void * loc = NULL;
     int32_t index = 0;
+    int32_t bytes = 0;
+    int32_t chars = 0;
 
     if (s->chars == 0) return STR_NOT_FOUND; // 源串为空，找不到子串
 
     if (sub->bytes == 0) {
+        // 空子串
         loc = get_start(s);
     } else {
         if (sub->bytes == 1) {
@@ -307,12 +310,14 @@ int32_t nstr_first_sub(nstr_p s, nstr_p sub, nstr_p * slice)
 
         index = get_vtable(s)->count(get_start(s), loc);
         if (index < 0) return STR_UNKNOWN_BYTE; // 源串包含异常字节
+        bytes = sub->bytes;
+        chars = sub->chars;
     } // if
 
     *slice = malloc(slice_size());
     if (! *slice) return STR_OUT_OF_MEMORY; // 内存不足
 
-    init_slice(*slice, STR_NEED_FREE, get_entity(s), loc - get_start(s), sub->bytes, index, sub->chars);
+    init_slice(*slice, STR_NEED_FREE, get_entity(s), loc - get_start(s), bytes, index, chars);
     return index;
 } // nstr_first_sub
 
@@ -326,13 +331,14 @@ int32_t nstr_next_sub(nstr_p s, nstr_p sub, nstr_p * slice)
     
     start = get_end(*slice);
     end = get_end(s);
-    if (sub->bytes == 0) {
-        if (start == end) goto NSTR_NEXT_SUB_NOT_FOUND;
+    if (start == end) goto NSTR_NEXT_SUB_NOT_FOUND;
 
+    if (sub->bytes == 0) {
         bytes = get_vtable(s)->measure(start);
         if (bytes == 0) goto NSTR_NEXT_SUB_UNKNOWN_BYTE;
 
-        (*slice)->slc.offset += (*slice)->bytes + bytes;
+        (*slice)->slc.offset += (*slice)->bytes;
+        (*slice)->bytes = bytes;
         return (*slice)->slc.index += 1;
     } // if
 
@@ -342,7 +348,6 @@ int32_t nstr_next_sub(nstr_p s, nstr_p sub, nstr_p * slice)
     } else {
         loc = memmem(start, end - start, get_start(sub), sub->bytes);
     } // if
-
     if (! loc) goto NSTR_NEXT_SUB_NOT_FOUND;
 
     chars = get_vtable(s)->count(start, loc);
@@ -410,7 +415,7 @@ nstr_p * nstr_split(nstr_p s, bool can_new, nstr_p deli, int * max);
 
     nstr_p * as = NULL; // 子串数组
     void * loc = NULL; // 分隔符地址
-    int32_t idx = 0; // 分隔符索引
+    int32_t index = 0; // 分隔符索引
     int rmd = 0; // 剩余切分次数，零表示停止，负数表示无限次
     int cnt = 0; // 子串数量，用于下标时始终指向下一个可用元素
     int cap = 0; // 数组容量
@@ -438,14 +443,14 @@ nstr_p * nstr_split(nstr_p s, bool can_new, nstr_p deli, int * max);
 
     init_slice(&prev, STR_DONT_FREE, get_entity(s), get_offset(s), 0, 0, 0);
     init_slice(&curr, STR_DONT_FREE, get_entity(s), get_offset(s), 0, 0, 0);
-    while (rmd != 0 && idx < s->chars) {
+    while (rmd != 0 && index < s->chars) {
         if (cnt >= cap - 2 && ! augment_array(&as, &cap, 16)) goto NSTR_SPLIT_ERROR;
 
-        idx = nstr_next_sub(s, deli, &curr); // 如果失败，在 nstr_next_sub() 中释放 curr
-        if (idx == STR_UNKNOWN_BYTE) goto NSTR_SPLIT_ERROR;
-        if (idx == STR_NOT_FOUND) {
+        index = nstr_next_sub(s, deli, &curr); // 如果失败，在 nstr_next_sub() 中释放 curr
+        if (index == STR_UNKNOWN_BYTE) goto NSTR_SPLIT_ERROR;
+        if (index == STR_NOT_FOUND) {
             loc = get_end(s);
-            idx = s->chars;
+            index = s->chars;
         } else {
             loc = get_start(curr);
         } // if
@@ -453,7 +458,7 @@ nstr_p * nstr_split(nstr_p s, bool can_new, nstr_p deli, int * max);
         if (can_new) {
             as[cnt] = nstr_new(get_end(prev), loc - get_end(prev), nstr_encoding(s));
         } else {
-            as[cnt] = new_slice(get_entity(s), get_offset(prev) + prev->bytes, sub->bytes, idx - (prev->slc.index + prev->slc.chars), sub->chars);
+            as[cnt] = new_slice(get_entity(s), get_offset(prev) + prev->bytes, sub->bytes, index - (prev->slc.index + prev->slc.chars), sub->chars);
         } // if
         if (! as[cnt]) {
             nstr_delete(&curr);
