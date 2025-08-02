@@ -5,9 +5,9 @@
 #include "str/ascii.h"
 #include "str/string.h"
 
-typedef uint32_t (*measure_t)(void * pos);
-typedef void * (*check_t)(void * begin, void * end, uint32_t index, uint32_t * chars, uint32_t * bytes);
-typedef uint32_t (*count_t)(void * begin, void * end);
+typedef int32_t (*measure_t)(void * pos);
+typedef void * (*check_t)(void * begin, void * end, int32_t index, int32_t * chars, int32_t * bytes);
+typedef int32_t (*count_t)(void * begin, void * end);
 typedef bool (*verify_t)(void * begin, void * end);
 
 typedef struct NSTR_VTABLE {
@@ -92,13 +92,13 @@ inline static nstr_p get_vtable(nstr_p s)
 } // get_entity
 
 // 字符串对象占用字节数
-inline static size_t entity_size(uint32_t bytes)
+inline static size_t entity_size(size_t bytes)
 {
     return sizeof(nstr_t) + bytes;
 } // entity_size
 
 // 初始化字符串对象
-inline static void init_entity(nstr_p s, bool need_free, uint32_t bytes, uint32_t chars, nstr_vtable_p vtbl)
+inline static void init_entity(nstr_p s, bool need_free, int32_t bytes, int32_t chars, nstr_vtable_p vtbl)
 {
     s->is_slice = 0;
     s->need_free = need_free ? 1 : 0;
@@ -115,7 +115,7 @@ inline static size_t slice_size(void)
 } // slice_size
 
 // 功能：初始化切片对象
-inline static void init_slice(nstr_p s, bool need_free, nstr_p src, uint32_t offset, uint32_t bytes, uint32_t index, uint32_t chars)
+inline static void init_slice(nstr_p s, bool need_free, nstr_p src, int32_t offset, int32_t bytes, int32_t index, int32_t chars)
 {
     s->is_slice = 1;
     s->need_free = need_free ? 1 : 0;
@@ -127,7 +127,7 @@ inline static void init_slice(nstr_p s, bool need_free, nstr_p src, uint32_t off
     nstr_add_ref(src);
 } // init_slice
 
-nstr_p nstr_new(void * src, uint32_t bytes, str_encoding_t encoding)
+nstr_p nstr_new(void * src, int32_t bytes, str_encoding_t encoding)
 {
     nstr_vtable_p vtbl = &vtable[encoding];
     nstr_p new = NULL;
@@ -186,17 +186,17 @@ nstr_p nstr_add_ref(nstr_p s)
     return s;
 } // nstr_add_ref
 
-uint32_t nstr_encoding(nstr_p s)
+int32_t nstr_encoding(nstr_p s)
 {
     return (get_vtable(s) - &vtable);
 } // nstr_encoding
 
-uint32_t nstr_bytes(nstr_p s)
+int32_t nstr_bytes(nstr_p s)
 {
     return s->bytes;
 } // nstr_bytes
 
-uint32_t nstr_chars(nstr_p s)
+int32_t nstr_chars(nstr_p s)
 {
     return s->chars;
 } // nstr_chars
@@ -214,7 +214,7 @@ void * nstr_to_cstr(nstr_p * ps)
     return (*ps)->str.buf;
 } // nstr_to_cstr
 
-uint32_t nstr_refs(nstr_p s)
+int32_t nstr_refs(nstr_p s)
 {
     return (s->is_slice) ? 0 : s->str.refs;
 } // nstr_refs
@@ -387,8 +387,8 @@ inline static nstr_p new_slice(nstr_p ent, int32_t offset, int32_t bytes, int32_
 nstr_p nstr_slice(nstr_p s, bool can_new, int32_t index, int32_t chars);
 {
     void * loc = NULL;
-    uint32_t ret_chars = 0;
-    uint32_t ret_bytes = 0;
+    int32_t ret_chars = 0;
+    int32_t ret_bytes = 0;
 
     // CASE-1: 切片起点超出范围
     // CASE-2: 源串是空串
@@ -490,9 +490,9 @@ NSTR_SPLIT_ERROR:
     goto NSTR_SPLIT_END;
 } // nstr_split
 
-typedef char_t * (*copy_strings_t)(char_t * pos, nstr_p * as, int n, char_t * dbuf, uint32_t dbytes);
+typedef char_t * (*copy_strings_t)(char_t * pos, nstr_p * as, int n, char_t * dbuf, int32_t dbytes);
 
-static char_t * copy_strings(char_t * pos, nstr_p * as, int n, char_t * dbuf, uint32_t dbytes)
+static char_t * copy_strings(char_t * pos, nstr_p * as, int n, char_t * dbuf, int32_t dbytes)
 {
     int i = 0;
     int b = n / 4;
@@ -518,7 +518,7 @@ static char_t * copy_strings(char_t * pos, nstr_p * as, int n, char_t * dbuf, ui
     return pos;
 } // copy_strings
 
-static char_t * copy_strings_with_one_deli(char_t * pos, nstr_p * as, int n, char_t * dbuf, uint32_t dbytes)
+static char_t * copy_strings_with_one_deli(char_t * pos, nstr_p * as, int n, char_t * dbuf, int32_t dbytes)
 {
     int i = 0;
     int b = n / 4;
@@ -548,7 +548,7 @@ static char_t * copy_strings_with_one_deli(char_t * pos, nstr_p * as, int n, cha
     return pos;
 } // copy_strings_with_one_deli
 
-static char_t * copy_strings_with_long_deli(char_t * pos, nstr_p * as, int n, char_t * dbuf, uint32_t dbytes)
+static char_t * copy_strings_with_long_deli(char_t * pos, nstr_p * as, int n, char_t * dbuf, int32_t dbytes)
 {
     int i = 0;
     int b = n / 4;
@@ -590,9 +590,9 @@ static nstr_p join_strings(nstr_p deli, nstr_p as, int n, va_list * ap)
     nstr_p as2 = NULL;
     char_t * pos = NULL;
     char_t * dbuf = NULL;
-    uint32_t bytes = 0;
-    uint32_t chars = 0;
-    uint32_t dbytes = 0;
+    int32_t bytes = 0;
+    int32_t chars = 0;
+    int32_t dbytes = 0;
     int i = 0;
     int n2 = 0;
     int cnt = 0;
@@ -658,7 +658,7 @@ nstr_p nstr_repeat(nstr_p s, int n)
         s, s, s, s,
     };
     nstr_p new = NULL;
-    uint32_t b = 0;
+    int32_t b = 0;
 
     if (s->bytes == 0) return nstr_blank(); // CASE-1: s 是空串。
     if (n <= 1) return nstr_add_ref(s);
@@ -689,7 +689,7 @@ nstr_p nstr_concat(nstr_p * as, int n, ...)
 nstr_p nstr_concat2(nstr_p s1, nstr_p s2)
 {
     nstr_p new = NULL;
-    uint32_t bytes = 0;
+    int32_t bytes = 0;
 
     bytes = s1->bytes + s2->bytes;
     if (bytes == 0) return nstr_blank();
@@ -706,7 +706,7 @@ nstr_p nstr_concat2(nstr_p s1, nstr_p s2)
 nstr_p nstr_concat3(nstr_p s1, nstr_p s2, nstr_p s3)
 {
     nstr_p new = NULL;
-    uint32_t bytes = 0;
+    int32_t bytes = 0;
 
     bytes = s1->bytes + s2->bytes + s3->bytes;
     if (bytes == 0) return nstr_blank();
@@ -747,16 +747,16 @@ nstr_p nstr_join_with_char(char_t deli, nstr_p * as, int n, ...)
     return new;
 } // nstr_join_with_char
 
-nstr_p nstr_replace(nstr_p s, bool can_new, uint32_t index, uint32_t chars, nstr_p sub)
+nstr_p nstr_replace(nstr_p s, bool can_new, int32_t index, int32_t chars, nstr_p sub)
 {
     nstr_t s1 = {0};
     nstr_t s3 = {0};
     nstr_p ent = NULL; // 最终字符串对象
     void * begin = NULL;
     void * mid = NULL;
-    uint32_t offset = 0;
-    uint32_t mid_chars = 0;
-    uint32_t mid_bytes = 0;
+    int32_t offset = 0;
+    int32_t mid_chars = 0;
+    int32_t mid_bytes = 0;
 
     if (s->chars == 0) return nstr_slice_from(sub, can_new, get_start(sub), sub->bytes); // CASE-1: s 是空串。
     if (sub->chars == 0) return nstr_slice_from(s, can_new, get_start(s), s->bytes); // CASE-2: sub 是空串。
@@ -784,7 +784,7 @@ nstr_p nstr_replace(nstr_p s, bool can_new, uint32_t index, uint32_t chars, nstr
     return nstr_concat3(s1, sub, s2);
 } // nstr_replace
 
-nstr_p nstr_replace_char(nstr_p s, bool can_new, uint32_t index, uint32_t chars, char_t ch)
+nstr_p nstr_replace_char(nstr_p s, bool can_new, int32_t index, int32_t chars, char_t ch)
 {
     nstr_t sub = {0};
 
@@ -793,18 +793,18 @@ nstr_p nstr_replace_char(nstr_p s, bool can_new, uint32_t index, uint32_t chars,
     return nstr_replace(s, can_new, index, chars, &sub);
 } // nstr_replace_char
 
-nstr_p nstr_remove(nstr_p s, bool can_new, uint32_t index, uint32_t chars)
+nstr_p nstr_remove(nstr_p s, bool can_new, int32_t index, int32_t chars)
 {
     return nstr_replace(s, can_new, index, chars, &blank);
 } // nstr_remove
 
-nstr_p nstr_cut_head(nstr_p s, bool can_new, uint32_t chars)
+nstr_p nstr_cut_head(nstr_p s, bool can_new, int32_t chars)
 {
     if (s->chars < chars) return nstr_blank(); // CASE-1: 删除长度大于字符串长度。
     return nstr_replace(s, can_new, 0, chars, &blank);
 } // nstr_cut_head
 
-nstr_p nstr_cut_tail(nstr_p s, bool can_new, uint32_t chars)
+nstr_p nstr_cut_tail(nstr_p s, bool can_new, int32_t chars)
 {
     if (s->chars < chars) return nstr_blank(); // CASE-1: 删除长度大于字符串长度。
     return nstr_replace(s, can_new, s->chars - chars, chars, &blank);
