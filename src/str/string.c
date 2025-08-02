@@ -129,13 +129,18 @@ inline static void init_slice(nstr_p s, bool need_free, nstr_p src, uint32_t off
 
 nstr_p nstr_new(void * src, uint32_t bytes, str_encoding_t encoding)
 {
-    nstr_p new = NULL;
     nstr_vtable_p vtbl = &vtable[encoding];
+    nstr_p new = NULL;
+    int32_t chars = 0;
 
     if (bytes == 0) return nstr_blank();
-    if ((new = calloc(1, entity_size(bytes)))) {
+
+    chars = vtbl->count(src, src + bytes);
+    if (chars < 0) return NULL;
+
+    if ((new = malloc(entity_size(bytes)))) {
         memcpy(new->str.buf, src, bytes);
-        init_entity(new, STR_NEED_FREE, bytes, vtbl->count(src, src + bytes), vtbl);
+        init_entity(new, STR_NEED_FREE, bytes, chars, vtbl);
     } // if
     return new;
 } // nstr_new
@@ -640,7 +645,7 @@ static nstr_p join_strings(nstr_p deli, nstr_p as, int n, va_list * ap)
 
     bytes -= dbytes; // 去掉多余的尾部间隔符。
     new->str.buf[bytes] = 0; // 设置终止 NUL 字符。
-    init_entity(new, STR_NEED_FREE, bytes, chars, nstr_encoding(as[0]));
+    init_entity(new, STR_NEED_FREE, bytes, chars, get_vtable(as[0]));
     return new;
 } // join_strings
 
@@ -694,7 +699,7 @@ nstr_p nstr_concat2(nstr_p s1, nstr_p s2)
 
     memcpy(new->str.buf, get_start(s1), s1->bytes);
     memcpy(new->str.buf + s1->bytes, get_start(s2), s2->bytes);
-    init_entity(new, STR_NEED_FREE, bytes, s1->chars + s2->chars, nstr_encoding(s1));
+    init_entity(new, STR_NEED_FREE, bytes, s1->chars + s2->chars, get_vtable(s1));
     return new;
 } // nstr_concat2
 
@@ -712,7 +717,7 @@ nstr_p nstr_concat3(nstr_p s1, nstr_p s2, nstr_p s3)
     memcpy(new->str.buf, get_start(s1), s1->bytes);
     memcpy(new->str.buf + s1->bytes, get_start(s2), s2->bytes);
     memcpy(new->str.buf + s1->bytes + s2->bytes, get_start(s3), s3->bytes);
-    init_entity(new, STR_NEED_FREE, bytes, s1->chars + s2->chars + s3->chars, nstr_encoding(s1));
+    init_entity(new, STR_NEED_FREE, bytes, s1->chars + s2->chars + s3->chars, get_vtable(s1));
     return new;
 } // nstr_concat3
 
@@ -734,7 +739,7 @@ nstr_p nstr_join_with_char(char_t deli, nstr_p * as, int n, ...)
     nstr_p new = NULL;
 
     d->str.buf[0] = deli;
-    init_entity(&d, STR_NEED_FREE, 1, 1, &vtable[STR_ENC_ASCII]);
+    init_entity(&d, STR_DONT_FREE, 1, 1, &vtable[STR_ENC_ASCII]);
 
     va_start(ap, n);
     new = join_strings(d, as, n, &ap);
