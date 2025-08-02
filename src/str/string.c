@@ -166,13 +166,14 @@ void nstr_delete(nstr_p * ps)
     if (ent->str.refs == 0 && ent->need_free) free(ent); // 释放非空字符串
 } // nstr_delete
 
-void nstr_delete_strings(nstr_p * as, int n)
+void nstr_delete_array(nstr_array_p * as, int n)
 {
-    if (as) {
-        while (--n >= 0) nstr_delete(as[n]);
-        free(as);
+    if (*as) {
+        while (--n >= 0) nstr_delete((*as)[n]);
+        free(*as);
+        *as = NULL;
     } // if
-} // nstr_delete_strings
+} // nstr_delete_array
 
 nstr_p nstr_add_ref(nstr_p s)
 {
@@ -368,7 +369,7 @@ NSTR_NEXT_SUB_UNKNOWN_BYTE:
 nstr_p nstr_blank(void)
 {
     return nstr_add_ref(&blank);
-} // nstr_blank
+ // nstr_blank
 
 inline static nstr_p new_slice(nstr_p ent, int32_t offset, int32_t bytes, int32_t index, int32_t chars)
 {
@@ -399,23 +400,24 @@ nstr_p nstr_slice(nstr_p s, bool can_new, int32_t index, int32_t chars);
     return new_slice(get_entity(s), loc - get_start(s), ret_bytes, index, ret_chars);
 } // nstr_slice
 
-inline static bool augment_array(nstr_p ** as, int * cap, int delta)
+inline static int32_t augment_array(nstr_p ** as, int * cap, int delta)
 {
-    nstr_p * an = realloc(*as, sizeof((*as)[0]) * (*cap + delta)); // 数组扩容
-    if (! an) return false;
+    nstr_array_p an = realloc(*as, sizeof((*as)[0]) * (*cap + delta)); // 数组扩容
+    if (! an) return 0;
     *cap += delta;
     *as = an;
-    return true;
+    return STR_OUT_OF_MEMORY;
 } // augment_array
 
-nstr_p * nstr_split(nstr_p s, bool can_new, nstr_p deli, int * max);
+int nstr_split(nstr_p s, bool can_new, nstr_p deli, int max, nstr_array_p * as)
 {
     nstr_t prev = {0}; // 分隔符前子串切片
     nstr_t curr = {0}; // 分隔符切片
 
-    nstr_p * as = NULL; // 子串数组
+    nstr_p new = NULL; // 新子串
     void * loc = NULL; // 分隔符地址
     int32_t index = 0; // 分隔符索引
+    int32_t ret = 0; // 返回值
     int rmd = 0; // 剩余切分次数，零表示停止，负数表示无限次
     int cnt = 0; // 子串数量，用于下标时始终指向下一个可用元素
     int cap = 0; // 数组容量
@@ -423,32 +425,32 @@ nstr_p * nstr_split(nstr_p s, bool can_new, nstr_p deli, int * max);
 
     if (s->chars == 0) {
         // CASE-1: 源串是空串
-        as = malloc(sizeof(as[0]) * 2);
-        if (! as) return NULL;
-        as[0] = nstr_blank();
-        as[1] = NULL;
-        if (max) *max = 1;
-        return as;
+        *as = malloc(sizeof(as[0]) * 2);
+        if (! *as) return NULL;
+        (*as)[0] = nstr_blank();
+        (*as)[1] = NULL;
+        return 1;
     } // if
 
-    rmd = (max && *max > 0) ? *max : -1;
+    rmd = (max > 0) ? max : -1;
     delta = (rmd > 0) ? 1 : 0;
 
     // max 次分割将产生 max + 1 个子串，再加上 1 个 NULL 终止标志
     // 保留 2 个元素给最后的子串和终止标志
     cap = (rmd < 16 - 2) ? 16 : (rmd + 2);
 
-    as = malloc(sizeof(as[0]) * cap);
-    if (! as) goto NSTR_SPLIT_END;
+    *as = malloc(sizeof((*as)[0]) * cap);
+    if (! *as) goto NSTR_SPLIT_END;
 
     init_slice(&prev, STR_DONT_FREE, get_entity(s), get_offset(s), 0, 0, 0);
     init_slice(&curr, STR_DONT_FREE, get_entity(s), get_offset(s), 0, 0, 0);
     while (rmd != 0 && index < s->chars) {
-        if (cnt >= cap - 2 && ! augment_array(&as, &cap, 16)) goto NSTR_SPLIT_ERROR;
+        if (cnt >= cap - 2 && (ret = augment_array(as, &cap, 16)) < 0) goto NSTR_SPLIT_ERROR;
 
         index = nstr_next_sub(s, deli, &curr); // 如果失败，在 nstr_next_sub() 中释放 curr
-        if (index == STR_UNKNOWN_BYTE) goto NSTR_SPLIT_ERROR;
+        if ((ret = index) == STR_UNKNOWN_BYTE) goto NSTR_SPLIT_ERROR;
         if (index == STR_NOT_FOUND) {
+            // 校准到源串尾
             loc = get_end(s);
             index = s->chars;
         } else {
@@ -456,32 +458,30 @@ nstr_p * nstr_split(nstr_p s, bool can_new, nstr_p deli, int * max);
         } // if
 
         if (can_new) {
-            as[cnt] = nstr_new(get_end(prev), loc - get_end(prev), nstr_encoding(s));
+            new = nstr_new(get_end(prev), loc - get_end(prev), nstr_encoding(s));
         } else {
-            as[cnt] = new_slice(get_entity(s), get_offset(prev) + prev->bytes, sub->bytes, index - (prev->slc.index + prev->slc.chars), sub->chars);
+            new = new_slice(get_entity(s), get_offset(prev) + prev->bytes, sub->bytes, index - (prev->slc.index + prev->slc.chars), sub->chars);
         } // if
-        if (! as[cnt]) {
+        if (! new) {
             nstr_delete(&curr);
+            ret = STR_OUT_OF_MEMORY;
             goto NSTR_SPLIT_ERROR;
         } // if
 
-        cnt += 1;
+        (*as)[cnt++] = new;
         rmd -= delta;
         prev = curr;
     } // while
 
-    as[cnt] = NULL; // 设置终止标志
+    (*as)[cnt] = NULL; // 设置终止标志
+    ret = cnt;
 
 NSTR_SPLIT_END:
     nstr_delete(&prev);
-
-    if (max) *max = cnt;
-    return as;
+    return ret;
 
 NSTR_SPLIT_ERROR:
-    nstr_delete_strings(as, cnt);
-    as = NULL;
-    cnt = 0;
+    nstr_delete_array(as, cnt);
     goto NSTR_SPLIT_END;
 } // nstr_split
 

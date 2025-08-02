@@ -5,6 +5,7 @@
 
 struct NSTR;
 typedef struct NSTR * nstr_p;
+typedef nstr_p * nstr_array_p;
 
 typedef enum STR_ENCODING {
     STR_ENC_ASCII = 0,
@@ -206,7 +207,6 @@ extern nstr_p nstr_next_char(nstr_p s, nstr_p * slice);
 //     STR_OUT_OF_MEMORY    内存不足
 //     STR_UNKNOWN_BYTE     源串包含异常字节（未正确编码）
 //     STR_NOT_FOUND        没有找到子串，查找结束
-//     STR_BLANK_SUB        子串为空，查找结束
 extern int32_t nstr_first_sub(nstr_p s, nstr_p sub, nstr_p * slice);
 
 // 功能：查找子串下一位置
@@ -244,7 +244,7 @@ extern nstr_p nstr_slice(nstr_p s, bool can_new, uint32_t index, uint32_t chars)
 // 返回值：
 //     non-NULL     指针数组，包含 max 个子串和 1 个 NULL 终止标志，共 max + 1 个元素
 //     NULL         发生错误，内存不足
-extern nstr_p * nstr_split(nstr_p s, bool can_new, nstr_p deli, int * max);
+extern int nstr_split(nstr_p s, bool can_new, nstr_p deli, int max, nstr_array_p * as);
 
 // 重复拼接字符串
 extern nstr_p nstr_repeat(nstr_p s, int n);
