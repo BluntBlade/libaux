@@ -1,30 +1,17 @@
 #include "types.h"
 #include "str/ascii.h"
 
-void * ascii_check(void * begin, void * end, uint32_t index, uint32_t * chars, uint32_t * bytes)
+int32_t ascii_count(void * start, int32_t size, int32_t * chars)
 {
-    void * loc = NULL;
-    char_t * pos = (char_t *)begin;
-    uint32_t rmd = index + 1;
+    void * pos = NULL;
+    int32_t i = 0;
+    int32_t max = 0;
 
-ASCII_CHECK_AGAIN:
-    while (--rmd > 0 && pos < end) {
-        if (measure_ascii(pos) == 0) {
-            // 提前终止，返回空串。
-            *chars = 0;
-            *bytes = 0;
-            return NULL;
-        } // if
-        pos += 1;
-    } // while
+    max = (chars && *chars < size) ? *chars : size;
+    for (pos = start; i < max; ++i, ++pos) {
+        if (measure_ascii(pos) == 0) return -1;
+    } // for
 
-    if (! loc) {
-        loc = pos;
-        rmd = *chars + 1;
-        goto ASCII_CHECK_AGAIN;
-    } // if
-    
-    *chars -= rmd;
-    *bytes = pos - loc;
-    return loc;
-} // ascii_check
+    if (chars) *chars = max;
+    return max;
+} // ascii_count
