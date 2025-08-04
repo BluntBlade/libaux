@@ -23,32 +23,22 @@ inline static uint32_t utf8_measure(void * pos)
     return 0;
 } // utf8_measure
 
-// 功能：检查 [index:index + chars] 是否包含正确的 UTF-8 子串，返回其地址和长度。
-// 参数：
-//     begin     IN   入参：检查范围起点
-//     end       IN   入参：检查范围终点
-//     index     IN   入参：从起点开始计算的字符索引
-//     chars     IO   入参：子串最长字符数；出参：子串实长字符数
-//     bytes     OUT  出参：子串占用字节数
-// 返回值：
-//     non-NULL       小于 end ：包含正确子串，chars 为子串实长字符数，bytes 为子串占用字节数
-//                    等于 end ：没有包含子串，chars 为 0 ，bytes 为 0
-//     NULL           给定范围内存在异常字节，chars 为 0 ，bytes 为 0
-extern void * utf8_check(void * begin, void * end, uint32_t index, uint32_t * chars, uint32_t * bytes);
-
 // 计算给定字节范围内有多少个 UTF-8 字符。
-inline static uint32_t utf8_count(void * begin, void * end)
-{
-    uint32_t chars = end - begin; // UTF-8 字符数必然少于或等于字节数。
-    check_utf8(begin, end, 0, &chars);
-    return chars;
-} // utf8_count
+int32_t utf8_count(void * start, int32_t size, int32_t * chars);
 
-// 校验给定节字范围是否完全包含正确的 UTF-8 字符（除了 NUL 字符）。
-inline static bool utf8_verify(void * begin, void * end)
+// 以 start 为起点，跳过前 index 个字符，检查是否存在 chars 个字符长的子串
+inline static int32_t utf8_locate(void * start, int32_t size, int32_t index, int32_t * chars)
 {
-    uint32_t chars = end - begin; // UTF-8 字符数必然少于或等于字节数。
-    return check_utf8(begin, end, 0, &chars) != NULL;
+    int32_t r_chars = index;
+    int32_t r_bytes = utf8_count(start, size, &r_chars);
+    if (r_chars < index) return -1;
+    return utf8_count(start + r_bytes, size - r_bytes, chars);
+} // utf8_locate
+
+// 校验给定节字范围是否完全包含正确的 UTF-8 字符（除了 NUL 字符）
+inline static bool utf8_verify(void * start, int32_t size)
+{
+    return utf8_count(start, size, NULL) == size;
 } // if
 
 #endif // _AUX_UTF8_H_
