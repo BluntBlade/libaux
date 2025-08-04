@@ -13,6 +13,15 @@ inline static int32_t ascii_measure(void * pos)
 // 计算给定字节范围内有多少个 ASCII 字符
 int32_t ascii_count(void * start, int32_t size, int32_t * chars);
 
+// 以 start 为起点，跳过前 index 个字符（字节），检查是否存在 chars 个字符长的子串
+inline static int32_t ascii_locate(void * start, int32_t size, int32_t index, int32_t * chars)
+{
+    int32_t r_chars = index;
+    int32_t r_bytes = ascii_count(start, size, &r_chars);
+    if (r_chars < index) return -1;
+    return ascii_count(start + r_bytes, size - r_bytes, chars);
+} // ascii_locate
+
 // 校验给定节字范围是否完全包含正确的 ASCII 字符（除了 NUL 字符）
 inline static bool ascii_verify(void * start, int32_t size)
 {
