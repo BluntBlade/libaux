@@ -13,7 +13,7 @@ typedef struct NSTR_VTABLE {
     measure_t   measure;        // 度量单个字符的字节数
     count_t     count;          // 计算字节范围包含的字符数
     verify_t    verify;         // 校验字节范围是否编码正确
-} nstr_vtable_t, *nstr_vtable_p;
+} vtable_t, *vtable_p;
 
 typedef struct NSTR {
     uint32_t        is_slice:1;     // 类型标志位：0 表示字符串，1 表示切片
@@ -21,9 +21,10 @@ typedef struct NSTR {
     uint32_t        need_free:1;    // 是否释放内存：0 表示不需要，1 表示需要
     uint32_t        chars:31;       // 编码后的字符个数
 
+    vtable_p        vtbl;           // 虚拟函数表
+
     union {
         struct {
-            nstr_vtable_p   vtbl;           // 虚拟函数表
             uint32_t        unused:1;
             uint32_t        refs:31;        // 引用计数，生成字符串时置 1 ，表示对自身的引用。减到 0 时释放内存
             char_t          buf[4];         // 单字节字符数据内存区，包含结尾的 NUL 字符
@@ -40,7 +41,7 @@ typedef struct NSTR {
 
 // ---- 静态变量 ---- //
 
-nstr_vtable_t vtable[NSTR_ENCODING_COUNT] = {
+vtable_t vtable[NSTR_ENCODING_COUNT] = {
     {
         &ascii_measure,
         &ascii_check,
@@ -84,11 +85,6 @@ inline static nstr_p get_entity(nstr_p s)
     return (s->is_slice) ? s->slc->ent : s;
 } // get_entity
 
-inline static nstr_p get_vtable(nstr_p s)
-{
-    return (s->is_slice) ? s->slc->ent->str.vtbl : s->str.vtbl;
-} // get_entity
-
 // 字符串对象占用字节数
 inline static size_t entity_size(size_t bytes)
 {
@@ -96,7 +92,7 @@ inline static size_t entity_size(size_t bytes)
 } // entity_size
 
 // 初始化字符串对象
-inline static void init_entity(nstr_p s, bool need_free, int32_t bytes, int32_t chars, nstr_vtable_p vtbl)
+inline static void init_entity(nstr_p s, bool need_free, int32_t bytes, int32_t chars, vtable_p vtbl)
 {
     s->is_slice = 0;
     s->need_free = need_free ? 1 : 0;
@@ -127,7 +123,7 @@ inline static void init_slice(nstr_p s, bool need_free, nstr_p src, int32_t offs
 
 nstr_p nstr_new(void * src, int32_t bytes, str_encoding_t encoding)
 {
-    nstr_vtable_p vtbl = &vtable[encoding];
+    vtable_p vtbl = &vtable[encoding];
     nstr_p new = NULL;
     int32_t r_bytes = 0;
     int32_t r_chars = bytes;
@@ -187,7 +183,7 @@ nstr_p nstr_add_ref(nstr_p s)
 
 int32_t nstr_encoding(nstr_p s)
 {
-    return (get_vtable(s) - &vtable);
+    return (s->vtbl - &vtable);
 } // nstr_encoding
 
 int32_t nstr_bytes(nstr_p s)
@@ -235,7 +231,7 @@ bool nstr_is_blank(nstr_p s)
 
 bool nstr_verify(nstr_p s)
 {
-    return get_vtable(s)->verify(get_start(s), s->bytes);
+    return s->vtbl.verify(get_start(s), s->bytes);
 } // nstr_verify
 
 void * nstr_first_byte(nstr_p s, void ** pos, void ** end)
@@ -259,7 +255,7 @@ int32_t nstr_first_char(nstr_p s, nstr_p * slice)
 
     if (s->chars == 0) return STR_NOT_FOUND; // 源串为空
 
-    r_bytes = get_vtable(s)->count(get_start(s), s->bytes, &r_chars);
+    r_bytes = s->vtbl.count(get_start(s), s->bytes, &r_chars);
     if (r_bytes < 0) return STR_UNKNOWN_BYTE;
 
     if (! *slice) {
@@ -283,7 +279,7 @@ int32_t nstr_next_char(nstr_p s, nstr_p * slice)
     (*slice)->slc.index += 1;
     (*slice)->slc.offset += (*slice)->bytes;
 
-    r_bytes = get_vtable(s)->count(get_start(*slice), s->bytes - (*slice)->offset, &r_chars);
+    r_bytes = s->vtbl.count(get_start(*slice), s->bytes - (*slice)->offset, &r_chars);
     if (r_bytes > 0) {
         (*slice)->bytes = r_bytes;
         return (*slice)->slc.index;
@@ -313,7 +309,7 @@ int32_t nstr_first_sub(nstr_p s, nstr_p sub, nstr_p * slice)
         } // if
         if (! loc) return STR_NOT_FOUND; // 找不到子串
 
-        index = get_vtable(s)->count(get_start(s), loc - get_start(s));
+        index = s->vtbl.count(get_start(s), loc - get_start(s));
         if (index < 0) return STR_UNKNOWN_BYTE; // 源串包含异常字节
         bytes = sub->bytes;
         chars = sub->chars;
@@ -339,7 +335,7 @@ int32_t nstr_next_sub(nstr_p s, nstr_p sub, nstr_p * slice)
     if (start == end) goto NSTR_NEXT_SUB_NOT_FOUND;
 
     if (sub->bytes == 0) {
-        bytes = get_vtable(s)->measure(start);
+        bytes = s->vtbl.measure(start);
         if (bytes == 0) goto NSTR_NEXT_SUB_UNKNOWN_BYTE;
 
         (*slice)->slc.offset += (*slice)->bytes;
@@ -355,7 +351,7 @@ int32_t nstr_next_sub(nstr_p s, nstr_p sub, nstr_p * slice)
     } // if
     if (! loc) goto NSTR_NEXT_SUB_NOT_FOUND;
 
-    chars = get_vtable(s)->count(start, loc - start);
+    chars = s->vtbl.count(start, loc - start);
     if (chars < 0) goto NSTR_NEXT_SUB_UNKNOWN_BYTE;
 
     (*slice)->slc.offset += (*slice)->bytes + (loc - start);
@@ -399,14 +395,14 @@ nstr_p nstr_slice(nstr_p s, bool can_new, int32_t index, int32_t chars);
     start = get_start(s);
     if (index > 0) {
         r_chars = index;
-        r_bytes = get_vtables(s)->count(start, s->bytes, &r_chars);
+        r_bytes = s->vtbl.count(start, s->bytes, &r_chars);
         if (r_bytes == 0) return nstr_blank(); // index 超出串尾
         if (r_bytes < 0) return NULL; // 编码不正确
         start += r_bytes;
     } // if
 
     r_chars = s->chars - index; // 最大切片范围是整个源串
-    r_bytes = get_vtables(s)->count(start, s->bytes - r_bytes, &r_chars);
+    r_bytes = s->vtbl.count(start, s->bytes - r_bytes, &r_chars);
     if (r_bytes == 0) return nstr_blank(); // 超出串尾
     if (r_bytes < 0) return NULL; // 编码不正确
 
@@ -654,7 +650,7 @@ static nstr_p join_strings(nstr_p deli, nstr_p as, int n, va_list * ap)
 
     bytes -= dbytes; // 去掉多余的尾部间隔符。
     new->str.buf[bytes] = 0; // 设置终止 NUL 字符。
-    init_entity(new, STR_NEED_FREE, bytes, chars, get_vtable(as[0]));
+    init_entity(new, STR_NEED_FREE, bytes, chars, as[0]->vtbl);
     return new;
 } // join_strings
 
@@ -680,7 +676,7 @@ nstr_p nstr_repeat(nstr_p s, int n)
     b = n / (sizeof(as) / sizeof(as[0]));
     while (b-- > 0) pos = copy_strings(pos, as, (sizeof(as) / sizeof(as[0])), NULL, 0);
 
-    init_entity(new, STR_NEED_FREE, s->bytes * n, s->chars * n, get_vtable(s));
+    init_entity(new, STR_NEED_FREE, s->bytes * n, s->chars * n, s->vtbl);
     return new;
 } // repeat
 
@@ -708,7 +704,7 @@ nstr_p nstr_concat2(nstr_p s1, nstr_p s2)
 
     memcpy(new->str.buf, get_start(s1), s1->bytes);
     memcpy(new->str.buf + s1->bytes, get_start(s2), s2->bytes);
-    init_entity(new, STR_NEED_FREE, bytes, s1->chars + s2->chars, get_vtable(s1));
+    init_entity(new, STR_NEED_FREE, bytes, s1->chars + s2->chars, s1->vtbl);
     return new;
 } // nstr_concat2
 
@@ -726,7 +722,7 @@ nstr_p nstr_concat3(nstr_p s1, nstr_p s2, nstr_p s3)
     memcpy(new->str.buf, get_start(s1), s1->bytes);
     memcpy(new->str.buf + s1->bytes, get_start(s2), s2->bytes);
     memcpy(new->str.buf + s1->bytes + s2->bytes, get_start(s3), s3->bytes);
-    init_entity(new, STR_NEED_FREE, bytes, s1->chars + s2->chars + s3->chars, get_vtable(s1));
+    init_entity(new, STR_NEED_FREE, bytes, s1->chars + s2->chars + s3->chars, s1->vtbl);
     return new;
 } // nstr_concat3
 
@@ -784,13 +780,13 @@ nstr_p nstr_replace(nstr_p s, bool can_new, int32_t index, int32_t chars, nstr_p
 
     r_chars = index;
     origin = ent->str.buf + offset;
-    r_bytes = get_vtables(s)->count(origin, s->bytes, &r_chars);
+    r_bytes = s->vtbl.count(origin, s->bytes, &r_chars);
     if (r_bytes == 0) return nstr_duplicate(s); // 超出串尾
     if (r_bytes < 0) return NULL; // 编码不正确
 
     start = origin + r_bytes;
     r_chars = chars;
-    r_bytes = get_vtables(s)->count(start, s->bytes - r_bytes, &r_chars);
+    r_bytes = s->vtbl.count(start, s->bytes - r_bytes, &r_chars);
     if (r_bytes == 0) return nstr_duplicate(s); // 超出串尾
     if (r_bytes < 0) return NULL; // 编码不正确
 
@@ -808,7 +804,7 @@ nstr_p nstr_replace_char(nstr_p s, bool can_new, int32_t index, int32_t chars, c
     nstr_t sub = {0};
 
     sub->str.buf[0] = ch;
-    init_entity(sub, STR_DONT_FREE, 1, 1, get_vtable(s));
+    init_entity(sub, STR_DONT_FREE, 1, 1, s->vtbl);
     return nstr_replace(s, can_new, index, chars, &sub);
 } // nstr_replace_char
 
