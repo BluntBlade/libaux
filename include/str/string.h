@@ -177,10 +177,10 @@ inline static void * nstr_next_byte(nstr_p s, void ** pos, void ** end)
 //                        允许指向外部分配的内存，或内部分配内存（结束时释放），以容纳临时切片对象
 //                  出参：切片对象，引用单个字符
 // 返回值：
-//     >= 0         字符下标
-//     -1           没有更多字符，遍历结束
-//     -2           源字符串包含异常字节（未正确编码）
-//     -3           无充足内存可用
+//     >= 0                 字符下标
+//     STR_OUT_OF_MEMORY    无充足内存可用
+//     STR_NOT_FOUND        没有更多字符，遍历结束
+//     STR_UNKNOWN_BYTE     源串包含异常字节（编码不正确）
 extern int32_t nstr_first_char(nstr_p s, nstr_p * slice);
 
 // 功能：获取串内容下一字符
@@ -190,9 +190,9 @@ extern int32_t nstr_first_char(nstr_p s, nstr_p * slice);
 //                        允许指向外部分配的内存，或内部分配内存（结束时释放），以容纳临时切片对象
 //                  出参：切片对象，引用单个字符
 // 返回值：
-//     > 0          字符下标
-//     -1           没有更多字符，遍历结束
-//     -2           源字符串包含异常字节（未正确编码）
+//     > 0                  字符下标
+//     STR_NOT_FOUND        没有更多字符，遍历结束
+//     STR_UNKNOWN_BYTE     源串包含异常字节（编码不正确）
 extern nstr_p nstr_next_char(nstr_p s, nstr_p * slice);
 
 // 功能：查找子串首个位置
