@@ -6,15 +6,13 @@
 #include "str/string.h"
 
 typedef int32_t (*measure_t)(void * pos);
-typedef void * (*check_t)(void * begin, void * end, int32_t index, int32_t * chars, int32_t * bytes);
-typedef int32_t (*count_t)(void * begin, void * end);
-typedef bool (*verify_t)(void * begin, void * end);
+typedef int32_t (*count_t)(void * start, int32_t size, int32_t * chars);
+typedef bool (*verify_t)(void * start, int32_t size);
 
 typedef struct NSTR_VTABLE {
     measure_t   measure;        // 度量单个字符的字节数
-    check_t     check;          // 检查一段字节是否包含正确编码的字符
-    count_t     count;          // 计算一段字节包含的字符数
-    verify_t    verify;         // 校验一段字节是否包含正确编码的字符
+    count_t     count;          // 计算字节范围包含的字符数
+    verify_t    verify;         // 校验字节范围是否编码正确
 } nstr_vtable_t, *nstr_vtable_p;
 
 typedef struct NSTR {
@@ -131,16 +129,17 @@ nstr_p nstr_new(void * src, int32_t bytes, str_encoding_t encoding)
 {
     nstr_vtable_p vtbl = &vtable[encoding];
     nstr_p new = NULL;
-    int32_t chars = 0;
+    int32_t r_bytes = 0;
+    int32_t r_chars = bytes;
 
     if (bytes == 0) return nstr_blank();
 
-    chars = vtbl->count(src, src + bytes);
-    if (chars < 0) return NULL;
+    r_bytes = vtbl->count(src, bytes, &r_chars);
+    if (r_bytes < 0) return NULL;
 
     if ((new = malloc(entity_size(bytes)))) {
         memcpy(new->str.buf, src, bytes);
-        init_entity(new, STR_NEED_FREE, bytes, chars, vtbl);
+        init_entity(new, STR_NEED_FREE, bytes, r_chars, vtbl);
     } // if
     return new;
 } // nstr_new
@@ -236,7 +235,7 @@ bool nstr_is_blank(nstr_p s)
 
 bool nstr_verify(nstr_p s)
 {
-    return get_vtable(s)->verify(get_start(s), get_start(s) + s->bytes);
+    return get_vtable(s)->verify(get_start(s), s->bytes);
 } // nstr_verify
 
 void * nstr_first_byte(nstr_p s, void ** pos, void ** end)
@@ -255,18 +254,17 @@ void * nstr_first_byte(nstr_p s, void ** pos, void ** end)
 int32_t nstr_first_char(nstr_p s, nstr_p * slice)
 {
     bool free = STR_DONT_FREE;
-    void * loc = NULL;
     int32_t r_bytes = 0;
     int32_t r_chars = 1;
 
-    if (s->chars == 0) return -1; // 源串为空
+    if (s->chars == 0) return STR_NOT_FOUND; // 源串为空
 
-    loc = get_vtable(s)->check(get_start(s), get_end(s), 0, &r_chars, &r_bytes);
-    if (! loc) return -2;
+    r_bytes = get_vtable(s)->count(get_start(s), s->bytes, &r_chars);
+    if (r_bytes < 0) return STR_UNKNOWN_BYTE;
 
     if (! *slice) {
         *slice = malloc(slice_size());
-        if (! *slice) return -3;
+        if (! *slice) return STR_OUT_OF_MEMORY;
         free = STR_NEED_FREE;
     } // if
 
@@ -277,20 +275,21 @@ int32_t nstr_first_char(nstr_p s, nstr_p * slice)
 int32_t nstr_next_char(nstr_p s, nstr_p * slice)
 {
     void * loc = NULL;
-    int32_t ret = -2;
+    int32_t r_bytes = 0;
+    int32_t r_chars = 1;
 
-    if (! *slice) return NULL;
+    assert((*slice)->is_slice);
 
     (*slice)->slc.index += 1;
     (*slice)->slc.offset += (*slice)->bytes;
 
-    loc = get_vtable(s)->check(get_start(*slice), get_end(s), 0, &(*slice)->chars, &(*slice)->bytes);
-    if (loc) {
-        if (loc < get_end(s)) return (*slice)->slc.index;
-        ret = -1;
+    r_bytes = get_vtable(s)->count(get_start(*slice), s->bytes - (*slice)->offset, &r_chars);
+    if (r_bytes > 0) {
+        (*slice)->bytes = r_bytes;
+        return (*slice)->slc.index;
     } // if
     nstr_delete(slice);
-    return ret;
+    return (r_bytes == 0) ? STR_NOT_FOUND : STR_UNKNOWN_BYTE;
 } // nstr_next_char
 
 int32_t nstr_first_sub(nstr_p s, nstr_p sub, nstr_p * slice)
@@ -314,7 +313,7 @@ int32_t nstr_first_sub(nstr_p s, nstr_p sub, nstr_p * slice)
         } // if
         if (! loc) return STR_NOT_FOUND; // 找不到子串
 
-        index = get_vtable(s)->count(get_start(s), loc);
+        index = get_vtable(s)->count(get_start(s), loc - get_start(s));
         if (index < 0) return STR_UNKNOWN_BYTE; // 源串包含异常字节
         bytes = sub->bytes;
         chars = sub->chars;
@@ -356,7 +355,7 @@ int32_t nstr_next_sub(nstr_p s, nstr_p sub, nstr_p * slice)
     } // if
     if (! loc) goto NSTR_NEXT_SUB_NOT_FOUND;
 
-    chars = get_vtable(s)->count(start, loc);
+    chars = get_vtable(s)->count(start, loc - start);
     if (chars < 0) goto NSTR_NEXT_SUB_UNKNOWN_BYTE;
 
     (*slice)->slc.offset += (*slice)->bytes + (loc - start);
@@ -386,9 +385,9 @@ inline static nstr_p new_slice(nstr_p ent, int32_t offset, int32_t bytes, int32_
 
 nstr_p nstr_slice(nstr_p s, bool can_new, int32_t index, int32_t chars);
 {
-    void * loc = NULL;
-    int32_t ret_chars = 0;
-    int32_t ret_bytes = 0;
+    void * start = NULL;
+    int32_t r_bytes = 0;
+    int32_t r_chars = 0;
 
     // CASE-1: 切片起点超出范围
     // CASE-2: 源串是空串
@@ -397,12 +396,22 @@ nstr_p nstr_slice(nstr_p s, bool can_new, int32_t index, int32_t chars);
     if (index >= s->chars || s->chars == 0 || chars == 0) return nstr_blank();
 
     // CASE-4: 源字符串不是空串
-    ret_chars = s->chars - index; // 最大切片范围是整个源串
-    loc = get_vtable(s)->check(get_start(s), get_end(s), index, &ret_chars, &ret_bytes);
-    if (! loc) return NULL; // 源串包含异常字节
+    start = get_start(s);
+    if (index > 0) {
+        r_chars = index;
+        r_bytes = get_vtables(s)->count(start, s->bytes, &r_chars);
+        if (r_bytes == 0) return nstr_blank(); // index 超出串尾
+        if (r_bytes < 0) return NULL; // 编码不正确
+        start += r_bytes;
+    } // if
 
-    if (can_new) return nstr_new(loc, ret_bytes, nstr_encoding(s));
-    return new_slice(get_entity(s), loc - get_start(s), ret_bytes, index, ret_chars);
+    r_chars = s->chars - index; // 最大切片范围是整个源串
+    r_bytes = get_vtables(s)->count(start, s->bytes - r_bytes, &r_chars);
+    if (r_bytes == 0) return nstr_blank(); // 超出串尾
+    if (r_bytes < 0) return NULL; // 编码不正确
+
+    if (can_new) return nstr_new(start, r_bytes, nstr_encoding(s));
+    return new_slice(get_entity(s), start - get_start(s), r_bytes, index, r_chars);
 } // nstr_slice
 
 inline static int32_t augment_array(nstr_p ** as, int * cap, int delta)
@@ -752,11 +761,11 @@ nstr_p nstr_replace(nstr_p s, bool can_new, int32_t index, int32_t chars, nstr_p
     nstr_t s1 = {0};
     nstr_t s3 = {0};
     nstr_p ent = NULL; // 最终字符串对象
-    void * begin = NULL;
-    void * mid = NULL;
+    void * origin = NULL;
+    void * start = NULL;
     int32_t offset = 0;
-    int32_t mid_chars = 0;
-    int32_t mid_bytes = 0;
+    int32_t r_bytes = 0;
+    int32_t r_chars = 0;
 
     if (s->chars == 0) return nstr_slice_from(sub, can_new, get_start(sub), sub->bytes); // CASE-1: s 是空串。
     if (sub->chars == 0) return nstr_slice_from(s, can_new, get_start(s), s->bytes); // CASE-2: sub 是空串。
@@ -773,15 +782,25 @@ nstr_p nstr_replace(nstr_p s, bool can_new, int32_t index, int32_t chars, nstr_p
         offset = 0;
     } // if
 
-    mid_chars = s->chars;
-    begin = ent->str.buf + offset;
-    mid = get_vtable(s)->check(begin, begin + s->bytes, index, &mid_chars, &mid_bytes);
-    if (! mid) return NULL; // 源串包含异常字节
+    r_chars = index;
+    origin = ent->str.buf + offset;
+    r_bytes = get_vtables(s)->count(origin, s->bytes, &r_chars);
+    if (r_bytes == 0) return nstr_duplicate(s); // 超出串尾
+    if (r_bytes < 0) return NULL; // 编码不正确
 
-    s1_bytes = mid - begin;
+    start = origin + r_bytes;
+    r_chars = chars;
+    r_bytes = get_vtables(s)->count(start, s->bytes - r_bytes, &r_chars);
+    if (r_bytes == 0) return nstr_duplicate(s); // 超出串尾
+    if (r_bytes < 0) return NULL; // 编码不正确
+
+    s1_bytes = start - origin;
     init_slice(&s1, STR_DONT_FREE, ent, offset, s1_bytes, index);
-    init_slice(&s3, STR_DONT_FREE, ent, offset + s1_bytes, s->bytes - s1_bytes - mid_bytes, s->chars - index - mid_chars);
-    return nstr_concat3(s1, sub, s2);
+    init_slice(&s3, STR_DONT_FREE, ent, offset + s1_bytes + r_bytes, s->bytes - s1_bytes - r_bytes, s->chars - index - r_chars);
+    new = nstr_concat3(s1, sub, s2);
+    nstr_delete(&s3);
+    nstr_delete(&s1);
+    return new;
 } // nstr_replace
 
 nstr_p nstr_replace_char(nstr_p s, bool can_new, int32_t index, int32_t chars, char_t ch)
