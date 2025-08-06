@@ -86,6 +86,9 @@ extern bool nstr_is_string(nstr_p s);
 // 测试是否为切片
 extern bool nstr_is_slice(nstr_p s);
 
+// 测试 s 是否为 s2 的切片
+extern bool nstr_is_slicing(nstr_p s, nstr_p s2);
+
 // 测试是否为空字符串
 extern bool nstr_is_blank(nstr_p s);
 
@@ -170,30 +173,25 @@ inline static void * nstr_next_byte(nstr_p s, void ** pos, void ** end)
     return *pos++;
 } // nstr_next_byte
 
-// 功能：获取串内容首字符
+// 功能：获取首字符的切片
 // 参数：
 //     s      IN    入参：源串或切片，不能为 NULL
-//     slice  IO    入参：遍历状态变量的指针，不能为 NULL
-//                        允许指向外部分配的内存，或内部分配内存（结束时释放），以容纳临时切片对象
-//                  出参：切片对象，引用单个字符
+//     ch     IN    入参：字符的切片，不能为 NULL
 // 返回值：
-//     >= 0                 字符下标
-//     STR_OUT_OF_MEMORY    无充足内存可用
+//     1                    跳过字符数，累加后再减 1 得到下标
 //     STR_NOT_FOUND        没有更多字符，遍历结束
 //     STR_UNKNOWN_BYTE     源串包含异常字节（编码不正确）
-extern int32_t nstr_first_char(nstr_p s, nstr_p * slice);
+extern int32_t nstr_first_char(nstr_p ch, nstr_p s);
 
-// 功能：获取串内容下一字符
+// 功能：获取下一字符的切片
 // 参数：
 //     s      IN    入参：源串或切片，不能为 NULL
-//     slice  IO    入参：遍历状态变量的指针，不能为 NULL
-//                        允许指向外部分配的内存，或内部分配内存（结束时释放），以容纳临时切片对象
-//                  出参：切片对象，引用单个字符
+//     ch     IN    入参：字符的切片，不能为 NULL
 // 返回值：
-//     > 0                  字符下标
+//     1                    跳过字符数，累加后再减 1 得到下标
 //     STR_NOT_FOUND        没有更多字符，遍历结束
 //     STR_UNKNOWN_BYTE     源串包含异常字节（编码不正确）
-extern nstr_p nstr_next_char(nstr_p s, nstr_p * slice);
+extern nstr_p nstr_next_char(nstr_p ch, nstr_p s);
 
 // 功能：查找子串首个位置
 // 参数：
