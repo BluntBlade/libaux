@@ -193,38 +193,20 @@ extern int32_t nstr_first_char(nstr_p ch, nstr_p s);
 //     STR_UNKNOWN_BYTE     源串包含异常字节（编码不正确）
 extern nstr_p nstr_next_char(nstr_p ch, nstr_p s);
 
-// 功能：查找子串首个位置
+// 功能：查找子串
 // 参数：
-//     s      IN    入参：源串或切片，不能为 NULL
-//     sub    IN    入参：目标子串或切片，不能为 NULL
-//     slice  IO    入参：遍历状态变量的指针，不能为 NULL
-//                        允许指向外部分配的内存，或内部分配内存（结束时释放），以容纳临时切片对象
-//                  出参：切片对象，引用找到的子串
+//     s      IN    入参：源串或切片，指向一个非零长度的串
+//     sub    IO    入参：目标子串，指向一个非零长度的切片
+//                  出参：目标子串，引用其在源串中的正确位置
 // 返回值：
-//     >= 0                 子串位置下标
-//     STR_OUT_OF_MEMORY    内存不足
+//     > 0                  目标子串前的字符数，累加可得子串下标
 //     STR_UNKNOWN_BYTE     源串包含异常字节（未正确编码）
 //     STR_NOT_FOUND        没有找到子串，查找结束
-extern int32_t nstr_first_sub(nstr_p s, nstr_p sub, nstr_p * slice);
+// 说明：
+//     本函数在源串中查找子串，并修改子串的引用位置。查找结束后，如再次以相同对象调用，则会绕回到源串开头，启动新一轮查找。
+extern int32_t nstr_next_sub(nstr_p s, nstr_p sub);
 
-// 功能：查找子串下一位置
-// 参数：
-//     s      IN    入参：源串或切片，不能为 NULL
-//     sub    IN    入参：目标子串或切片，不能为 NULL
-//     slice  IO    入参：遍历状态变量的指针，不能为 NULL
-//                        允许指向外部分配的内存，或内部分配内存（结束时释放），以容纳临时切片对象
-//                  出参：切片对象，引用找到的子串
-// 返回值：
-//     >= 0                 子串位置下标
-//     STR_UNKNOWN_BYTE     源串包含异常字节（未正确编码）
-//     STR_NOT_FOUND        没有找到子串，查找结束
-extern int32_t nstr_next_sub(nstr_p s, nstr_p sub, nstr_p * slice);
-
-// 查找首个或下一子串
-inline static int32_t nstr_find(nstr_p s, nstr_p sub, nstr_p * slice)
-{
-    return (*slice) ? nstr_next_sub(s, sub, slice) : nstr_first_sub(s, sub, slice);
-} // nstr_find
+#define nstr_find next_next_sub
 
 // 获取空字符串常量
 extern nstr_p nstr_blank(void);

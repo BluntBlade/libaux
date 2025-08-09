@@ -25,7 +25,8 @@ typedef struct NSTR {
     uint32_t        need_free:1;    // 是否释放内存：0 表示不需要，1 表示需要
     uint32_t        is_slice:1;     // 类型标志位：0 表示字符串，1 表示切片
     uint32_t        cstr_src:1;     // 分片引用C字符串
-    uint32_t        unused:23;
+    uint32_t        iterating:1;    // 是否正在遍历查找
+    uint32_t        unused:22;
     uint32_t        encoding:6;     // 编码方案，支持最多 64 种
 
     union {
@@ -112,6 +113,7 @@ inline static void init_slice(nstr_p s, bool can_free, void * origin, int32_t of
     s->need_free = can_free ? 1 : 0;
     s->is_slice = 1;
     s->cstr_src = 0;
+    s->iterating = 0;
     s->encoding = encoding;
     s->bytes = bytes;
     s->chars = chars;
@@ -295,82 +297,62 @@ int32_t nstr_next_char(nstr_p ch, nstr_p s)
     return (r_bytes == 0) ? STR_NOT_FOUND : STR_UNKNOWN_BYTE;
 } // nstr_next_char
 
-int32_t nstr_first_sub(nstr_p s, nstr_p sub, nstr_p * slice)
+int32_t nstr_next_sub(nstr_p s, nstr_p sub)
 {
     void * loc = NULL;
-    int32_t index = 0;
-    int32_t bytes = 0;
-    int32_t chars = 0;
-
-    if (s->chars == 0) return STR_NOT_FOUND; // 源串为空，找不到子串
-
-    if (sub->bytes == 0) {
-        // 空子串
-        loc = get_start(s);
-    } else {
-        if (sub->bytes == 1) {
-            // 子串只包含单个字节
-            loc = memchr(get_start(s), ((char_t *)get_start(sub))[0], sub->bytes);
-        } else {
-            loc = memmem(get_start(s), s->bytes, get_start(sub), sub->bytes);
-        } // if
-        if (! loc) return STR_NOT_FOUND; // 找不到子串
-
-        index = s->vtbl.count(get_start(s), loc - get_start(s));
-        if (index < 0) return STR_UNKNOWN_BYTE; // 源串包含异常字节
-        bytes = sub->bytes;
-        chars = sub->chars;
-    } // if
-
-    *slice = malloc(slice_size());
-    if (! *slice) return STR_OUT_OF_MEMORY; // 内存不足
-
-    init_slice(*slice, STR_NEED_FREE, get_start(s), loc - get_start(s), bytes, chars);
-    return index;
-} // nstr_first_sub
-
-int32_t nstr_next_sub(nstr_p s, nstr_p sub, nstr_p * slice)
-{
     void * start = NULL;
-    void * end = NULL;
-    void * loc = NULL;
-    int32_t bytes = 0;
-    int32_t chars = 0;
-    
-    start = get_end(*slice);
-    end = get_end(s);
-    if (start == end) goto NSTR_NEXT_SUB_NOT_FOUND;
+    size_t size = 0;
+    int32_t skip = 0;
+    int32_t bytes = sub->bytes;
+    int32_t chars = sub->chars;
 
-    if (sub->bytes == 0) {
-        bytes = s->vtbl.measure(start);
-        if (bytes == 0) goto NSTR_NEXT_SUB_UNKNOWN_BYTE;
+    assert(s != NULL);
+    assert(! nstr_is_blank(s));
 
-        (*slice)->slc.offset += (*slice)->bytes;
-        (*slice)->bytes = bytes;
-        return (*slice)->slc.index += 1;
+    assert(sub != NULL);
+    assert(nstr_is_slice(sub));
+    assert(! nstr_is_blank(sub));
+
+    if (! sub->iterating) {
+        start = get_start(s);
+        size = s->bytes;
+    } else {
+        start = get_start(sub);
+        size = s->bytes - sub->slc.offset - sub->bytes;
     } // if
 
     if (sub->bytes == 1) {
         // 子串只包含单个字节
-        loc = memchr(start, ((char_t *)get_start(sub))[0], sub->bytes);
+        loc = memchr(start, ((char_t *)get_start(sub))[0], size);
     } else {
-        loc = memmem(start, end - start, get_start(sub), sub->bytes);
+        loc = memmem(start, size, get_start(sub), sub->bytes);
     } // if
-    if (! loc) goto NSTR_NEXT_SUB_NOT_FOUND;
+    if (! loc) {
+        sub->iterating = 0; // 停止查找
+        return STR_NOT_FOUND; // 找不到子串
+    } // if
 
-    chars = s->vtbl.count(start, loc - start);
-    if (chars < 0) goto NSTR_NEXT_SUB_UNKNOWN_BYTE;
+    skip = s->chars; // 最大跳过字符数小于源串字符数
+    bytes = vtable[s->encoding].count(start, loc - start, &skip);
+    if (bytes < 0) {
+        sub->iterating = 0; // 停止查找
+        return STR_UNKNOWN_BYTE; // 源串包含异常字节
+    } // if
 
-    (*slice)->slc.offset += (*slice)->bytes + (loc - start);
-    return (*slice)->slc.index += (*slice)->chars + chars;
+    if (! sub->iterating) {
+        if (! nstr_is_slicing(sub, s)) {
+            bytes = sub->bytes;
+            chars = sub->chars;
 
-NSTR_NEXT_SUB_NOT_FOUND:
-    nstr_delete(slice);
-    return STR_NOT_FOUND; // 找不到子串
+            clean_slice(sub);
+            init_slice(sub, sub->need_free, start, loc - start, bytes, chars);
+        } // if
 
-NSTR_NEXT_SUB_UNKNOWN_BYTE:
-    nstr_delete(slice);
-    return STR_UNKNOWN_BYTE; // 源串包含异常字节
+        sub->iterating = 1; // 开始查找
+    } else {
+        sub->slc.offset += sub->bytes + (loc - start);
+    } // if
+    return skip;
 } // nstr_next_sub
 
 nstr_p nstr_blank(void)
