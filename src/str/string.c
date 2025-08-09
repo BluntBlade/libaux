@@ -262,39 +262,39 @@ void * nstr_first_byte(nstr_p s, void ** pos, void ** end)
     return get_start(s);
 } // nstr_first_byte
 
-int32_t nstr_first_char(nstr_p ch, nstr_p s)
+int32_t nstr_next_char(nstr_p s, nstr_p ch)
 {
-    int32_t r_bytes = 0;
-    int32_t r_chars = 1;
+    int32_t bytes = 0;
 
+    assert(s != NULL);
+    assert(! nstr_is_blank(s));
+
+    assert(sub != NULL);
     assert(nstr_is_slice(ch));
 
-    if (s->chars == 0) return STR_NOT_FOUND; // 源串为空
-
-    r_bytes = vtable[s->encoding].count(get_start(s), s->bytes, &r_chars);
-    if (r_bytes < 0) return STR_UNKNOWN_BYTE;
-
-    if (! nstr_is_slicing(ch, s)) clean_slice(ch);
-    init_slice(ch, ch->need_free, get_entity(s)->str.data, get_offset(s), r_bytes, r_chars);
-    return 1;
-} // nstr_first_char
-
-int32_t nstr_next_char(nstr_p ch, nstr_p s)
-{
-    int32_t r_bytes = 0;
-    int32_t r_chars = 1;
-
-    assert(nstr_is_slice(ch));
-    assert(nstr_is_slicing(ch, s));
-
-    ch->slc.offset += ch->bytes;
-
-    r_bytes = vtable[s->encoding].count(ch->slc.origin + ch->slc.offset, s->bytes - ch->offset, &r_chars);
-    if (r_bytes > 0) {
-        ch->bytes = r_bytes;
-        return 1;
+    if (! ch->iterating) {
+        start = get_start(s);
+        size = s->bytes;
+    } else {
+        start = get_start(ch) + ch->bytes;
+        size = s->bytes - ch->slc.offset - ch->bytes;
     } // if
-    return (r_bytes == 0) ? STR_NOT_FOUND : STR_UNKNOWN_BYTE;
+
+    bytes = vtable[s->encoding].measure(start, size);
+    if (bytes == 0) {
+        ch->iterating = 0;
+        return STR_UNKNOWN_BYTE;
+    } // if
+
+    if (! ch->iterating) {
+        if (! nstr_is_slicing(ch, s)) clean_slice(ch);
+        init_slice(ch, ch->need_free, get_origin(s), get_offset(s), bytes, 1);
+        ch->iterating = 1;
+        return 0;
+    } // if
+    ch->slc.offset += ch->bytes;
+    ch->bytes = bytes;
+    return 1;
 } // nstr_next_char
 
 int32_t nstr_next_sub(nstr_p s, nstr_p sub)
@@ -345,14 +345,14 @@ int32_t nstr_next_sub(nstr_p s, nstr_p sub)
             chars = sub->chars;
 
             clean_slice(sub);
-            init_slice(sub, sub->need_free, start, loc - start, bytes, chars);
+            init_slice(sub, sub->need_free, get_origin(s), get_offset(s) + (loc - start), bytes, chars);
         } // if
 
         sub->iterating = 1; // 开始查找
-    } else {
-        sub->slc.offset += sub->bytes + (loc - start);
+        return skip;
     } // if
-    return skip;
+    sub->slc.offset += sub->bytes + (loc - start);
+    return skip + sub->chars;
 } // nstr_next_sub
 
 nstr_p nstr_blank(void)

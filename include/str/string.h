@@ -173,22 +173,12 @@ inline static void * nstr_next_byte(nstr_p s, void ** pos, void ** end)
     return *pos++;
 } // nstr_next_byte
 
-// 功能：获取首字符的切片
+// 功能：获取下一字符
 // 参数：
-//     s      IN    入参：源串或切片，不能为 NULL
-//     ch     IN    入参：字符的切片，不能为 NULL
+//     s      IN    入参：源串或切片，指向一个非零长度的串
+//     sub    OUT   出参：下一字符的切片，引用其在源串中的正确位置
 // 返回值：
-//     1                    跳过字符数，累加后再减 1 得到下标
-//     STR_NOT_FOUND        没有更多字符，遍历结束
-//     STR_UNKNOWN_BYTE     源串包含异常字节（编码不正确）
-extern int32_t nstr_first_char(nstr_p ch, nstr_p s);
-
-// 功能：获取下一字符的切片
-// 参数：
-//     s      IN    入参：源串或切片，不能为 NULL
-//     ch     IN    入参：字符的切片，不能为 NULL
-// 返回值：
-//     1                    跳过字符数，累加后再减 1 得到下标
+//     0 或 1               跳过字符数，累加可得字符下标
 //     STR_NOT_FOUND        没有更多字符，遍历结束
 //     STR_UNKNOWN_BYTE     源串包含异常字节（编码不正确）
 extern nstr_p nstr_next_char(nstr_p ch, nstr_p s);
@@ -199,9 +189,9 @@ extern nstr_p nstr_next_char(nstr_p ch, nstr_p s);
 //     sub    IO    入参：目标子串，指向一个非零长度的切片
 //                  出参：目标子串，引用其在源串中的正确位置
 // 返回值：
-//     > 0                  目标子串前的字符数，累加可得子串下标
-//     STR_UNKNOWN_BYTE     源串包含异常字节（未正确编码）
+//     >= 0                 目标子串前的字符数，累加可得子串下标
 //     STR_NOT_FOUND        没有找到子串，查找结束
+//     STR_UNKNOWN_BYTE     源串包含异常字节（未正确编码）
 // 说明：
 //     本函数在源串中查找子串，并修改子串的引用位置。查找结束后，如再次以相同对象调用，则会绕回到源串开头，启动新一轮查找。
 extern int32_t nstr_next_sub(nstr_p s, nstr_p sub);
