@@ -22,11 +22,10 @@ typedef struct NSTR {
     int32_t         bytes;          // 串内容占用字节数
     int32_t         chars;          // 编码后的字符个数
 
-    uint32_t        need_free:1;    // 是否释放内存：0 表示不需要，1 表示需要
     uint32_t        is_slice:1;     // 类型标志位：0 表示字符串，1 表示切片
     uint32_t        cstr_src:1;     // 分片引用C字符串
     uint32_t        iterating:1;    // 是否正在遍历查找
-    uint32_t        unused:22;
+    uint32_t        unused:23;
     uint32_t        encoding:6;     // 编码方案，支持最多 64 种
 
     union {
@@ -90,9 +89,8 @@ inline static size_t entity_size(size_t bytes)
 } // entity_size
 
 // 初始化字符串对象
-inline static void init_entity(nstr_p s, bool can_free, int32_t bytes, int32_t chars, str_encoding_t encoding)
+inline static void init_entity(nstr_p s, int32_t bytes, int32_t chars, str_encoding_t encoding)
 {
-    s->need_free = can_free ? 1 : 0;
     s->is_slice = 0;
     s->cstr_src = 0;
     s->encoding = encoding;
@@ -108,9 +106,8 @@ inline static size_t slice_size(void)
 } // slice_size
 
 // 功能：初始化切片对象
-inline static void init_slice(nstr_p s, bool can_free, void * origin, int32_t offset, int32_t bytes, int32_t chars, str_encoding_t encoding)
+inline static void init_slice(nstr_p s, void * origin, int32_t offset, int32_t bytes, int32_t chars, str_encoding_t encoding)
 {
-    s->need_free = can_free;
     s->is_slice = 1;
     s->cstr_src = 0;
     s->iterating = 0;
@@ -124,9 +121,7 @@ inline static void init_slice(nstr_p s, bool can_free, void * origin, int32_t of
 
 inline static void clean_slice(nstr_p s)
 {
-    nstr_p ent = get_entity(s);
-    s->refs -= 1;
-    if (ent->str.refs == 0 && ent->need_free) free(ent); // 释放非空字符串
+    del_ref(string_entity(s));
     s->slc.origin = NULL;
 } // clean_slice
 
@@ -172,7 +167,7 @@ inline static void del_ref(nstr_p s)
 {
     if (s) {
         s->str.refs -= 1;
-        if (s->str.refs == 0 && s->need_free) free(s); // 释放非空字符串
+        if (s->str.refs == 0) free(s); // 释放非空字符串
     } // if
 } // del_ref
 
@@ -302,7 +297,7 @@ int32_t nstr_next_char(nstr_p s, nstr_p ch)
 
     if (! ch->iterating) {
         if (! nstr_is_slicing(ch, s)) clean_slice(ch);
-        init_slice(ch, ch->need_free, get_origin(s), get_offset(s), bytes, 1);
+        init_slice(ch, get_origin(s), get_offset(s), bytes, 1);
         ch->iterating = 1;
         return 0;
     } // if
@@ -359,7 +354,7 @@ int32_t nstr_next_sub(nstr_p s, nstr_p sub)
             chars = sub->chars;
 
             clean_slice(sub);
-            init_slice(sub, sub->need_free, get_origin(s), get_offset(s) + (loc - start), bytes, chars);
+            init_slice(sub, get_origin(s), get_offset(s) + (loc - start), bytes, chars);
         } // if
 
         sub->iterating = 1; // 开始查找
