@@ -153,6 +153,21 @@ nstr_p nstr_clone(nstr_p s)
     return nstr_new(get_start(s), s->bytes, nstr_encoding(s));
 } // nstr_clone
 
+inline static nstr_p new_slice(nstr_p s, int32_t offset, int32_t bytes, int32_t chars)
+{
+    nstr_p new = malloc(slice_size());
+    if (new) init_slice(new, STR_NEED_FREE, get_origin(s), offset, bytes, chars);
+    return new;
+} // new_slice
+
+nstr_p nstr_duplicate(nstr_p s)
+{
+    if (s->is_slice) {
+        return new_slice(s, get_offset(s), s->bytes, s->chars);
+    } // if
+    return nstr_new(get_start(s), s->bytes, nstr_encoding(s));
+} // nstr_duplicate
+
 void nstr_delete(nstr_p * ps)
 {
     nstr_p ent = *ps;
@@ -359,13 +374,6 @@ nstr_p nstr_blank(void)
 {
     return nstr_add_ref(&blank);
  // nstr_blank
-
-inline static nstr_p new_slice(nstr_p s, int32_t offset, int32_t bytes, int32_t chars)
-{
-    nstr_p new = malloc(slice_size());
-    if (new) init_slice(new, STR_NEED_FREE, get_origin(s), offset, bytes, chars);
-    return new;
-} // new_slice
 
 nstr_p nstr_slice(nstr_p s, bool can_new, int32_t index, int32_t chars);
 {

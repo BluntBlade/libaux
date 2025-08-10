@@ -37,8 +37,11 @@ typedef enum STR_LOCALE {
 // 从原生字符串生成新字符串
 extern nstr_p nstr_new(void * src, int32_t bytes, str_encoding_t encoding);
 
-// 从源字符串（或切片）生成新字符串
+// 从源串或切片生成新字符串
 extern nstr_p nstr_clone(nstr_p s);
+
+// 从源串生成新字符串，或从切片生成新切片
+extern nstr_p nstr_duplicate(nstr_p s);
 
 // 删除字符串
 extern void nstr_delete(nstr_p * ps);
@@ -46,7 +49,7 @@ extern void nstr_delete(nstr_p * ps);
 // 删除切分后的字符串数组
 extern void nstr_delete_strings(nstr_p * as, int n);
 
-// 增加引用计数
+// 增加引用计数，返回源串或切片的指针
 extern nstr_p nstr_add_ref(nstr_p s);
 
 // 减少引用计数
