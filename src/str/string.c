@@ -91,10 +91,8 @@ inline static nstr_p add_ref(nstr_p s)
 
 inline static void del_ref(nstr_p s)
 {
-    if (s) {
-        s->str.refs -= 1;
-        if (s->str.refs == 0) free(s); // 释放非空字符串
-    } // if
+    nstr_p ent = get_entity(s);
+    if (ent && --ent->str.refs == 0) free(ent);
 } // del_ref
 
 // 初始化字符串对象
@@ -147,7 +145,7 @@ inline static void init_slice(nstr_p s, void * origin, int32_t offset, int32_t b
 
 inline static void clean_slice(nstr_p s)
 {
-    del_ref(string_entity(s));
+    del_ref(s);
     s->slc.origin = NULL;
 } // clean_slice
 
@@ -474,8 +472,8 @@ int nstr_split(nstr_p s, bool can_new, nstr_p deli, int max, nstr_array_p * as)
     ret = cnt;
 
 NSTR_SPLIT_END:
-    del_ref(string_entity(&curr));
-    del_ref(string_entity(&prev));
+    del_ref(&curr);
+    del_ref(&prev);
     return ret;
 
 NSTR_SPLIT_ERROR:
