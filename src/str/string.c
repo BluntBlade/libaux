@@ -417,9 +417,10 @@ inline static int32_t augment_array(nstr_p ** as, int * cap, int delta)
 
 int nstr_split(nstr_p s, bool can_new, nstr_p deli, int max, nstr_array_p * as)
 {
-    nstr_t prev = {0}; // 分隔符前子串切片
+    nstr_t prev = {0}; // 分隔符切片
     nstr_t curr = {0}; // 分隔符切片
 
+    int32_t (*next)(nstr_p, nstr_p) = NULL;
     nstr_p new = NULL; // 新子串
     void * loc = NULL; // 分隔符地址
     int32_t index = 0; // 分隔符索引
@@ -438,6 +439,8 @@ int nstr_split(nstr_p s, bool can_new, nstr_p deli, int max, nstr_array_p * as)
         return 1;
     } // if
 
+    deli = deli ? deli : &blank;
+    next = (deli->chars == 0) ? &nstr_next_char : &nstr_next_sub;
     rmd = (max > 0) ? max : -1;
     delta = (rmd > 0) ? 1 : 0;
 
@@ -449,30 +452,29 @@ int nstr_split(nstr_p s, bool can_new, nstr_p deli, int max, nstr_array_p * as)
     if (! *as) goto NSTR_SPLIT_END;
 
     offset = get_offset(s);
-    init_slice(&prev, STR_DONT_FREE, get_origin(s), offset, 0, 0);
-    init_slice(&curr, STR_DONT_FREE, get_origin(s), offset, 0, 0);
+    init_slice(&prev, STR_DONT_FREE, get_origin(s), 0, 0, 0);
+    init_slice(&curr, STR_DONT_FREE, get_origin(deli), get_offset(deli), deli->bytes, deli->chars);
     while (rmd != 0 && index < s->chars) {
         if (cnt >= cap - 2 && (ret = augment_array(as, &cap, 16)) < 0) goto NSTR_SPLIT_ERROR;
 
-        index = nstr_next_sub(s, deli, &curr); // 如果失败，在 nstr_next_sub() 中释放 curr
-        if ((ret = index) == STR_UNKNOWN_BYTE) goto NSTR_SPLIT_ERROR;
-        if (index == STR_NOT_FOUND) {
+        ret = (*next)(s, &curr);
+        if (ret == STR_UNKNOWN_BYTE) goto NSTR_SPLIT_ERROR;
+        if (ret == STR_NOT_FOUND) {
             // 校准到源串尾
             loc = get_end(s);
             index = s->chars;
         } else {
             loc = get_start(curr);
+            index += ret;
         } // if
 
         if (can_new) {
             new = nstr_new(get_end(prev), loc - get_end(prev), nstr_encoding(s));
         } else {
-            //new = new_slice(get_entity(s), get_offset(prev) + prev->bytes, sub->bytes, index - (prev->slc.index + prev->slc.chars), sub->chars);
             offset = get_offset(prev) + prev->bytes;
             new = new_slice(s, offset, sub->bytes, sub->chars);
         } // if
         if (! new) {
-            nstr_delete(&curr);
             ret = STR_OUT_OF_MEMORY;
             goto NSTR_SPLIT_ERROR;
         } // if
@@ -486,7 +488,8 @@ int nstr_split(nstr_p s, bool can_new, nstr_p deli, int max, nstr_array_p * as)
     ret = cnt;
 
 NSTR_SPLIT_END:
-    nstr_delete(&prev);
+    del_ref(&curr);
+    del_ref(&prev);
     return ret;
 
 NSTR_SPLIT_ERROR:
