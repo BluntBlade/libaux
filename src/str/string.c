@@ -110,7 +110,7 @@ inline static size_t slice_size(void)
 // 功能：初始化切片对象
 inline static void init_slice(nstr_p s, bool can_free, void * origin, int32_t offset, int32_t bytes, int32_t chars, str_encoding_t encoding)
 {
-    s->need_free = can_free ? 1 : 0;
+    s->need_free = can_free;
     s->is_slice = 1;
     s->cstr_src = 0;
     s->iterating = 0;
@@ -362,10 +362,8 @@ nstr_p nstr_blank(void)
 
 inline static nstr_p new_slice(nstr_p s, int32_t offset, int32_t bytes, int32_t chars)
 {
-    nstr_p new = NULL;
-
-    new = malloc(slice_size());
-    if (new) init_slice(new, STR_NEED_FREE, get_start(s), offset, bytes, chars);
+    nstr_p new = malloc(slice_size());
+    if (new) init_slice(new, STR_NEED_FREE, get_origin(s), offset, bytes, chars);
     return new;
 } // new_slice
 
@@ -443,8 +441,8 @@ int nstr_split(nstr_p s, bool can_new, nstr_p deli, int max, nstr_array_p * as)
     if (! *as) goto NSTR_SPLIT_END;
 
     offset = get_offset(s);
-    init_slice(&prev, STR_DONT_FREE, get_start(s), offset, 0, 0);
-    init_slice(&curr, STR_DONT_FREE, get_start(s), offset, 0, 0);
+    init_slice(&prev, STR_DONT_FREE, get_origin(s), offset, 0, 0);
+    init_slice(&curr, STR_DONT_FREE, get_origin(s), offset, 0, 0);
     while (rmd != 0 && index < s->chars) {
         if (cnt >= cap - 2 && (ret = augment_array(as, &cap, 16)) < 0) goto NSTR_SPLIT_ERROR;
 
