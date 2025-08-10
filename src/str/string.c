@@ -55,7 +55,7 @@ vtable_t vtable[NSTR_ENCODING_COUNT] = {
     },
 };
 
-nstr_t blank = { .str = { .vtbl = &vtable[0] } };
+nstr_t blank = {0};
 
 inline static void * get_origin(nstr_p s)
 {
@@ -133,7 +133,7 @@ nstr_p nstr_new(void * src, int32_t bytes, str_encoding_t encoding)
 
     if (bytes == 0) return nstr_blank();
 
-    r_bytes = vtbl->count(src, bytes, &r_chars);
+    r_bytes = vtable[encoding]->count(src, bytes, &r_chars);
     if (r_bytes < 0) return NULL;
 
     if ((new = malloc(entity_size(bytes)))) {
@@ -202,7 +202,7 @@ nstr_p nstr_add_ref(nstr_p s)
 
 int32_t nstr_encoding(nstr_p s)
 {
-    return (s->vtbl - &vtable);
+    return s->encoding;
 } // nstr_encoding
 
 int32_t nstr_bytes(nstr_p s)
@@ -255,7 +255,7 @@ bool nstr_is_blank(nstr_p s)
 
 bool nstr_verify(nstr_p s)
 {
-    return s->vtbl.verify(get_start(s), s->bytes);
+    return vtable[s->encoding].verify(get_start(s), s->bytes);
 } // nstr_verify
 
 void * nstr_first_byte(nstr_p s, void ** pos, void ** end)
@@ -385,14 +385,14 @@ nstr_p nstr_slice(nstr_p s, bool can_new, int32_t index, int32_t chars);
     start = get_start(s);
     if (index > 0) {
         r_chars = index;
-        r_bytes = s->vtbl.count(start, s->bytes, &r_chars);
+        r_bytes = vtable[s->encoding].count(start, s->bytes, &r_chars);
         if (r_bytes == 0) return nstr_blank(); // index 超出串尾
         if (r_bytes < 0) return NULL; // 编码不正确
         start += r_bytes;
     } // if
 
     r_chars = s->chars - index; // 最大切片范围是整个源串
-    r_bytes = s->vtbl.count(start, s->bytes - r_bytes, &r_chars);
+    r_bytes = vtable[s->encoding].count(start, s->bytes - r_bytes, &r_chars);
     if (r_bytes == 0) return nstr_blank(); // 超出串尾
     if (r_bytes < 0) return NULL; // 编码不正确
 
@@ -773,13 +773,13 @@ nstr_p nstr_replace(nstr_p s, bool can_new, int32_t index, int32_t chars, nstr_p
     } // if
 
     r_chars = index;
-    r_bytes = s->vtbl.count(get_start(s), s->bytes, &r_chars);
+    r_bytes = vtable[s->encoding].count(get_start(s), s->bytes, &r_chars);
     if (r_bytes == 0) return nstr_duplicate(s); // 超出串尾
     if (r_bytes < 0) return NULL; // 编码不正确
 
     start = origin + r_bytes;
     r_chars = chars;
-    r_bytes = s->vtbl.count(start, s->bytes - r_bytes, &r_chars);
+    r_bytes = vtable[s->encoding].count(start, s->bytes - r_bytes, &r_chars);
     if (r_bytes == 0) return nstr_duplicate(s); // 超出串尾
     if (r_bytes < 0) return NULL; // 编码不正确
 
