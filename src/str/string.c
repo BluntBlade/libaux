@@ -461,7 +461,7 @@ int nstr_split(nstr_p s, bool can_new, nstr_p deli, int max, nstr_array_p * as)
         } else {
             //new = new_slice(get_entity(s), get_offset(prev) + prev->bytes, sub->bytes, index - (prev->slc.index + prev->slc.chars), sub->chars);
             offset = get_offset(prev) + prev->bytes;
-            new = new_slice(get_start(s) + offset, offset, sub->bytes, sub->chars);
+            new = new_slice(s, offset, sub->bytes, sub->chars);
         } // if
         if (! new) {
             nstr_delete(&curr);
