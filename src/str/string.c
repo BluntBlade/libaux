@@ -6,7 +6,7 @@
 #include "str/string.h"
 
 #define container_of(type, member, addr) ((type *)((void *)(addr) - (void *)(&(((type *)0)->member))))
-#define string_entity(s) container_of(nstr_t, str.data, s->slc.origin)
+#define string_entity(s) ((s)->cstr_src ? NULL : container_of(nstr_t, str.data, (s)->slc.origin))
 
 typedef int32_t (*measure_t)(void * pos);
 typedef int32_t (*count_t)(void * start, int32_t size, int32_t * chars);
@@ -168,27 +168,26 @@ nstr_p nstr_duplicate(nstr_p s)
     return nstr_new(get_start(s), s->bytes, nstr_encoding(s));
 } // nstr_duplicate
 
+inline static void del_ref(nstr_p s)
+{
+    if (s) {
+        s->str.refs -= 1;
+        if (s->str.refs == 0 && s->need_free) free(s); // 释放非空字符串
+    } // if
+} // del_ref
+
 void nstr_delete(nstr_p * ps)
 {
-    nstr_p ent = *ps;
+    nstr_p s = *ps;
 
-    if (! ent) return; // 空指针
-    if (ent->is_slice) {
-        ent = (ent->slc.is_cstr) ? NULL : string_entity(*ps);
-        if ((*ps)->need_free) {
-            free(*ps); // 释放切片
-            *ps = NULL; // 防止野指针
-        } else {
-            // 调用者分配的内存无须释放，无须防止野指针
-        } // if
-    } else {
-        *ps = NULL; // 防止野指针
+    if (! s) return; // 空指针
+    if (s->is_slice) {
+        s = string_entity(*ps);
+        free(*ps); // 释放切片
     } // if
 
-    if (ent) {
-        ent->str.refs -= 1;
-        if (ent->str.refs == 0 && ent->need_free) free(ent); // 释放非空字符串
-    } // if
+    *ps = NULL; // 防止野指针
+    del_ref(s);
 } // nstr_delete
 
 void nstr_delete_array(nstr_array_p * as, int n)
@@ -451,7 +450,6 @@ int nstr_split(nstr_p s, bool can_new, nstr_p deli, int max, nstr_array_p * as)
     *as = malloc(sizeof((*as)[0]) * cap);
     if (! *as) goto NSTR_SPLIT_END;
 
-    offset = get_offset(s);
     init_slice(&prev, STR_DONT_FREE, get_origin(s), 0, 0, 0);
     init_slice(&curr, STR_DONT_FREE, get_origin(deli), get_offset(deli), deli->bytes, deli->chars);
     while (rmd != 0 && index < s->chars) {
@@ -471,8 +469,7 @@ int nstr_split(nstr_p s, bool can_new, nstr_p deli, int max, nstr_array_p * as)
         if (can_new) {
             new = nstr_new(get_end(prev), loc - get_end(prev), nstr_encoding(s));
         } else {
-            offset = get_offset(prev) + prev->bytes;
-            new = new_slice(s, offset, sub->bytes, sub->chars);
+            new = new_slice(s, get_offset(prev) + prev->bytes, sub->bytes, sub->chars);
         } // if
         if (! new) {
             ret = STR_OUT_OF_MEMORY;
@@ -488,8 +485,8 @@ int nstr_split(nstr_p s, bool can_new, nstr_p deli, int max, nstr_array_p * as)
     ret = cnt;
 
 NSTR_SPLIT_END:
-    del_ref(&curr);
-    del_ref(&prev);
+    del_ref(string_entity(&curr));
+    del_ref(string_entity(&prev));
     return ret;
 
 NSTR_SPLIT_ERROR:
