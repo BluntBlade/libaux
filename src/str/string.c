@@ -105,6 +105,7 @@ static nstr_p new_entity(bool ref_cstr, void * origin, int32_t offset, int32_t b
         new->bytes = bytes;
         new->chars = chars;
         new->str.refs = 1;  // 引用自身
+        if (origin) memcpy(new->str.data, origin + offset, bytes);
     } // if
     return new;
 } // new_entity
@@ -146,8 +147,7 @@ nstr_p nstr_new(void * src, int32_t bytes, str_encoding_t encoding)
     r_bytes = vtable[encoding]->count(src, bytes, &r_chars);
     if (r_bytes < 0) return NULL;
 
-    new = new_entity(false, NULL, 0, bytes, chars, encoding);
-    if (new) memcpy(new->str.data, src, bytes);
+    new = new_entity(false, src, 0, bytes, chars, encoding);
     return new;
 } // nstr_new
 
