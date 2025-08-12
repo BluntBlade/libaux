@@ -126,6 +126,7 @@ inline static void init_slice(nstr_p s, bool ref_cstr, void * origin, int32_t of
 inline static void clean_slice(nstr_p s)
 {
     del_ref(s);
+    s->ref_cstr = 1;
     s->slc.origin = NULL;
 } // clean_slice
 
@@ -360,6 +361,14 @@ nstr_p nstr_blank_string(void)
 {
     return add_ref(&blank);
 } // nstr_blank_string
+
+// 获取空分片
+nstr_p nstr_blank_slice(void)
+{
+    nstr_p new = malloc(sizeof(nstr_t));
+    if (new) init_slice(new, true, NULL, 0, 0, 0, STR_ENC_ASCII);
+    return new;
+} // nstr_blank_slice
 
 nstr_p nstr_slice(nstr_p s, bool can_new, int32_t index, int32_t chars);
 {

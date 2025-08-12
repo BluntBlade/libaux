@@ -201,6 +201,9 @@ extern int32_t nstr_next_sub(nstr_p s, nstr_p sub);
 // 获取空字符串常量
 extern nstr_p nstr_blank_string(void);
 
+// 生成空分片
+extern nstr_p nstr_blank_slice(void);
+
 // 基于字符范围，生成切片或新字符串
 extern nstr_p nstr_slice(nstr_p s, bool can_new, int32_t index, int32_t chars);
 
