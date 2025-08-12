@@ -15,8 +15,6 @@ typedef enum STR_ENCODING {
 } str_encoding_t;
 
 enum {
-    STR_NEED_FREE = true,
-    STR_DONT_FREE = false,
     STR_AND_NEW = true,
     STR_NOT_NEW = false,
 };
@@ -25,7 +23,6 @@ enum {
     STR_OUT_OF_MEMORY = -1,
     STR_UNKNOWN_BYTE = -2,
     STR_NOT_FOUND = -101,
-    STR_BLANK_SUB = -102,
 };
 
 typedef enum STR_LOCALE {
@@ -202,7 +199,7 @@ extern int32_t nstr_next_sub(nstr_p s, nstr_p sub);
 #define nstr_find next_next_sub
 
 // 获取空字符串常量
-extern nstr_p nstr_blank(void);
+extern nstr_p nstr_blank_string(void);
 
 // 基于字符范围，生成切片或新字符串
 extern nstr_p nstr_slice(nstr_p s, bool can_new, int32_t index, int32_t chars);

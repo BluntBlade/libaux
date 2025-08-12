@@ -142,7 +142,7 @@ nstr_p nstr_new(void * src, int32_t bytes, str_encoding_t encoding)
     int32_t r_bytes = 0;
     int32_t r_chars = bytes;
 
-    if (bytes == 0) return nstr_blank();
+    if (bytes == 0) return nstr_blank_string();
 
     r_bytes = vtable[encoding]->count(src, bytes, &r_chars);
     if (r_bytes < 0) return NULL;
@@ -356,10 +356,10 @@ int32_t nstr_next_sub(nstr_p s, nstr_p sub)
     return skip + sub->chars;
 } // nstr_next_sub
 
-nstr_p nstr_blank(void)
+nstr_p nstr_blank_string(void)
 {
     return add_ref(&blank);
- // nstr_blank
+} // nstr_blank_string
 
 nstr_p nstr_slice(nstr_p s, bool can_new, int32_t index, int32_t chars);
 {
@@ -371,21 +371,21 @@ nstr_p nstr_slice(nstr_p s, bool can_new, int32_t index, int32_t chars);
     // CASE-2: 源串是空串
     // CASE-3: 切片长度是零
     // NOTE: 不生成切片，直接返回空串
-    if (index >= s->chars || s->chars == 0 || chars == 0) return nstr_blank();
+    if (index >= s->chars || s->chars == 0 || chars == 0) return nstr_blank_string();
 
     // CASE-4: 源字符串不是空串
     start = get_start(s);
     if (index > 0) {
         r_chars = index;
         r_bytes = vtable[s->encoding].count(start, s->bytes, &r_chars);
-        if (r_bytes == 0) return nstr_blank(); // index 超出串尾
+        if (r_bytes == 0) return nstr_blank_string(); // index 超出串尾
         if (r_bytes < 0) return NULL; // 编码不正确
         start += r_bytes;
     } // if
 
     r_chars = s->chars - index; // 最大切片范围是整个源串
     r_bytes = vtable[s->encoding].count(start, s->bytes - r_bytes, &r_chars);
-    if (r_bytes == 0) return nstr_blank(); // 超出串尾
+    if (r_bytes == 0) return nstr_blank_string(); // 超出串尾
     if (r_bytes < 0) return NULL; // 编码不正确
 
     if (can_new) return nstr_new(start, r_bytes, s->encoding);
@@ -422,7 +422,7 @@ int nstr_split(nstr_p s, bool can_new, nstr_p deli, int max, nstr_array_p * as)
         // CASE-1: 源串是空串
         *as = malloc(sizeof(as[0]) * 2);
         if (! *as) return NULL;
-        (*as)[0] = nstr_blank();
+        (*as)[0] = nstr_blank_string();
         (*as)[1] = NULL;
         return 1;
     } // if
@@ -603,9 +603,7 @@ static nstr_p join_strings(nstr_p deli, nstr_p as, int n, va_list * ap)
     } // while
     va_end(cp);
 
-    if (cnt == 0) {
-        return nstr_blank();
-    } // if
+    if (cnt == 0) return nstr_blank_string();
 
     if (deli) {
         dbuf = get_start(deli);
@@ -648,7 +646,7 @@ nstr_p nstr_repeat(nstr_p s, int n)
     nstr_p new = NULL;
     int32_t b = 0;
 
-    if (s->bytes == 0) return nstr_blank(); // CASE-1: s 是空串。
+    if (s->bytes == 0) return nstr_blank_string(); // CASE-1: s 是空串。
     if (n <= 1) return add_ref(s);
 
     new = new_entity(false, NULL, 0, (s->bytes * n), (s->chars * n), s->encoding);
@@ -678,7 +676,7 @@ nstr_p nstr_concat2(nstr_p s1, nstr_p s2)
     int32_t bytes = 0;
 
     bytes = s1->bytes + s2->bytes;
-    if (bytes == 0) return nstr_blank();
+    if (bytes == 0) return nstr_blank_string();
 
     new = new_entity(false, NULL, 0, bytes, s1->chars + s2->chars, s1->encoding);
     if (! new) return NULL;
@@ -694,7 +692,7 @@ nstr_p nstr_concat3(nstr_p s1, nstr_p s2, nstr_p s3)
     int32_t bytes = 0;
 
     bytes = s1->bytes + s2->bytes + s3->bytes;
-    if (bytes == 0) return nstr_blank();
+    if (bytes == 0) return nstr_blank_string();
 
     new = new_entity(false, NULL, 0, bytes, s1->chars + s2->chars + s3->chars, s1->encoding);
     if (! new) return NULL;
@@ -797,12 +795,12 @@ nstr_p nstr_remove(nstr_p s, bool can_new, int32_t index, int32_t chars)
 
 nstr_p nstr_cut_head(nstr_p s, bool can_new, int32_t chars)
 {
-    if (s->chars < chars) return nstr_blank(); // CASE-1: 删除长度大于字符串长度。
+    if (s->chars < chars) return nstr_blank_string(); // CASE-1: 删除长度大于字符串长度。
     return nstr_replace(s, can_new, 0, chars, &blank);
 } // nstr_cut_head
 
 nstr_p nstr_cut_tail(nstr_p s, bool can_new, int32_t chars)
 {
-    if (s->chars < chars) return nstr_blank(); // CASE-1: 删除长度大于字符串长度。
+    if (s->chars < chars) return nstr_blank_string(); // CASE-1: 删除长度大于字符串长度。
     return nstr_replace(s, can_new, s->chars - chars, chars, &blank);
 } // nstr_cut_tail
