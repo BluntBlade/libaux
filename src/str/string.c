@@ -302,7 +302,7 @@ int32_t nstr_next_sub(nstr_p s, nstr_p sub, const char_t ** start, int32_t * ind
 
 nstr_p nstr_slice(nstr_p s, bool can_new, int32_t index, int32_t chars);
 {
-    void * start = NULL;
+    const char_t * start = NULL;
     int32_t r_bytes = 0;
     int32_t r_chars = 0;
 
@@ -312,20 +312,27 @@ nstr_p nstr_slice(nstr_p s, bool can_new, int32_t index, int32_t chars);
     // NOTE: 不生成切片，直接返回空串
     if (index >= s->chars || s->chars == 0 || chars == 0) return nstr_blank_string();
 
-    // CASE-4: 源字符串不是空串
-    start = s->start;
-    if (index > 0) {
-        r_chars = index;
-        r_bytes = vtable[s->encoding].count(start, s->bytes, &r_chars);
-        if (r_bytes == 0) return nstr_blank_string(); // index 超出串尾
-        if (r_bytes < 0) return NULL; // 编码不正确
-        start += r_bytes;
-    } // if
+    if (index == 0 && chars == s->chars) {
+        // CASE-4: 切出整串
+        start = s->start;
+        r_bytes = s->bytes;
+        r_chars = chars;
+    } else {
+        // CASE-5: 源字符串不是空串
+        start = s->start;
+        if (index > 0) {
+            r_chars = index;
+            r_bytes = vtable[s->encoding].count(start, s->bytes, &r_chars);
+            if (r_bytes == 0) return nstr_blank_string(); // index 超出串尾
+            if (r_bytes < 0) return NULL; // 编码不正确
+            start += r_bytes;
+        } // if
 
-    r_chars = s->chars - index; // 最大切片范围是整个源串
-    r_bytes = vtable[s->encoding].count(start, s->bytes - r_bytes, &r_chars);
-    if (r_bytes == 0) return nstr_blank_string(); // 超出串尾
-    if (r_bytes < 0) return NULL; // 编码不正确
+        r_chars = s->chars - index; // 最大切片范围是整个源串
+        r_bytes = vtable[s->encoding].count(start, s->bytes - r_bytes, &r_chars);
+        if (r_bytes == 0) return nstr_blank_string(); // 超出串尾
+        if (r_bytes < 0) return NULL; // 编码不正确
+    } // if
 
     if (can_new) return nstr_new(start, r_bytes, s->encoding);
     return new_slice(start, start - s->start, r_bytes, r_chars, s->encoding);
