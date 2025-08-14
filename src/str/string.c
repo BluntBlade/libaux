@@ -143,6 +143,18 @@ nstr_p nstr_duplicate(nstr_p s)
     return nstr_new(s->start, s->bytes, s->encoding);
 } // nstr_duplicate
 
+nstr_p nstr_blank_string(void)
+{
+    return add_ref(&blank);
+} // nstr_blank_string
+
+nstr_p nstr_blank_slice(void)
+{
+    nstr_p new = malloc(sizeof(nstr_t));
+    if (new) init_slice(new, NULL, 0, 0, 0, STR_ENC_ASCII);
+    return new;
+} // nstr_blank_slice
+
 void nstr_delete(nstr_p s)
 {
     nstr_p ent = s;
@@ -287,19 +299,6 @@ int32_t nstr_next_sub(nstr_p s, nstr_p sub, const char_t ** start, int32_t * ind
     *index += skip;
     return bytes;
 } // nstr_next_sub
-
-nstr_p nstr_blank_string(void)
-{
-    return add_ref(&blank);
-} // nstr_blank_string
-
-// 获取空分片
-nstr_p nstr_blank_slice(void)
-{
-    nstr_p new = malloc(sizeof(nstr_t));
-    if (new) init_slice(new, NULL, 0, 0, 0, STR_ENC_ASCII);
-    return new;
-} // nstr_blank_slice
 
 nstr_p nstr_slice(nstr_p s, bool can_new, int32_t index, int32_t chars);
 {

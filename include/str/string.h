@@ -40,6 +40,12 @@ extern nstr_p nstr_clone(nstr_p s);
 // 从源串生成新字符串，或从切片生成新切片
 extern nstr_p nstr_duplicate(nstr_p s);
 
+// 获取空字符串常量
+extern nstr_p nstr_blank_string(void);
+
+// 生成空分片
+extern nstr_p nstr_blank_slice(void);
+
 // 删除字符串
 extern void nstr_delete(nstr_p s);
 
@@ -164,12 +170,6 @@ extern int32_t nstr_next_char(nstr_p s, const char_t ** start, int32_t * index, 
 extern int32_t nstr_next_sub(nstr_p s, nstr_p sub, const char_t ** start, int32_t * index);
 
 #define nstr_find next_next_sub
-
-// 获取空字符串常量
-extern nstr_p nstr_blank_string(void);
-
-// 生成空分片
-extern nstr_p nstr_blank_slice(void);
 
 // 基于字符范围，生成切片或新字符串
 extern nstr_p nstr_slice(nstr_p s, bool can_new, int32_t index, int32_t chars);
