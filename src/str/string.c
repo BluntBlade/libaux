@@ -21,8 +21,7 @@ typedef struct NSTR {
     int32_t         bytes;          // 串内容占用字节数
     int32_t         chars;          // 编码后的字符个数
 
-    uint32_t        iterating:1;    // 是否正在遍历查找
-    uint32_t        unused:25;
+    uint32_t        unused:26;
     uint32_t        encoding:6;     // 编码方案，支持最多 64 种
 
     union {
@@ -79,7 +78,6 @@ static nstr_p new_entity(void * start, int32_t offset, int32_t bytes, int32_t ch
 {
     nstr_p new = malloc(sizeof(nstr_t) + bytes);
     if (new) {
-        new->iterating = 0;
         new->encoding = encoding;
         new->bytes = bytes;
         new->chars = chars;
@@ -92,7 +90,6 @@ static nstr_p new_entity(void * start, int32_t offset, int32_t bytes, int32_t ch
 
 inline static nstr_p init_slice(nstr_p s, void * start, int32_t offset, int32_t bytes, int32_t chars, str_encoding_t encoding)
 {
-    s->iterating = 0;
     s->encoding = encoding;
     s->bytes = bytes;
     s->chars = chars;
