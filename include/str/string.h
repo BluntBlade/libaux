@@ -41,13 +41,10 @@ extern nstr_p nstr_clone(nstr_p s);
 extern nstr_p nstr_duplicate(nstr_p s);
 
 // 删除字符串
-extern void nstr_delete(nstr_p * ps);
+extern void nstr_delete(nstr_p s);
 
 // 删除切分后的字符串数组
 extern void nstr_delete_strings(nstr_p * as, int n);
-
-// 增加引用计数，返回源串或切片的指针
-extern nstr_p nstr_add_ref(nstr_p s);
 
 // 减少引用计数
 inline static nstr_p nstr_del_ref(nstr_p * ps)
@@ -74,20 +71,11 @@ inline static int32_t nstr_length(nstr_p s)
     return nstr_chars(s);
 } // nstr_length
 
-// 返回原生字符串指针（切片情况下会生成一个新字符串）
-extern void * nstr_to_cstr(nstr_p * ps);
-
-// 返回切片数（返回 0 表示这是一个切片）
-extern int32_t nstr_refs(nstr_p s);
-
 // 测试是否为字符串
 extern bool nstr_is_string(nstr_p s);
 
 // 测试是否为切片
 extern bool nstr_is_slice(nstr_p s);
-
-// 测试 s 是否为 s2 的切片
-extern bool nstr_is_slicing(nstr_p s, nstr_p s2);
 
 // 测试是否为空字符串
 extern bool nstr_is_blank(nstr_p s);
@@ -141,37 +129,16 @@ inline static bool nstr_greater_or_equal(nstr_p s1, nstr_p s2, str_locale_t loca
 // 校验编码正确性和完整性
 extern bool nstr_verify(nstr_p s);
 
-// 功能：获取串内容首字节的地址
+// 功能：获取字符数据区的起止地址
 // 参数：
 //     s      IN    入参：源串或切片，不能为 NULL
-//     pos    IO    入参：遍历状态变量的指针，不能为 NULL
-//                  出参：将遍历的下一字节地址
+//     start  IO    入参：遍历状态变量的指针，不能为 NULL
+//                  出参：起始地址
 //     end    IO    入参：遍历状态变量的指针，不能为 NULL
-//                  出参：遍历终止地址
+//                  出参：终止地址
 // 返回值：
-//     non-NULL     首字节地址
-//     NULL         没有首字节，遍历结束
-extern void * nstr_first_byte(nstr_p s, void ** pos, void ** end);
-
-// 功能：获取串内容下一字节的地址
-// 参数：
-//     s      IN    入参：源串或切片，不能为 NULL
-//     pos    IO    入参：遍历状态变量的指针，不能为 NULL
-//                  出参：将遍历的下一字节地址
-//     end    IO    入参：遍历状态变量的指针，不能为 NULL
-//                  出参：遍历终止地址
-// 返回值：
-//     non-NULL     下一字节地址
-//     NULL         没有下一字节，遍历结束
-inline static void * nstr_next_byte(nstr_p s, void ** pos, void ** end)
-{
-    if (*pos == *end) {
-        *pos = NULL;
-        *end = NULL;
-        return NULL;
-    } // if
-    return *pos++;
-} // nstr_next_byte
+//     无
+extern void nstr_byte_range(nstr_p s, const char_t ** start, const char_t ** end);
 
 // 功能：获取下一字符
 // 参数：
@@ -181,7 +148,7 @@ inline static void * nstr_next_byte(nstr_p s, void ** pos, void ** end)
 //     0 或 1               跳过字符数，累加可得字符下标
 //     STR_NOT_FOUND        没有更多字符，遍历结束
 //     STR_UNKNOWN_BYTE     源串包含异常字节（编码不正确）
-extern nstr_p nstr_next_char(nstr_p ch, nstr_p s);
+extern int32_t nstr_next_char(nstr_p s, const char_t ** start, int32_t * index, nstr_p ch);
 
 // 功能：查找子串
 // 参数：
@@ -194,7 +161,7 @@ extern nstr_p nstr_next_char(nstr_p ch, nstr_p s);
 //     STR_UNKNOWN_BYTE     源串包含异常字节（未正确编码）
 // 说明：
 //     本函数在源串中查找子串，并修改子串的引用位置。查找结束后，如再次以相同对象调用，则会绕回到源串开头，启动新一轮查找。
-extern int32_t nstr_next_sub(nstr_p s, nstr_p sub);
+extern int32_t nstr_next_sub(nstr_p s, nstr_p sub, const char_t ** start, int32_t * index);
 
 #define nstr_find next_next_sub
 

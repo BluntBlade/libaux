@@ -6,7 +6,6 @@
 #include "str/string.h"
 
 #define container_of(type, member, addr) ((type *)((void *)(addr) - (void *)(&(((type *)0)->member))))
-#define string_entity(s) ((s)->ref_cstr ? NULL : container_of(nstr_t, str.data, (s)->slc.origin))
 
 typedef int32_t (*measure_t)(void * pos);
 typedef int32_t (*count_t)(void * start, int32_t size, int32_t * chars);
@@ -22,22 +21,17 @@ typedef struct NSTR {
     int32_t         bytes;          // 串内容占用字节数
     int32_t         chars;          // 编码后的字符个数
 
-    uint32_t        is_slice:1;     // 类型标志位：0 表示字符串，1 表示切片
-    uint32_t        ref_cstr:1;     // 分片引用C字符串
     uint32_t        iterating:1;    // 是否正在遍历查找
-    uint32_t        unused:23;
+    uint32_t        unused:25;
     uint32_t        encoding:6;     // 编码方案，支持最多 64 种
 
     union {
-        struct {
-            int32_t     refs;       // 引用计数，生成字符串时置 1 ，表示对自身的引用。减到 0 时释放内存
-            char_t      data[1];    // 串内容存储区，包含结尾的 NUL 字符
-        } str;
-        struct {
-            int32_t     offset;     // 首字节在源串内容存储区的偏移位置（单位：字节）
-            char_t *    origin;     // 源串数据起始地址，加上 offset 得到切片数据起始地址
-        } slc;
+        int32_t     slcs;           // （仅用于字符串）切片计数，减到 0 则销毁字符串并释放内存
+        int32_t     offset;         // （仅用于切片）字符数据起始地址相对于源地址的偏移量，>= 0 表示引用 NSTR 字符串，< 0 表示引用 C 字符串
     };
+
+    char_t *        start;          // 字符数据起始地址。A）字符串：指向自身的 data 成员；B）切片：指向被引用的字符串
+    char_t          data[1];        // 字符存储区，包含结尾的 NUL 字符
 } nstr_t;
 
 // ---- 静态变量 ---- //
@@ -55,85 +49,69 @@ vtable_t vtable[NSTR_ENCODING_COUNT] = {
     },
 };
 
-nstr_t blank = {0};
+const char_t c_blank = "";
+nstr_t blank = {.start = &c_blank, .encoding = STR_ENC_ASCII};
 
-inline static void * get_origin(nstr_p s)
+inline static is_slice(nstr_p s)
 {
-    return (s->is_slice) ? s->slc.origin : s->str.data;
-} // get_origin
-
-inline static void * get_start(nstr_p s)
-{
-    return (s->is_slice) ? s->slc.origin + s->slc.offset : s->str.data;
-} // get_start
-
-inline static void * get_end(nstr_p s)
-{
-    return get_start(s) + s->bytes;
-} // get_end
-
-inline static int32_t get_offset(nstr_p s)
-{
-    return (s->is_slice) ? s->slc.offset : 0;
-} // get_offset
+    return s->start != &s->data[0];
+} // is_slice
 
 inline static nstr_p get_entity(nstr_p s)
 {
-    return (s->is_slice) ? string_entity(s) : s;
+    return (is_slice(s) && s->offset >= 0) ? container_of(nstr_t, data, (s->start - s->offset)) : NULL;
 } // get_entity
 
 inline static nstr_p add_ref(nstr_p s)
 {
     nstr_p ent = get_entity(s);
-    if (ent) ent->str.refs += 1;
+    if (ent) ent->refs += 1;
     return s;
 } // add_ref
 
 inline static void del_ref(nstr_p s)
 {
     nstr_p ent = get_entity(s);
-    if (ent && --ent->str.refs == 0) free(ent);
+    if (ent && --ent->refs == 0) free(ent);
 } // del_ref
 
-static nstr_p new_entity(bool ref_cstr, void * origin, int32_t offset, int32_t bytes, int32_t chars, str_encoding_t encoding)
+static nstr_p new_entity(void * start, int32_t offset, int32_t bytes, int32_t chars, str_encoding_t encoding)
 {
     nstr_p new = malloc(sizeof(nstr_t) + bytes);
     if (new) {
-        new->is_slice = 0;
-        new->ref_cstr = 0;
+        new->iterating = 0;
         new->encoding = encoding;
         new->bytes = bytes;
         new->chars = chars;
-        new->str.refs = 1;  // 引用自身
-        if (origin) memcpy(new->str.data, origin + offset, bytes);
+        new->refs = 1;  // 引用自身
+        new->start = &new->data[0];
+        if (start) memcpy(new->data, start + offset, bytes);
     } // if
     return new;
 } // new_entity
 
-inline static void init_slice(nstr_p s, bool ref_cstr, void * origin, int32_t offset, int32_t bytes, int32_t chars, str_encoding_t encoding)
+inline static nstr_p init_slice(nstr_p s, void * start, int32_t offset, int32_t bytes, int32_t chars, str_encoding_t encoding)
 {
-    s->is_slice = 1;
-    s->ref_cstr = ref_cstr;
     s->iterating = 0;
     s->encoding = encoding;
     s->bytes = bytes;
     s->chars = chars;
-    s->slc.offset = offset;
-    s->slc.origin = origin;
-    add_ref(s);
+    s->offset = offset;
+    s->start = start;
+    return add_ref(s);
 } // init_slice
 
 inline static void clean_slice(nstr_p s)
 {
     del_ref(s);
-    s->ref_cstr = 1;
-    s->slc.origin = NULL;
+    s->start = NULL;
+    s->offset = 0;
 } // clean_slice
 
-static nstr_p new_slice(bool ref_cstr, void * origin, int32_t offset, int32_t bytes, int32_t chars, str_encoding_t encoding)
+static nstr_p new_slice(void * start, int32_t offset, int32_t bytes, int32_t chars, str_encoding_t encoding)
 {
     nstr_p new = malloc(sizeof(nstr_t));
-    if (new) init_slice(new, ref_cstr, origin, offset, bytes, chars, encoding);
+    if (new) init_slice(new, start, offset, bytes, chars, encoding);
     return new;
 } // new_slice
 
@@ -148,35 +126,33 @@ nstr_p nstr_new(void * src, int32_t bytes, str_encoding_t encoding)
     r_bytes = vtable[encoding]->count(src, bytes, &r_chars);
     if (r_bytes < 0) return NULL;
 
-    new = new_entity(false, src, 0, bytes, chars, encoding);
+    new = new_entity(src, 0, bytes, chars, encoding);
     return new;
 } // nstr_new
 
 nstr_p nstr_clone(nstr_p s)
 {
-    return nstr_new(get_start(s), s->bytes, s->encoding);
+    return nstr_new(s->start, s->bytes, s->encoding);
 } // nstr_clone
 
 nstr_p nstr_duplicate(nstr_p s)
 {
-    if (s->is_slice) {
-        return new_slice(s->ref_cstr, get_origin(s), get_offset(s), s->bytes, s->chars, s->encoding);
+    if (is_slice(s)) {
+        return new_slice(s->start, s->offset, s->bytes, s->chars, s->encoding);
     } // if
-    return nstr_new(get_start(s), s->bytes, s->encoding);
+    return nstr_new(s->start, s->bytes, s->encoding);
 } // nstr_duplicate
 
-void nstr_delete(nstr_p * ps)
+void nstr_delete(nstr_p s)
 {
-    nstr_p s = *ps;
+    nstr_p ent = s;
 
     if (! s) return; // 空指针
-    if (s->is_slice) {
-        s = string_entity(*ps);
-        free(*ps); // 释放切片
+    if (is_slice(s)) {
+        ent = get_entity(s);
+        free(s); // 释放切片
     } // if
-
-    *ps = NULL; // 防止野指针
-    del_ref(s);
+    if (ent) del_ref(ent);
 } // nstr_delete
 
 void nstr_delete_array(nstr_array_p * as, int n)
@@ -187,11 +163,6 @@ void nstr_delete_array(nstr_array_p * as, int n)
         *as = NULL;
     } // if
 } // nstr_delete_array
-
-nstr_p nstr_add_ref(nstr_p s)
-{
-    return add_ref(s);
-} // nstr_add_ref
 
 int32_t nstr_encoding(nstr_p s)
 {
@@ -208,37 +179,14 @@ int32_t nstr_chars(nstr_p s)
     return s->chars;
 } // nstr_chars
 
-void * nstr_to_cstr(nstr_p * ps)
-{
-    nstr_p new = NULL;
-    nstr_p s = *ps;
-
-    if (s->is_slice) {
-        new = nstr_clone(*ps);
-        if (! new) return NULL;
-        *ps = new;
-    } // if
-    return (*ps)->str.data;
-} // nstr_to_cstr
-
-int32_t nstr_refs(nstr_p s)
-{
-    return (s->is_slice) ? 0 : s->str.refs;
-} // nstr_refs
-
 bool nstr_is_string(nstr_p s)
 {
-    return (! s->is_slice);
+    return (! is_slice(s));
 } // nstr_is_string
 
 bool nstr_is_slice(nstr_p s)
 {
-    return s->is_slice;
-} // nstr_is_slice
-
-bool nstr_is_slicing(nstr_p s, nstr_p s2)
-{
-    return get_origin(s) == get_origin(s2);
+    return is_slice(s);
 } // nstr_is_slice
 
 bool nstr_is_blank(nstr_p s)
@@ -248,23 +196,16 @@ bool nstr_is_blank(nstr_p s)
 
 bool nstr_verify(nstr_p s)
 {
-    return vtable[s->encoding].verify(get_start(s), s->bytes);
+    return vtable[s->encoding].verify(s->start, s->bytes);
 } // nstr_verify
 
-void * nstr_first_byte(nstr_p s, void ** pos, void ** end)
+void nstr_byte_range(nstr_p s, const char_t ** start, const char_t ** end)
 {
-    *pos = get_start(s);
-    *end = *pos + s->bytes;
-    if (*pos == *end) {
-        *pos = NULL;
-        *end = NULL;
-        return NULL;
-    } // if
-    *pos += 1;
-    return get_start(s);
-} // nstr_first_byte
+    *pos = s->start;
+    *end = s->start + s->bytes;
+} // nstr_byte_range
 
-int32_t nstr_next_char(nstr_p s, nstr_p ch)
+int32_t nstr_next_char(nstr_p s, const char_t ** start, int32_t * index, nstr_p ch)
 {
     int32_t bytes = 0;
 
@@ -274,39 +215,34 @@ int32_t nstr_next_char(nstr_p s, nstr_p ch)
     assert(sub != NULL);
     assert(nstr_is_slice(ch));
 
-    if (! ch->iterating) {
-        start = get_start(s);
-        size = s->bytes;
+    if (! *start) {
+        *start = s->start;
+        *index = 0;
+        clean_slice(ch);
+        init_slice(ch, s->start, 0, 0, 1, s->encoding);
     } else {
-        start = get_start(ch) + ch->bytes;
-        size = s->bytes - ch->slc.offset - ch->bytes;
+        *start += ch->bytes;
+        *index += 1;
     } // if
 
-    bytes = vtable[s->encoding].measure(start, size);
+    bytes = vtable[s->encoding].measure(*start, s->bytes - ch->offset - ch->bytes);
     if (bytes == 0) {
-        ch->iterating = 0;
+        *start = NULL;
+        *index = s->chars;
         return STR_UNKNOWN_BYTE;
     } // if
 
-    if (! ch->iterating) {
-        if (! nstr_is_slicing(ch, s)) clean_slice(ch);
-        init_slice(ch, s->ref_cstr, get_origin(s), get_offset(s), bytes, 1, s->encoding);
-        ch->iterating = 1;
-        return 0;
-    } // if
-    ch->slc.offset += ch->bytes;
+    ch->offset += ch->bytes;
     ch->bytes = bytes;
-    return 1;
+    return bytes;
 } // nstr_next_char
 
-int32_t nstr_next_sub(nstr_p s, nstr_p sub)
+int32_t nstr_next_sub(nstr_p s, nstr_p sub, const char_t ** start, int32_t * index)
 {
-    void * loc = NULL;
-    void * start = NULL;
-    size_t size = 0;
-    int32_t skip = 0;
-    int32_t bytes = sub->bytes;
-    int32_t chars = sub->chars;
+    const char_t * loc = NULL;  // 下个子串位置
+    size_t size = 0;    // 搜索范围长度
+    int32_t skip = 0;   // 距离上个子串位置的字符数
+    int32_t bytes = 0;  // 距离上个子串位置的字节数
 
     assert(s != NULL);
     assert(! nstr_is_blank(s));
@@ -315,46 +251,41 @@ int32_t nstr_next_sub(nstr_p s, nstr_p sub)
     assert(nstr_is_slice(sub));
     assert(! nstr_is_blank(sub));
 
-    if (! sub->iterating) {
-        start = get_start(s);
+    assert(start != NULL);
+    assert(index != NULL);
+
+    if (! *start) {
+        *start = s->start;
         size = s->bytes;
+        *index = 0;
     } else {
-        start = get_start(sub);
-        size = s->bytes - sub->slc.offset - sub->bytes;
+        *start += sub->bytes;
+        size = s->bytes - (*start - s->start);
+        *index += sub->chars;
     } // if
 
     if (sub->bytes == 1) {
         // 子串只包含单个字节
-        loc = memchr(start, ((char_t *)get_start(sub))[0], size);
+        loc = memchr(*start, ((char_t *)sub->start)[0], size);
     } else {
-        loc = memmem(start, size, get_start(sub), sub->bytes);
+        loc = memmem(*start, size, sub->start, sub->bytes);
     } // if
     if (! loc) {
-        sub->iterating = 0; // 停止查找
+        *start = NULL; // 停止查找
+        *index = s->chars;
         return STR_NOT_FOUND; // 找不到子串
     } // if
 
     skip = s->chars; // 最大跳过字符数小于源串字符数
-    bytes = vtable[s->encoding].count(start, loc - start, &skip);
+    bytes = vtable[s->encoding].count(*start, loc - *start, &skip);
     if (bytes < 0) {
-        sub->iterating = 0; // 停止查找
+        *start = NULL; // 停止查找
+        *index = s->chars;
         return STR_UNKNOWN_BYTE; // 源串包含异常字节
     } // if
 
-    if (! sub->iterating) {
-        if (! nstr_is_slicing(sub, s)) {
-            bytes = sub->bytes;
-            chars = sub->chars;
-
-            clean_slice(sub);
-            init_slice(sub, s->ref_cstr, get_origin(s), get_offset(s) + (loc - start), bytes, chars, s->encoding);
-        } // if
-
-        sub->iterating = 1; // 开始查找
-        return skip;
-    } // if
-    sub->slc.offset += sub->bytes + (loc - start);
-    return skip + sub->chars;
+    *index += skip;
+    return bytes;
 } // nstr_next_sub
 
 nstr_p nstr_blank_string(void)
@@ -366,7 +297,7 @@ nstr_p nstr_blank_string(void)
 nstr_p nstr_blank_slice(void)
 {
     nstr_p new = malloc(sizeof(nstr_t));
-    if (new) init_slice(new, true, NULL, 0, 0, 0, STR_ENC_ASCII);
+    if (new) init_slice(new, NULL, 0, 0, 0, STR_ENC_ASCII);
     return new;
 } // nstr_blank_slice
 
@@ -383,7 +314,7 @@ nstr_p nstr_slice(nstr_p s, bool can_new, int32_t index, int32_t chars);
     if (index >= s->chars || s->chars == 0 || chars == 0) return nstr_blank_string();
 
     // CASE-4: 源字符串不是空串
-    start = get_start(s);
+    start = s->start;
     if (index > 0) {
         r_chars = index;
         r_bytes = vtable[s->encoding].count(start, s->bytes, &r_chars);
@@ -398,7 +329,7 @@ nstr_p nstr_slice(nstr_p s, bool can_new, int32_t index, int32_t chars);
     if (r_bytes < 0) return NULL; // 编码不正确
 
     if (can_new) return nstr_new(start, r_bytes, s->encoding);
-    return new_slice(s->ref_cstr, get_origin(s), get_offset(s) + (start - get_start(s)), r_bytes, r_chars, s->encoding);
+    return new_slice(start, start - s->start, r_bytes, r_chars, s->encoding);
 } // nstr_slice
 
 inline static int32_t augment_array(nstr_p ** as, int * cap, int delta)
@@ -412,14 +343,11 @@ inline static int32_t augment_array(nstr_p ** as, int * cap, int delta)
 
 int nstr_split(nstr_p s, bool can_new, nstr_p deli, int max, nstr_array_p * as)
 {
-    nstr_t prev = {0}; // 分隔符切片
-    nstr_t curr = {0}; // 分隔符切片
-
     nstr_p new = NULL; // 新子串
-    int32_t index = 0; // 下次搜索起始下标
-    int32_t bytes = 0; // 子串字节数
-    int32_t chars = 0; // 子串字符数
-    int32_t ret = 0; // 返回值
+    const char_t * start = NULL; // 本次搜索起始地址
+    int32_t index = 0; // 本次搜索起始下标
+    int32_t last = 0; // 上次搜索起始下标
+    int32_t ret = 0; // 返回值 & 跳过字节数
     int rmd = 0; // 剩余切分次数，零表示停止，负数表示无限次
     int cnt = 0; // 子串数量，用于下标时始终指向下一个可用元素
     int cap = 0; // 数组容量
@@ -446,46 +374,34 @@ int nstr_split(nstr_p s, bool can_new, nstr_p deli, int max, nstr_array_p * as)
     cap = (rmd < 16 - 2) ? 16 : (rmd + 2);
 
     *as = malloc(sizeof((*as)[0]) * cap);
-    if (! *as) goto NSTR_SPLIT_END;
+    if (! *as) return STR_OUT_OF_MEMORY;
 
-    init_slice(&prev, s->ref_cstr, get_origin(s), 0, 0, 0, s->encoding);
-    init_slice(&curr, deli->ref_cstr, get_origin(deli), get_offset(deli), deli->bytes, deli->chars, s->encoding);
+    last = 0 - deli->chars;
     while (rmd != 0) {
         if (cnt >= cap - 2 && (ret = augment_array(as, &cap, 16)) < 0) goto NSTR_SPLIT_ERROR;
 
-        chars = ret = nstr_next_sub(s, &curr);
+        ret = nstr_next_sub(s, deli, &start, &index);
         if (ret == STR_UNKNOWN_BYTE) goto NSTR_SPLIT_ERROR;
-        if (ret == STR_NOT_FOUND) {
-            bytes = get_end(s) - get_end(prev);
-            ret = s->chars - index - prev->chars;
-            rmd = delta; // 退出查找
-        } else {
-            bytes = get_start(curr) - get_end(prev);
-            index += ret + curr->chars;
-        } // if
+        if (ret == STR_NOT_FOUND) rmd = delta; // 退出查找
 
-        new = create(s->ref_cstr, get_origin(s), get_offset(prev) + prev->bytes, bytes, chars, s->encoding);
+        new = create(start, start - s->start, ret, index - (last + deli->chars), s->encoding);
         if (! new) {
             ret = STR_OUT_OF_MEMORY;
             goto NSTR_SPLIT_ERROR;
         } // if
 
         (*as)[cnt++] = new;
+        last = index;
         rmd -= delta;
-        prev = curr;
     } // while
 
     (*as)[cnt] = NULL; // 设置终止标志
     ret = cnt;
-
-NSTR_SPLIT_END:
-    del_ref(&curr);
-    del_ref(&prev);
     return ret;
 
 NSTR_SPLIT_ERROR:
     nstr_delete_array(as, cnt);
-    goto NSTR_SPLIT_END;
+    return ret;
 } // nstr_split
 
 typedef char_t * (*copy_strings_t)(char_t * pos, nstr_p * as, int n, char_t * dbuf, int32_t dbytes);
@@ -499,16 +415,16 @@ static char_t * copy_strings(char_t * pos, nstr_p * as, int n, char_t * dbuf, in
     switch (n % 4) {
         case 0:
     while (b-- > 0) {
-            memcpy(pos, get_start(as[i]), (as[i])->bytes);
+            memcpy(pos, (as[i])->start, (as[i])->bytes);
             pos += (as[i++])->bytes;
         case 3:
-            memcpy(pos, get_start(as[i]), (as[i])->bytes);
+            memcpy(pos, (as[i])->start, (as[i])->bytes);
             pos += (as[i++])->bytes;
         case 2:
-            memcpy(pos, get_start(as[i]), (as[i])->bytes);
+            memcpy(pos, (as[i])->start, (as[i])->bytes);
             pos += (as[i++])->bytes;
         case 1:
-            memcpy(pos, get_start(as[i]), (as[i])->bytes);
+            memcpy(pos, (as[i])->start, (as[i])->bytes);
             pos += (as[i++])->bytes;
     } // while
         default: break;
@@ -525,19 +441,19 @@ static char_t * copy_strings_with_one_deli(char_t * pos, nstr_p * as, int n, cha
     switch (n % 4) {
         case 0:
     while (b-- > 0) {
-            memcpy(pos, get_start(as[i]), (as[i])->bytes);
+            memcpy(pos, (as[i])->start, (as[i])->bytes);
             pos += (as[i++])->bytes;
             (*pos++) = dbuf[0];
         case 3:
-            memcpy(pos, get_start(as[i]), (as[i])->bytes);
+            memcpy(pos, (as[i])->start, (as[i])->bytes);
             pos += (as[i++])->bytes;
             (*pos++) = dbuf[0];
         case 2:
-            memcpy(pos, get_start(as[i]), (as[i])->bytes);
+            memcpy(pos, (as[i])->start, (as[i])->bytes);
             pos += (as[i++])->bytes;
             (*pos++) = dbuf[0];
         case 1:
-            memcpy(pos, get_start(as[i]), (as[i])->bytes);
+            memcpy(pos, (as[i])->start, (as[i])->bytes);
             pos += (as[i++])->bytes;
             (*pos++) = dbuf[0];
     } // while
@@ -555,22 +471,22 @@ static char_t * copy_strings_with_long_deli(char_t * pos, nstr_p * as, int n, ch
     switch (n % 4) {
         case 0:
     while (b-- > 0) {
-            memcpy(pos, get_start(as[i]), (as[i])->bytes);
+            memcpy(pos, (as[i])->start, (as[i])->bytes);
             pos += (as[i++])->bytes;
             memcpy(pos, dbuf, dbytes);
             pos += dbytes;
         case 3:
-            memcpy(pos, get_start(as[i]), (as[i])->bytes);
+            memcpy(pos, (as[i])->start, (as[i])->bytes);
             pos += (as[i++])->bytes;
             memcpy(pos, dbuf, dbytes);
             pos += dbytes;
         case 2:
-            memcpy(pos, get_start(as[i]), (as[i])->bytes);
+            memcpy(pos, (as[i])->start, (as[i])->bytes);
             pos += (as[i++])->bytes;
             memcpy(pos, dbuf, dbytes);
             pos += dbytes;
         case 1:
-            memcpy(pos, get_start(as[i]), (as[i])->bytes);
+            memcpy(pos, (as[i])->start, (as[i])->bytes);
             pos += (as[i++])->bytes;
             memcpy(pos, dbuf, dbytes);
             pos += dbytes;
@@ -615,7 +531,7 @@ static nstr_p join_strings(nstr_p deli, nstr_p as, int n, va_list * ap)
     if (cnt == 0) return nstr_blank_string();
 
     if (deli) {
-        dbuf = get_start(deli);
+        dbuf = deli->start;
         dbytes = deli->bytes;
 
         bytes += dbytes * cnt; // 字节总数包含尾部间隔符，简化拷贝逻辑。
@@ -631,7 +547,7 @@ static nstr_p join_strings(nstr_p deli, nstr_p as, int n, va_list * ap)
     new = new_entity(false, NULL, 0, bytes, chars, as[0]->encoding);
     if (! new) return NULL;
 
-    pos = copy(new->str.data, as, n, dbuf, dbytes);
+    pos = copy(new->data, as, n, dbuf, dbytes);
 
     va_copy(cp, *ap);
     while ((as2 = va_arg(cp, nstr_p *))) {
@@ -640,7 +556,7 @@ static nstr_p join_strings(nstr_p deli, nstr_p as, int n, va_list * ap)
     va_end(cp);
 
     bytes -= dbytes; // 去掉多余的尾部间隔符。
-    new->str.data[bytes] = 0; // 设置终止 NUL 字符。
+    new->data[bytes] = 0; // 设置终止 NUL 字符。
     return new;
 } // join_strings
 
@@ -661,7 +577,7 @@ nstr_p nstr_repeat(nstr_p s, int n)
     new = new_entity(false, NULL, 0, (s->bytes * n), (s->chars * n), s->encoding);
     if (! new) return NULL;
 
-    pos = copy_strings(new->str.data, as, n % (sizeof(as) / sizeof(as[0])), NULL, 0);
+    pos = copy_strings(new->data, as, n % (sizeof(as) / sizeof(as[0])), NULL, 0);
 
     b = n / (sizeof(as) / sizeof(as[0]));
     while (b-- > 0) pos = copy_strings(pos, as, (sizeof(as) / sizeof(as[0])), NULL, 0);
@@ -690,8 +606,8 @@ nstr_p nstr_concat2(nstr_p s1, nstr_p s2)
     new = new_entity(false, NULL, 0, bytes, s1->chars + s2->chars, s1->encoding);
     if (! new) return NULL;
 
-    memcpy(new->str.data, get_start(s1), s1->bytes);
-    memcpy(new->str.data + s1->bytes, get_start(s2), s2->bytes);
+    memcpy(new->data, s1->start, s1->bytes);
+    memcpy(new->data + s1->bytes, s2->start, s2->bytes);
     return new;
 } // nstr_concat2
 
@@ -706,9 +622,10 @@ nstr_p nstr_concat3(nstr_p s1, nstr_p s2, nstr_p s3)
     new = new_entity(false, NULL, 0, bytes, s1->chars + s2->chars + s3->chars, s1->encoding);
     if (! new) return NULL;
 
-    memcpy(new->str.data, get_start(s1), s1->bytes);
-    memcpy(new->str.data + s1->bytes, get_start(s2), s2->bytes);
-    memcpy(new->str.data + s1->bytes + s2->bytes, get_start(s3), s3->bytes);
+    memcpy(new->data, s1->start, s1->bytes);
+    memcpy(new->data + s1->bytes, s2->start, s2->bytes);
+    memcpy(new->data + s1->bytes + s2->bytes, s3->start, s3->bytes);
+    new->data[bytes] = 0;
     return new;
 } // nstr_concat3
 
@@ -732,7 +649,7 @@ nstr_p nstr_join_with_char(char_t deli, nstr_p * as, int n, ...)
     d->encoding = STR_ENC_ASCII;
     d->bytes = 1;
     d->chars = 1;
-    d->str.data[0] = deli;
+    d->data[0] = deli;
 
     va_start(ap, n);
     new = join_strings(d, as, n, &ap);
@@ -742,47 +659,39 @@ nstr_p nstr_join_with_char(char_t deli, nstr_p * as, int n, ...)
 
 nstr_p nstr_replace(nstr_p s, bool can_new, int32_t index, int32_t chars, nstr_p sub)
 {
-    nstr_t s1 = {0};
-    nstr_t s3 = {0};
     nstr_p ent = NULL; // 最终字符串对象
-    void * origin = NULL;
-    void * start = NULL;
-    int32_t offset = 0;
-    int32_t r_bytes = 0;
-    int32_t r_chars = 0;
+    const char_t * start = NULL;
+    int32_t s1_bytes = 0;
+    int32_t s2_bytes = 0;
+    int32_t s3_bytes = 0;
+    int32_t s1_chars = 0;
+    int32_t s2_chars = 0;
 
-    if (s->chars == 0) return nstr_slice_from(sub, can_new, get_start(sub), sub->bytes); // CASE-1: s 是空串。
-    if (sub->chars == 0) return nstr_slice_from(s, can_new, get_start(s), s->bytes); // CASE-2: sub 是空串。
+    if (s->chars == 0) return can_new ? nstr_clone(sub) : nstr_duplicate(sub); // CASE-1: 源串为空 
+    if (sub->chars == 0) return can_new ? nstr_clone(s) : nstr_duplicate(s); // CASE-2: 子串为空
 
-    if (index >= s->chars) return nstr_concat2(s, sub); // CASE-3: 替换位置在串尾。
-    if (index == 0 && chars == 0) return nstr_concat2(sub, s); // CASE-4: 替换位置在串头且替换长度为零。
+    if (index >= s->chars) return nstr_concat2(s, sub); // CASE-3: 替换位置在串尾
+    if (index == 0 && chars == 0) return nstr_concat2(sub, s); // CASE-4: 替换位置在串头且替换长度为零
 
     // CASE-5: 待替换部分在源串中间且长度不为零。
-    if (s->is_slice) {
-        ent = string_entity(s);
-        offset = s->slc.offset;
-    } else {
-        ent = s;
-        offset = 0;
-    } // if
+    s1_chars = index;
+    s1_bytes = vtable[s->encoding].count(s->start, s->bytes, &s1_chars);
+    if (s1_bytes == 0) return can_new ? nstr_clone(s) : nstr_duplicate(s); // 超出串尾
+    if (s1_bytes < 0) return NULL; // 编码不正确
 
-    r_chars = index;
-    r_bytes = vtable[s->encoding].count(get_start(s), s->bytes, &r_chars);
-    if (r_bytes == 0) return nstr_duplicate(s); // 超出串尾
-    if (r_bytes < 0) return NULL; // 编码不正确
+    start = s->start + s1_bytes;
+    s2_chars = chars;
+    s2_bytes = vtable[s->encoding].count(start, s->bytes - s1_bytes, &s2_chars);
+    if (s2_bytes == 0) return can_new ? nstr_clone(s) : nstr_duplicate(s); // 超出串尾
+    if (s2_bytes < 0) return NULL; // 编码不正确
 
-    start = origin + r_bytes;
-    r_chars = chars;
-    r_bytes = vtable[s->encoding].count(start, s->bytes - r_bytes, &r_chars);
-    if (r_bytes == 0) return nstr_duplicate(s); // 超出串尾
-    if (r_bytes < 0) return NULL; // 编码不正确
+    new = new_entity(false, NULL, 0, s->bytes - s2_bytes + sub->bytes, s->chars - s2_chars + sub->chars, s1->encoding);
+    if (! new) return NULL;
 
-    s1_bytes = start - origin;
-    init_slice(&s1, s1->ref_cstr, ent->str.data, offset, s1_bytes, index, s1->encoding);
-    init_slice(&s3, s3->ref_cstr, ent->str.data, offset + s1_bytes + r_bytes, s->bytes - s1_bytes - r_bytes, s->chars - index - r_chars, s3->encoding);
-    new = nstr_concat3(s1, sub, s2);
-    clean_slice(&s3);
-    clean_slice(&s1);
+    memcpy(new->data, s->start, s1_bytes);
+    memcpy(new->data + s1->bytes, sub->start, sub->bytes);
+    memcpy(new->data + s1->bytes + sub->bytes, start + s2_bytes, s->bytes - s1_bytes - s2_bytes);
+    new->data[s->bytes - s2_bytes + sub->bytes] = 0;
     return new;
 } // nstr_replace
 
@@ -793,7 +702,7 @@ nstr_p nstr_replace_char(nstr_p s, bool can_new, int32_t index, int32_t chars, c
     sub->encoding = STR_ENC_ASCII;
     sub->bytes = 1;
     sub->chars = 1;
-    sub->str.data[0] = ch;
+    sub->data[0] = ch;
     return nstr_replace(s, can_new, index, chars, &sub);
 } // nstr_replace_char
 
@@ -804,12 +713,12 @@ nstr_p nstr_remove(nstr_p s, bool can_new, int32_t index, int32_t chars)
 
 nstr_p nstr_cut_head(nstr_p s, bool can_new, int32_t chars)
 {
-    if (s->chars < chars) return nstr_blank_string(); // CASE-1: 删除长度大于字符串长度。
+    if (s->chars < chars) return nstr_blank_string(); // CASE-1: 删除长度大于字符串长度
     return nstr_replace(s, can_new, 0, chars, &blank);
 } // nstr_cut_head
 
 nstr_p nstr_cut_tail(nstr_p s, bool can_new, int32_t chars)
 {
-    if (s->chars < chars) return nstr_blank_string(); // CASE-1: 删除长度大于字符串长度。
+    if (s->chars < chars) return nstr_blank_string(); // CASE-1: 删除长度大于字符串长度
     return nstr_replace(s, can_new, s->chars - chars, chars, &blank);
 } // nstr_cut_tail
