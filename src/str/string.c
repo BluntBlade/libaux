@@ -728,3 +728,32 @@ nstr_p nstr_cut_tail(nstr_p s, bool can_new, int32_t chars)
     if (s->chars < chars) return nstr_blank_string(); // CASE-1: 删除长度大于字符串长度
     return nstr_replace(s, can_new, s->chars - chars, chars, &blank);
 } // nstr_cut_tail
+
+nstr_p nstr_substitute(nstr_p s, bool all, nstr_p from, nstr_p to)
+{
+    nstr_array_p as = NULL; // 子串数组
+    nstr_p new = NULL; // 新串
+    const char_t * start = NULL; // 遍历变量
+    int32_t skip = 0; // 跳过字节数
+    int32_t index = 0; // 待替换串下标
+    int cnt = 0; // 子串数
+
+    if (all) {
+        cnt = nstr_split(s, false, from, -1, &as);
+        if (cnt < 0) return NULL;
+        return nstr_join(to, as, cnt, NULL);
+    } // if
+
+    skip = nstr_next_sub(s, from, &start, &index);
+    if (skip == STR_UNKNOWN_BYTE) return NULL;
+    if (skip == STR_NOT_FOUND) return nstr_slice(s, true, 0, s->chars);
+
+    new = new_entity(NULL, 0, s->bytes - from->bytes + to->bytes, s->chars - from->chars + to->chars, s->encoding);
+    if (new) {
+        memcpy(new->start, s->start, skip);
+        memcpy(new->start + skip, to->start, to->bytes);
+        memcpy(new->start + skip + to->bytes, s->start + skip + from->bytes, s->bytes - skip - from->bytes);
+        new->start[s->bytes - from->bytes + to->bytes] = 0;
+    } // if
+    return new;
+} // nstr_substitute

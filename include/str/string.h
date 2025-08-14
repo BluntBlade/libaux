@@ -279,5 +279,8 @@ extern nstr_p nstr_ltrim(nstr_s, bool can_new);
 // 删除串尾的空白字符（SPACE/TAB/CR/NL等）
 extern nstr_p nstr_rtrim(nstr_s, bool can_new);
 
+// 替换子串
+extern nstr_p nstr_substitute(nstr_p s, bool all, nstr_p from, nstr_p to);
+
 #endif // _AUX_STRING_H_
 
