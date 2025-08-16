@@ -297,41 +297,41 @@ int32_t nstr_next_sub(nstr_p s, nstr_p sub, const char_t ** start, int32_t * ind
     return bytes;
 } // nstr_next_sub
 
-nstr_p nstr_slice(nstr_p s, bool can_new, int32_t index, int32_t chars);
+nstr_p nstr_slice(nstr_p s, int32_t index, int32_t chars, nstr_p slc)
 {
-    const char_t * start = NULL;
+    const char_t * start = blank.data;
     int32_t r_bytes = 0;
     int32_t r_chars = 0;
 
     // CASE-1: 切片起点超出范围
     // CASE-2: 源串是空串
     // CASE-3: 切片长度是零
-    // NOTE: 不生成切片，直接返回空串
-    if (index >= s->chars || s->chars == 0 || chars == 0) return nstr_blank_string();
+    if (index >= s->chars || s->chars == 0 || chars == 0) goto NSTR_SLICE_END;
 
-    if (index == 0 && chars == s->chars) {
-        // CASE-4: 切出整串
-        start = s->start;
-        r_bytes = s->bytes;
+    // CASE-4: 源字符串不是空串
+    start = s->start;
+    if (0 < index) {
+        // 跳过前导部分
+        r_chars = index;
+        r_bytes = vtable[s->encoding].count(start, s->bytes, &r_chars);
+        if (r_bytes < 0) return NULL; // 编码不正确
+        start += r_bytes;
+    } // if
+
+    // 最大切片范围是剩余部分
+    r_bytes = s->bytes - r_bytes;
+    r_chars = s->chars - r_chars;
+    if (chars < r_chars) {
         r_chars = chars;
-    } else {
-        // CASE-5: 源字符串不是空串
-        start = s->start;
-        if (index > 0) {
-            r_chars = index;
-            r_bytes = vtable[s->encoding].count(start, s->bytes, &r_chars);
-            if (r_bytes == 0) return nstr_blank_string(); // index 超出串尾
-            if (r_bytes < 0) return NULL; // 编码不正确
-            start += r_bytes;
-        } // if
-
-        r_chars = s->chars - index; // 最大切片范围是整个源串
-        r_bytes = vtable[s->encoding].count(start, s->bytes - r_bytes, &r_chars);
-        if (r_bytes == 0) return nstr_blank_string(); // 超出串尾
+        r_bytes = vtable[s->encoding].count(start, r_bytes, &r_chars);
         if (r_bytes < 0) return NULL; // 编码不正确
     } // if
 
-    if (can_new) return nstr_new(start, r_bytes, s->encoding);
+NSTR_SLICE_END:
+    if (slc) {
+        clean_slice(slc);
+        return init_slice(slc, start, start - s->start, r_bytes, r_chars, s->encoding);
+    } // if
     return new_slice(start, start - s->start, r_bytes, r_chars, s->encoding);
 } // nstr_slice
 

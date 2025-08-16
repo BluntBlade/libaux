@@ -171,8 +171,8 @@ extern int32_t nstr_next_sub(nstr_p s, nstr_p sub, const char_t ** start, int32_
 
 #define nstr_find next_next_sub
 
-// 基于字符范围，生成切片或新字符串
-extern nstr_p nstr_slice(nstr_p s, bool can_new, int32_t index, int32_t chars);
+// 基于字符范围，生成或更新切片
+extern nstr_p nstr_slice(nstr_p s, int32_t index, int32_t chars, nstr_p slc);
 
 // 功能：切分字符串
 // 参数：
