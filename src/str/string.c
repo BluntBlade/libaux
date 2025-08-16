@@ -303,6 +303,8 @@ nstr_p nstr_slice(nstr_p s, int32_t index, int32_t chars, nstr_p slc)
     int32_t r_bytes = 0;
     int32_t r_chars = 0;
 
+    // TODO: Support negtive index and chars.
+
     // CASE-1: 切片起点超出范围
     // CASE-2: 源串是空串
     // CASE-3: 切片长度是零
@@ -344,7 +346,7 @@ inline static int32_t augment_array(nstr_p ** as, int * cap, int delta)
     return STR_OUT_OF_MEMORY;
 } // augment_array
 
-int nstr_split(nstr_p s, bool can_new, nstr_p deli, int max, nstr_array_p * as)
+int nstr_split(nstr_p s, nstr_p deli, int max, nstr_array_p * as)
 {
     nstr_p new = NULL; // 新子串
     const char_t * start = NULL; // 本次搜索起始地址
@@ -355,8 +357,6 @@ int nstr_split(nstr_p s, bool can_new, nstr_p deli, int max, nstr_array_p * as)
     int cnt = 0; // 子串数量，用于下标时始终指向下一个可用元素
     int cap = 0; // 数组容量
     int delta = 0; // 减量
-
-    nstr_p (*create)(bool, void *, int32_t, int32_t, int32_t, str_encoding_t) = (can_new) ? &new_entity : &new_slice;
 
     if (s->chars == 0) {
         // CASE-1: 源串是空串
@@ -387,7 +387,7 @@ int nstr_split(nstr_p s, bool can_new, nstr_p deli, int max, nstr_array_p * as)
         if (ret == STR_UNKNOWN_BYTE) goto NSTR_SPLIT_ERROR;
         if (ret == STR_NOT_FOUND) rmd = delta; // 退出查找
 
-        new = create(start, start - s->start, ret, index - (last + deli->chars), s->encoding);
+        new = new_slice(start, start - s->start, ret, index - (last + deli->chars), s->encoding);
         if (! new) {
             ret = STR_OUT_OF_MEMORY;
             goto NSTR_SPLIT_ERROR;
@@ -660,7 +660,7 @@ nstr_p nstr_join_with_char(char_t deli, nstr_p * as, int n, ...)
     return new;
 } // nstr_join_with_char
 
-nstr_p nstr_replace(nstr_p s, bool can_new, int32_t index, int32_t chars, nstr_p sub)
+nstr_p nstr_replace(nstr_p s, int32_t index, int32_t chars, nstr_p sub)
 {
     nstr_p ent = NULL; // 最终字符串对象
     const char_t * start = NULL;
@@ -669,13 +669,15 @@ nstr_p nstr_replace(nstr_p s, bool can_new, int32_t index, int32_t chars, nstr_p
     int32_t p1_chars = 0;
     int32_t p2_chars = 0;
 
-    if (s->chars == 0) return can_new ? nstr_clone(sub) : nstr_duplicate(sub); // CASE-1: 源串为空 
-    if (sub->chars == 0) return nstr_slice(s, can_new, 0, s->chars); // CASE-2: 子串为空
+    // TODO: Support negtive index and chars.
+
+    if (s->chars == 0) return nstr_duplicate(sub); // CASE-1: 源串为空 
+    if (sub->chars == 0) return nstr_slice(s, 0, s->chars, NULL); // CASE-2: 子串为空
     if (index >= s->chars) return nstr_concat2(s, sub); // CASE-3: 替换位置在串尾
 
     if (index == 0) {
         if (chars == 0) return nstr_concat2(sub, s); // CASE-4: 替换位置在串头且替换长度为零
-        if (chars == s->chars) return nstr_slice(s, can_new, 0, s->chars); // CASE-5: 替换整个源串
+        if (chars == s->chars) return nstr_slice(s, 0, s->chars, NULL); // CASE-5: 替换整个源串
     } // if
 
     // CASE-6: 待替换部分在串头或串中且长度不为零
@@ -698,7 +700,7 @@ nstr_p nstr_replace(nstr_p s, bool can_new, int32_t index, int32_t chars, nstr_p
     return new;
 } // nstr_replace
 
-nstr_p nstr_replace_char(nstr_p s, bool can_new, int32_t index, int32_t chars, char_t ch)
+nstr_p nstr_replace_char(nstr_p s, int32_t index, int32_t chars, char_t ch)
 {
     nstr_t sub = {0};
 
@@ -706,24 +708,24 @@ nstr_p nstr_replace_char(nstr_p s, bool can_new, int32_t index, int32_t chars, c
     sub->bytes = 1;
     sub->chars = 1;
     sub->data[0] = ch;
-    return nstr_replace(s, can_new, index, chars, &sub);
+    return nstr_replace(s, index, chars, &sub);
 } // nstr_replace_char
 
-nstr_p nstr_remove(nstr_p s, bool can_new, int32_t index, int32_t chars)
+nstr_p nstr_remove(nstr_p s, int32_t index, int32_t chars)
 {
-    return nstr_replace(s, can_new, index, chars, &blank);
+    return nstr_replace(s, index, chars, &blank);
 } // nstr_remove
 
-nstr_p nstr_cut_head(nstr_p s, bool can_new, int32_t chars)
+nstr_p nstr_cut_head(nstr_p s, int32_t chars)
 {
     if (s->chars < chars) return nstr_blank_string(); // CASE-1: 删除长度大于字符串长度
-    return nstr_replace(s, can_new, 0, chars, &blank);
+    return nstr_replace(s, 0, chars, &blank);
 } // nstr_cut_head
 
-nstr_p nstr_cut_tail(nstr_p s, bool can_new, int32_t chars)
+nstr_p nstr_cut_tail(nstr_p s, int32_t chars)
 {
     if (s->chars < chars) return nstr_blank_string(); // CASE-1: 删除长度大于字符串长度
-    return nstr_replace(s, can_new, s->chars - chars, chars, &blank);
+    return nstr_replace(s, s->chars - chars, chars, &blank);
 } // nstr_cut_tail
 
 nstr_p nstr_substitute(nstr_p s, bool all, nstr_p from, nstr_p to)

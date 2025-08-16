@@ -177,14 +177,13 @@ extern nstr_p nstr_slice(nstr_p s, int32_t index, int32_t chars, nstr_p slc);
 // 功能：切分字符串
 // 参数：
 //     s        IN  入参：源字符串，必须传入 non-NULL
-//     can_new  IN  入参：true 表示生成新字符串；false 表示生成切片
 //     deli     IN  入参：分隔符，NULL 表示将每个字符切分成单独字符串
 //     max      IO  入参：最大切分次数，NULL 或 < 0 表示无限次
 //                  出参：子串数量
 // 返回值：
 //     non-NULL     指针数组，包含 max 个子串和 1 个 NULL 终止标志，共 max + 1 个元素
 //     NULL         发生错误，内存不足
-extern int nstr_split(nstr_p s, bool can_new, nstr_p deli, int max, nstr_array_p * as);
+extern int nstr_split(nstr_p s, nstr_p deli, int max, nstr_array_p * as);
 
 // 重复拼接字符串
 extern nstr_p nstr_repeat(nstr_p s, int n);
@@ -211,73 +210,67 @@ inline static nstr_p nstr_join2(nstr_p deli, nstr_p s1, nstr_p s2)
 } // nstr_join2
 
 // 将给定位置处的固定长度子串替换成新串
-extern nstr_p nstr_replace(nstr_p s, bool can_new, int32_t index, int32_t chars, nstr_p sub);
+extern nstr_p nstr_replace(nstr_p s, int32_t index, int32_t chars, nstr_p sub);
 
 // 将给定位置处的固定长度子串替换成单字节字符
-extern nstr_p nstr_replace_char(nstr_p s, bool can_new, int32_t index, int32_t chars, char_t ch);
-
-// 将子串替换成新串
-extern nstr_p nstr_substitue(nstr_p s, bool all, nstr_p before, nstr_p after);
-
-// 将子串替换成单字节字符
-extern nstr_p nstr_substitue_char(nstr_p s, bool all, nstr_p sub, char_t ch);
+extern nstr_p nstr_replace_char(nstr_p s, int32_t index, int32_t chars, char_t ch);
 
 // 在给定位置插入子串
-inline static nstr_p nstr_insert(nstr_p s, bool can_new, int32_t index, nstr_p sub)
+inline static nstr_p nstr_insert(nstr_p s, int32_t index, nstr_p sub)
 {
-    return nstr_replace(s, can_new, index, 0, sub);
+    return nstr_replace(s, index, 0, sub);
 } // nstr_insert
 
 // 在给定位置插入单字节字符
-inline static nstr_p nstr_insert_char(nstr_p s, bool can_new, int32_t index, char_t ch)
+inline static nstr_p nstr_insert_char(nstr_p s, int32_t index, char_t ch)
 {
-    return nstr_replace_char(s, can_new, index, 0, ch);
+    return nstr_replace_char(s, index, 0, ch);
 } // nstr_insert_char
 
 // 在串头前插入子串
-inline static nstr_p nstr_prepend(nstr_p s, bool can_new, nstr_p sub)
+inline static nstr_p nstr_prepend(nstr_p s, nstr_p sub)
 {
-    return nstr_replace(s, can_new, 0, 0, sub);
+    return nstr_replace(s, 0, 0, sub);
 } // nstr_prepend
 
 // 在串头前插入单字节字符
-inline static nstr_p nstr_prepend_char(nstr_p s, bool can_new, char_t ch)
+inline static nstr_p nstr_prepend_char(nstr_p s, char_t ch)
 {
-    return nstr_replace_char(s, can_new, 0, 0, ch);
+    return nstr_replace_char(s, 0, 0, ch);
 } // nstr_prepend_char
 
 // 在串尾后插入子串
-inline static nstr_p nstr_append(nstr_p s, bool can_new, nstr_p sub)
+inline static nstr_p nstr_append(nstr_p s, nstr_p sub)
 {
-    return nstr_replace(s, can_new, nstr_chars(s), 0, sub);
+    return nstr_replace(s, nstr_chars(s), 0, sub);
 } // nstr_append
 
 // 在串尾后插入单字节字符
-inline static nstr_p nstr_append_char(nstr_p s, bool can_new, char_t ch)
+inline static nstr_p nstr_append_char(nstr_p s, char_t ch)
 {
-    return nstr_replace_char(s, can_new, nstr_chars(s), 0, ch);
+    return nstr_replace_char(s, nstr_chars(s), 0, ch);
 } // nstr_append_char
 
 // 删除定位置处的固定长度子串
-extern nstr_p nstr_remove(nstr_p s, bool can_new, int32_t index, int32_t chars);
+extern nstr_p nstr_remove(nstr_p s, int32_t index, int32_t chars);
 
 // 删除串头的固定长度子串
-extern nstr_p nstr_cut_head(nstr_p s, bool can_new, int32_t chars);
+extern nstr_p nstr_cut_head(nstr_p s, int32_t chars);
 
 // 删除串尾的固定长度子串
-extern nstr_p nstr_cut_tail(nstr_p s, bool can_new, int32_t chars);
+extern nstr_p nstr_cut_tail(nstr_p s, int32_t chars);
 
 // 删除串尾的换行符（以及可能的回车符）
-extern nstr_p nstr_chomp(nstr_p s, bool can_new);
+extern nstr_p nstr_chomp(nstr_p s);
 
 // 删除串头和串尾的空白字符（SPACE/TAB/CR/NL等）
-extern nstr_p nstr_trim(nstr_s, bool can_new);
+extern nstr_p nstr_trim(nstr_s);
 
 // 删除串头的空白字符（SPACE/TAB/CR/NL等）
-extern nstr_p nstr_ltrim(nstr_s, bool can_new);
+extern nstr_p nstr_ltrim(nstr_s);
 
 // 删除串尾的空白字符（SPACE/TAB/CR/NL等）
-extern nstr_p nstr_rtrim(nstr_s, bool can_new);
+extern nstr_p nstr_rtrim(nstr_s);
 
 // 替换子串
 extern nstr_p nstr_substitute(nstr_p s, bool all, nstr_p from, nstr_p to);
