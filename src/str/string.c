@@ -435,7 +435,7 @@ static char_t * copy_strings(char_t * pos, nstr_p * as, int n, char_t * dbuf, in
     return pos;
 } // copy_strings
 
-static char_t * copy_strings_with_one_deli(char_t * pos, nstr_p * as, int n, char_t * dbuf, int32_t dbytes)
+static char_t * copy_strings_with_short_deli(char_t * pos, nstr_p * as, int n, char_t * dbuf, int32_t dbytes)
 {
     int i = 0;
     int b = n / 4;
@@ -463,7 +463,7 @@ static char_t * copy_strings_with_one_deli(char_t * pos, nstr_p * as, int n, cha
         default: break;
     } // switch
     return pos;
-} // copy_strings_with_one_deli
+} // copy_strings_with_short_deli
 
 static char_t * copy_strings_with_long_deli(char_t * pos, nstr_p * as, int n, char_t * dbuf, int32_t dbytes)
 {
@@ -514,6 +514,7 @@ static nstr_p join_strings(nstr_p deli, nstr_p as, int n, va_list * ap)
     int n2 = 0;
     int cnt = 0;
 
+    // 第一遍：计算总字节数
     cnt += n;
     for (i = 0; i < n; ++i) {
         bytes += as[i]->bytes;
@@ -525,31 +526,28 @@ static nstr_p join_strings(nstr_p deli, nstr_p as, int n, va_list * ap)
         n2 = va_arg(cp, int);
         cnt += n2;
         for (i = 0; i < n2; ++i) {
-            bytes += (as2[i])->bytes;
-            chars += (as2[i])->chars;
+            bytes += as2[i]->bytes;
+            chars += as2[i]->chars;
         } // for
     } // while
     va_end(cp);
 
     if (cnt == 0) return nstr_blank_string();
 
-    if (deli) {
+    if (deli && deli->bytes > 0) {
         dbuf = deli->start;
         dbytes = deli->bytes;
 
-        bytes += dbytes * cnt; // 字节总数包含尾部间隔符，简化拷贝逻辑。
-        chars += deli->chars * (cnt - 1); // 字符总数不包含尾部间隔符。
+        bytes += dbytes * cnt; // 字节总数包含尾部间隔符，简化拷贝逻辑
+        chars += deli->chars * (cnt - 1); // 字符总数不包含尾部间隔符
 
-        if (deli->bytes == 1) {
-            copy = &copy_strings_with_one_deli;
-        } else {
-            copy = &copy_strings_with_long_deli;
-        } // if
+        copy = (deli->bytes == 1) ? &copy_strings_with_short_deli : &copy_strings_with_long_deli;
     } // if
 
     new = new_entity(false, NULL, 0, bytes, chars, as[0]->encoding);
     if (! new) return NULL;
 
+    // 第二遍：拷贝字节数据
     pos = copy(new->data, as, n, dbuf, dbytes);
 
     va_copy(cp, *ap);
@@ -558,8 +556,8 @@ static nstr_p join_strings(nstr_p deli, nstr_p as, int n, va_list * ap)
     } // while
     va_end(cp);
 
-    bytes -= dbytes; // 去掉多余的尾部间隔符。
-    new->data[bytes] = 0; // 设置终止 NUL 字符。
+    new->bytes -= dbytes; // 去掉多余的尾部间隔符
+    new->data[new->bytes] = 0; // 设置终止 NUL 字符
     return new;
 } // join_strings
 
