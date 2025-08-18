@@ -83,7 +83,8 @@ static nstr_p new_entity(void * start, int32_t offset, int32_t bytes, int32_t ch
         new->chars = chars;
         new->refs = 1;  // 引用自身
         new->start = &new->data[0];
-        if (start) memcpy(new->data, start + offset, bytes);
+        if (start) memcpy(new->data, start, bytes);
+        new->data[bytes] = 0;
     } // if
     return new;
 } // new_entity
@@ -111,6 +112,21 @@ static nstr_p new_slice(void * start, int32_t offset, int32_t bytes, int32_t cha
     if (new) init_slice(new, start, offset, bytes, chars, encoding);
     return new;
 } // new_slice
+
+inline static nstr_p refer_to_or_new_slice(nstr_p slc, const char_t * start, int32_t offset, int32_t bytes, int32_t chars, str_encoding_t encoding)
+{
+    if (slc) {
+        clean_slice(slc);
+        init_slice(slc, start, offset, bytes, chars, encoding);
+        return slc;
+    } // if
+    return new_slice(start, offset, bytes, chars, encoding);
+} // refer_to_or_new_slice
+
+inline static nstr_p refer_to_whole(nstr_p slc, nstr_p s)
+{
+    return refer_to_or_new_slice(slc, s->start, s->offset, s->bytes, s->chars, s->encoding);
+} // refer_to_whole
 
 inline static nstr_p refer_to_new(nstr_p slc, nstr_p new)
 {
@@ -268,7 +284,7 @@ int32_t nstr_next_sub(nstr_p s, nstr_p sub, const char_t ** start, int32_t * ind
 {
     const char_t * loc = NULL;  // 下个子串位置
     size_t size = 0;    // 搜索范围长度
-    int32_t skip = 0;   // 距离上个子串位置的字符数
+    int32_t chars = 0;  // 距离上个子串位置的字符数
     int32_t bytes = 0;  // 距离上个子串位置的字节数
 
     assert(s != NULL);
@@ -303,15 +319,15 @@ int32_t nstr_next_sub(nstr_p s, nstr_p sub, const char_t ** start, int32_t * ind
         return STR_NOT_FOUND; // 找不到子串
     } // if
 
-    skip = s->chars; // 最大跳过字符数小于源串字符数
-    bytes = vtable[s->encoding].count(*start, loc - *start, &skip);
+    chars = s->chars; // 最大跳过字符数小于源串字符数
+    bytes = vtable[s->encoding].count(*start, loc - *start, &chars);
     if (bytes < 0) {
         *start = NULL; // 停止查找
         *index = s->chars;
         return STR_UNKNOWN_BYTE; // 源串包含异常字节
     } // if
 
-    *index += skip;
+    *index += chars;
     return bytes;
 } // nstr_next_sub
 
@@ -348,11 +364,7 @@ nstr_p nstr_slice(nstr_p s, int32_t index, int32_t chars, nstr_p slc)
     } // if
 
 NSTR_SLICE_END:
-    if (slc) {
-        clean_slice(slc);
-        return init_slice(slc, start, start - s->start, r_bytes, r_chars, s->encoding);
-    } // if
-    return new_slice(start, start - s->start, r_bytes, r_chars, s->encoding);
+    return refer_to_or_new_slice(slc, start, start - s->start, r_bytes, r_chars, s->encoding);
 } // nstr_slice
 
 inline static int32_t augment_array(nstr_p ** as, int * cap, int delta)
@@ -694,15 +706,7 @@ nstr_p nstr_replace(nstr_p s, int32_t index, int32_t chars, nstr_p to, nstr_p sl
     if (chars < p2_chars) p2_chars = chars;
     p3_chars = s->chars - p1_chars - p2_chars;
 
-    if (to->chars == 0) {
-        // CASE: 替换部分零长度
-        if (slc) {
-            clean_slice(slc);
-            init_slice(slc, s->start, 0, s->bytes, s->chars, s->encoding);
-            return slc;
-        } // if
-        return new_slice(s->start, 0, s->bytes, s->chars, s->encoding);
-    } // if
+    if (to->chars == 0) return refer_to_whole(slc, s); // CASE: 替换部分零长度
 
     if (p1_chars > 0) {
         p1_bytes = vtable[s->encoding].count(s->start, s->bytes, &p1_chars);
@@ -742,13 +746,13 @@ nstr_p nstr_remove(nstr_p s, int32_t index, int32_t chars, nstr_p slc)
 
 nstr_p nstr_cut_head(nstr_p s, int32_t chars, nstr_p slc)
 {
-    if (s->chars < chars) return refer_to_new(slc, &blank); // CASE-1: 删除长度大于字符串长度
+    if (s->chars < chars) return refer_to_whole(slc, &blank); // CASE-1: 删除长度大于字符串长度
     return nstr_replace(s, 0, chars, &blank, slc);
 } // nstr_cut_head
 
 nstr_p nstr_cut_tail(nstr_p s, int32_t chars, nstr_p slc)
 {
-    if (s->chars < chars) return refer_to_new(slc, &blank); // CASE-1: 删除长度大于字符串长度
+    if (s->chars < chars) return refer_to_whole(slc, &blank); // CASE-1: 删除长度大于字符串长度
     return nstr_replace(s, s->chars - chars, chars, &blank, slc);
 } // nstr_cut_tail
 
@@ -762,13 +766,14 @@ nstr_p nstr_substitute(nstr_p s, bool all, nstr_p from, nstr_p to, nstr_p slc)
     int cnt = 0; // 子串数
 
     if (all) {
-        cnt = nstr_split(s, false, from, -1, &as);
+        cnt = nstr_split(s, from, -1, &as, slc);
         if (cnt < 0) return NULL;
-        return nstr_join(to, as, cnt, NULL);
+        return nstr_join(to, as, cnt, slc, NULL);
     } // if
 
     p1_bytes = nstr_next_sub(s, from, &start, &index);
     if (p1_bytes == STR_UNKNOWN_BYTE) return NULL;
-    if (p1_bytes == STR_NOT_FOUND) return nstr_slice(s, true, 0, s->chars);
+    if (p1_bytes == STR_NOT_FOUND) return refer_to_whole(slc, s);
+
     return nstr_replace(s, index, from->chars, to, slc);
 } // nstr_substitute
