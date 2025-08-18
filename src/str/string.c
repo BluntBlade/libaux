@@ -122,6 +122,14 @@ inline static nstr_p refer_to_new(nstr_p slc, nstr_p new)
     return new;
 } // refer_to_new
 
+inline static void copy3(char_t * dst, char_t * s1, int32_t b1, char_t * s2, int32_t b2, char_t * s3, int32_t b3)
+{
+    memcpy(dst, s1, b1);
+    memcpy(dst + b1, s2, b2);
+    memcpy(dst + b1 + b2, s3, b3);
+    dst[b1 + b2 + b3] = 0;
+} // copy3
+
 nstr_p nstr_new(void * src, int32_t bytes, str_encoding_t encoding)
 {
     nstr_p new = NULL;
@@ -635,10 +643,7 @@ nstr_p nstr_concat3(nstr_p s1, nstr_p s2, nstr_p s3, nstr_p slc)
     new = new_entity(false, NULL, 0, bytes, s1->chars + s2->chars + s3->chars, s1->encoding);
     if (! new) return NULL;
 
-    memcpy(new->data, s1->start, s1->bytes);
-    memcpy(new->data + s1->bytes, s2->start, s2->bytes);
-    memcpy(new->data + s1->bytes + s2->bytes, s3->start, s3->bytes);
-    new->data[bytes] = 0;
+    copy3(new->data, s1->start, s1->bytes, s2->start, s2->bytes, s3->start, s3->bytes);
     return refer_to_new(slc, new);
 } // nstr_concat3
 
@@ -715,10 +720,7 @@ nstr_p nstr_replace(nstr_p s, int32_t index, int32_t chars, nstr_p to, nstr_p sl
     new = new_entity(false, NULL, 0, bytes, p1_chars + to->chars + p3_chars, s->encoding);
     if (! new) return NULL;
 
-    memcpy(new->data, s->start, p1_bytes);
-    memcpy(new->data + p1_bytes, to->start, to->bytes);
-    memcpy(new->data + p1_bytes + to->bytes, start + p2_bytes, p3_bytes);
-    new->data[bytes] = 0;
+    copy3(new->data, s->start, p1_bytes, to->start, to->bytes, s->start + p1_bytes + p2_bytes, p3_bytes);
     return refer_to_new(slc, new);
 } // nstr_replace
 
@@ -755,7 +757,7 @@ nstr_p nstr_substitute(nstr_p s, bool all, nstr_p from, nstr_p to, nstr_p slc)
     nstr_array_p as = NULL; // 子串数组
     nstr_p new = NULL; // 新串
     const char_t * start = NULL; // 遍历变量
-    int32_t skip = 0; // 跳过字节数
+    int32_t p1_bytes = 0; // 跳过字节数
     int32_t index = 0; // 待替换串下标
     int cnt = 0; // 子串数
 
@@ -765,16 +767,8 @@ nstr_p nstr_substitute(nstr_p s, bool all, nstr_p from, nstr_p to, nstr_p slc)
         return nstr_join(to, as, cnt, NULL);
     } // if
 
-    skip = nstr_next_sub(s, from, &start, &index);
-    if (skip == STR_UNKNOWN_BYTE) return NULL;
-    if (skip == STR_NOT_FOUND) return nstr_slice(s, true, 0, s->chars);
-
-    new = new_entity(NULL, 0, s->bytes - from->bytes + to->bytes, s->chars - from->chars + to->chars, s->encoding);
-    if (new) {
-        memcpy(new->start, s->start, skip);
-        memcpy(new->start + skip, to->start, to->bytes);
-        memcpy(new->start + skip + to->bytes, s->start + skip + from->bytes, s->bytes - skip - from->bytes);
-        new->start[s->bytes - from->bytes + to->bytes] = 0;
-    } // if
-    return refer_to_new(slc, new);
+    p1_bytes = nstr_next_sub(s, from, &start, &index);
+    if (p1_bytes == STR_UNKNOWN_BYTE) return NULL;
+    if (p1_bytes == STR_NOT_FOUND) return nstr_slice(s, true, 0, s->chars);
+    return nstr_replace(s, index, from->chars, to, slc);
 } // nstr_substitute
