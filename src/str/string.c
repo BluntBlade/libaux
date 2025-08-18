@@ -672,41 +672,53 @@ nstr_p nstr_join_by_char(char_t deli, nstr_p * as, int n, nstr_p slc, ...)
 
 nstr_p nstr_replace(nstr_p s, int32_t index, int32_t chars, nstr_p to, nstr_p slc)
 {
-    nstr_p ent = NULL; // 最终字符串对象
+    nstr_p new = NULL;
     const char_t * start = NULL;
     int32_t p1_bytes = 0;
     int32_t p2_bytes = 0;
+    int32_t p3_bytes = 0;
+    int32_t bytes = 0;
     int32_t p1_chars = 0;
     int32_t p2_chars = 0;
+    int32_t p3_chars = 0;
 
     // TODO: Support negtive index and chars.
 
-    if (s->chars == 0) return nstr_duplicate(to); // CASE-1: 源串为空 
-    if (to->chars == 0) return nstr_slice(s, 0, s->chars, NULL); // CASE-2: 子串为空
-    if (index >= s->chars) return nstr_concat2(s, to); // CASE-3: 替换位置在串尾
+    p1_chars = index; // 跳过部分
+    p2_chars = s->chars - p1_chars; // 待替换部分
+    if (chars < p2_chars) p2_chars = chars;
+    p3_chars = s->chars - p1_chars - p2_chars;
 
-    if (index == 0) {
-        if (chars == 0) return nstr_concat2(to, s); // CASE-4: 替换位置在串头且替换长度为零
-        if (chars == s->chars) return nstr_slice(s, 0, s->chars, NULL); // CASE-5: 替换整个源串
+    if (to->chars == 0) {
+        // CASE: 替换部分零长度
+        if (slc) {
+            clean_slice(slc);
+            init_slice(slc, s->start, 0, s->bytes, s->chars, s->encoding);
+            return slc;
+        } // if
+        return new_slice(s->start, 0, s->bytes, s->chars, s->encoding);
     } // if
 
-    // CASE-6: 待替换部分在串头或串中且长度不为零
-    p1_chars = index;
-    p1_bytes = vtable[s->encoding].count(s->start, s->bytes, &p1_chars);
-    if (p1_bytes < 0) return NULL; // 编码不正确
+    if (p1_chars > 0) {
+        p1_bytes = vtable[s->encoding].count(s->start, s->bytes, &p1_chars);
+        if (p1_bytes < 0) return NULL; // 编码不正确
+    } // if
 
-    start = s->start + p1_bytes;
-    p2_chars = s->chars - p1_chars;
-    p2_bytes = vtable[s->encoding].count(start, s->bytes - p1_bytes, &p2_chars);
-    if (p2_bytes < 0) return NULL; // 编码不正确
+    if (p2_chars > 0) {
+        p2_bytes = vtable[s->encoding].count(s->start + p1_bytes, s->bytes - p1_bytes, &p2_chars);
+        if (p2_bytes < 0) return NULL; // 编码不正确
+    } // if
 
-    new = new_entity(false, NULL, 0, s->bytes - p2_bytes + to->bytes, s->chars - p2_chars + to->chars, s->encoding);
+    p3_bytes = s->bytes - p1_bytes - p2_bytes;
+    bytes = p1_bytes + to->bytes + p3_bytes;
+
+    new = new_entity(false, NULL, 0, bytes, p1_chars + to->chars + p3_chars, s->encoding);
     if (! new) return NULL;
 
     memcpy(new->data, s->start, p1_bytes);
     memcpy(new->data + p1_bytes, to->start, to->bytes);
-    memcpy(new->data + p1_bytes + to->bytes, start + p2_bytes, s->bytes - p1_bytes - p2_bytes);
-    new->data[s->bytes - p2_bytes + to->bytes] = 0;
+    memcpy(new->data + p1_bytes + to->bytes, start + p2_bytes, p3_bytes);
+    new->data[bytes] = 0;
     return refer_to_new(slc, new);
 } // nstr_replace
 
