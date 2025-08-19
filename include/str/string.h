@@ -43,8 +43,11 @@ extern nstr_p nstr_duplicate(nstr_p s);
 // 获取空字符串常量
 extern nstr_p nstr_blank_string(void);
 
-// 生成空分片
+// 生成空切片
 extern nstr_p nstr_blank_slice(void);
+
+// 重置切片
+extern void nstr_reset(nstr_p s);
 
 // 删除字符串
 extern void nstr_delete(nstr_p s);

@@ -102,8 +102,11 @@ inline static nstr_p init_slice(nstr_p s, void * start, int32_t offset, int32_t 
 inline static void clean_slice(nstr_p s)
 {
     del_ref(s);
-    s->start = NULL;
+    s->bytes = 0;
+    s->chars = 0;
     s->offset = 0;
+    s->start = NULL;
+    s->encoding = STR_ENC_ASCII;
 } // clean_slice
 
 static nstr_p new_slice(void * start, int32_t offset, int32_t bytes, int32_t chars, str_encoding_t encoding)
@@ -168,9 +171,7 @@ nstr_p nstr_clone(nstr_p s)
 
 nstr_p nstr_duplicate(nstr_p s)
 {
-    if (is_slice(s)) {
-        return new_slice(s->start, s->offset, s->bytes, s->chars, s->encoding);
-    } // if
+    if (is_slice(s)) return new_slice(s->start, s->offset, s->bytes, s->chars, s->encoding);
     return nstr_new(s->start, s->bytes, s->encoding);
 } // nstr_duplicate
 
@@ -185,6 +186,11 @@ nstr_p nstr_blank_slice(void)
     if (new) init_slice(new, NULL, 0, 0, 0, STR_ENC_ASCII);
     return new;
 } // nstr_blank_slice
+
+void nstr_reset(nstr_p s)
+{
+    if (is_slice(s)) clean_slice(s);
+} // nstr_reset
 
 void nstr_delete(nstr_p s)
 {
