@@ -74,7 +74,7 @@ inline static void del_ref(nstr_p s)
     if (ent && --ent->refs == 0) free(ent);
 } // del_ref
 
-static nstr_p new_entity(void * start, int32_t offset, int32_t bytes, int32_t chars, str_encoding_t encoding)
+static nstr_p new_entity(void * src, int32_t bytes, int32_t chars, str_encoding_t encoding)
 {
     nstr_p new = malloc(sizeof(nstr_t) + bytes);
     if (new) {
@@ -83,7 +83,7 @@ static nstr_p new_entity(void * start, int32_t offset, int32_t bytes, int32_t ch
         new->chars = chars;
         new->refs = 1;  // 引用自身
         new->start = &new->data[0];
-        if (start) memcpy(new->data, start, bytes);
+        if (start) memcpy(new->data, src, bytes);
         new->data[bytes] = 0;
     } // if
     return new;
@@ -157,7 +157,7 @@ nstr_p nstr_new(void * src, int32_t bytes, str_encoding_t encoding)
     r_bytes = vtable[encoding]->count(src, bytes, &r_chars);
     if (r_bytes < 0) return NULL;
 
-    new = new_entity(src, 0, bytes, chars, encoding);
+    new = new_entity(src, bytes, chars, encoding);
     return new;
 } // nstr_new
 
@@ -574,7 +574,7 @@ static nstr_p join_strings(nstr_p deli, nstr_p as, int n, va_list * ap)
         copy = (deli->bytes == 1) ? &copy_strings_with_short_deli : &copy_strings_with_long_deli;
     } // if
 
-    new = new_entity(false, NULL, 0, bytes, chars, as[0]->encoding);
+    new = new_entity(NULL, bytes, chars, as[0]->encoding);
     if (! new) return NULL;
 
     // 第二遍：拷贝字节数据
@@ -605,7 +605,7 @@ nstr_p nstr_repeat(nstr_p s, int n, nstr_p slc)
     if (s->bytes == 0) return nstr_blank_string(); // CASE-1: s 是空串。
     if (n <= 1) return add_ref(s);
 
-    new = new_entity(false, NULL, 0, (s->bytes * n), (s->chars * n), s->encoding);
+    new = new_entity(NULL, (s->bytes * n), (s->chars * n), s->encoding);
     if (! new) return NULL;
 
     pos = copy_strings(new->data, as, n % (sizeof(as) / sizeof(as[0])), NULL, 0);
@@ -635,7 +635,7 @@ nstr_p nstr_concat2(nstr_p s1, nstr_p s2, nstr_p slc)
     bytes = s1->bytes + s2->bytes;
     if (bytes == 0) return nstr_blank_string();
 
-    new = new_entity(false, NULL, 0, bytes, s1->chars + s2->chars, s1->encoding);
+    new = new_entity(NULL, bytes, s1->chars + s2->chars, s1->encoding);
     if (! new) return NULL;
 
     memcpy(new->data, s1->start, s1->bytes);
@@ -652,7 +652,7 @@ nstr_p nstr_concat3(nstr_p s1, nstr_p s2, nstr_p s3, nstr_p slc)
     bytes = s1->bytes + s2->bytes + s3->bytes;
     if (bytes == 0) return nstr_blank_string();
 
-    new = new_entity(false, NULL, 0, bytes, s1->chars + s2->chars + s3->chars, s1->encoding);
+    new = new_entity(NULL, bytes, s1->chars + s2->chars + s3->chars, s1->encoding);
     if (! new) return NULL;
 
     copy3(new->data, s1->start, s1->bytes, s2->start, s2->bytes, s3->start, s3->bytes);
@@ -721,7 +721,7 @@ nstr_p nstr_replace(nstr_p s, int32_t index, int32_t chars, nstr_p to, nstr_p sl
     p3_bytes = s->bytes - p1_bytes - p2_bytes;
     bytes = p1_bytes + to->bytes + p3_bytes;
 
-    new = new_entity(false, NULL, 0, bytes, p1_chars + to->chars + p3_chars, s->encoding);
+    new = new_entity(NULL, bytes, p1_chars + to->chars + p3_chars, s->encoding);
     if (! new) return NULL;
 
     copy3(new->data, s->start, p1_bytes, to->start, to->bytes, s->start + p1_bytes + p2_bytes, p3_bytes);
