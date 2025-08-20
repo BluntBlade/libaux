@@ -14,7 +14,7 @@
 // 测量给定位置的 UTF-8 字符长度（字节数），返回 0 表示存在异常字节。
 inline static int32_t utf8_measure(const char_t * pos)
 {
-    char_t ch = ((char_t *)pos)[0];
+    char_t ch = pos[0];
     if ((ch & 0x80) == 0) return 1;
     if (((ch <<= 1) & 0x80) == 0) return 0;
     if (((ch <<= 1) & 0x80) == 0) return 2;
@@ -25,15 +25,6 @@ inline static int32_t utf8_measure(const char_t * pos)
 
 // 计算给定字节范围内有多少个 UTF-8 字符。
 int32_t utf8_count(const char_t * start, int32_t size, int32_t * chars);
-
-// 以 start 为起点，跳过前 index 个字符，检查是否存在 chars 个字符长的子串
-inline static int32_t utf8_locate(const char_t * start, int32_t size, int32_t index, int32_t * chars)
-{
-    int32_t r_chars = index;
-    int32_t r_bytes = utf8_count(start, size, &r_chars);
-    if (r_chars < index) return -1;
-    return utf8_count(start + r_bytes, size - r_bytes, chars);
-} // utf8_locate
 
 // 校验给定节字范围是否完全包含正确的 UTF-8 字符（除了 NUL 字符）
 inline static bool utf8_verify(const char_t * start, int32_t size)
