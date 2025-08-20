@@ -12,11 +12,11 @@ int32_t utf8_count(const char_t * start, int32_t size, int32_t * chars)
     for (pos = start; i < max && pos < start + size; ++i, pos += r_bytes) {
         r_bytes = utf8_measure(pos);
         switch (r_bytes) {
-            case 1: break;
+            case 1: continue;
             case 4: follower |= pos[3] & 0xC0;
             case 3: follower |= pos[2] & 0xC0;
             case 2: follower |= pos[1] & 0xC0;
-                if (follower == 0xC0) break;
+                if (follower == 0xC0) continue;
             default:
                 return -1; // 存在异常字节
         } // switch
