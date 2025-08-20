@@ -6,8 +6,7 @@
 // 测量给定位置的 ASCII 字符长度（字节数），返回 0 表示存在异常字节
 inline static int32_t ascii_measure(const char_t * pos)
 {
-    char_t ch = ((char_t *)pos)[0];
-    return ch && ((ch & 0x80) == 0) ? 1: 0;
+    return (pos[0] & 0x7F) != 0;
 } // ascii_measure
 
 // 计算给定字节范围内有多少个 ASCII 字符
