@@ -5,6 +5,14 @@
 #include "str/ascii.c"
 #endif
 
+static const char_t s1[] = {"A"};
+static const char_t s2[] = {"AB"};
+static const char_t s3[] = {"\x20\x40\x7F"};
+
+static const char_t b1[] = {"\0"};
+static const char_t b2[] = {"A\0"};
+static const char_t b3[] = {"\0AB"};
+
 Test(Function, ascii_measure)
 {
     char_t ch = 0;
@@ -25,14 +33,6 @@ Test(Function, ascii_measure)
 
 Test(Function, ascii_count)
 {
-    const char_t s1[] = {"A"};
-    const char_t s2[] = {"AB"};
-    const char_t s3[] = {"\x20\x40\x7F"};
-
-    const char_t b1[] = {"\0"};
-    const char_t b2[] = {"A\0"};
-    const char_t b3[] = {"\0AB"};
-
     int32_t size = 0;
     int32_t bytes = 0;
     int32_t chars = 0;
@@ -71,14 +71,6 @@ Test(Function, ascii_count)
 
 Test(Function, ascii_verify)
 {
-    const char_t s1[] = {"A"};
-    const char_t s2[] = {"AB"};
-    const char_t s3[] = {"\x20\x40\x7F"};
-
-    const char_t b1[] = {"\0"};
-    const char_t b2[] = {"A\0"};
-    const char_t b3[] = {"\0AB"};
-
     bool ret = false;
 
     ret = ascii_verify(s1, sizeof(s1) - 1);
