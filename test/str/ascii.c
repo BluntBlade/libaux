@@ -68,3 +68,34 @@ Test(Function, ascii_count)
     cr_expect(bytes == -1, "ascii_count(b3) return incorrect bytes: expect %d, got %d", -1, bytes);
     cr_expect(chars == size, "ascii_count(b3) return incorrect chars: expect %d, got %d", size, chars);
 } // ascii_count
+
+Test(Function, ascii_verify)
+{
+    const char_t s1[] = {"A"};
+    const char_t s2[] = {"AB"};
+    const char_t s3[] = {"\x20\x40\x7F"};
+
+    const char_t b1[] = {"\0"};
+    const char_t b2[] = {"A\0"};
+    const char_t b3[] = {"\0AB"};
+
+    bool ret = false;
+
+    ret = ascii_verify(s1, sizeof(s1) - 1);
+    cr_expect(ret == true, "ascii_verify(s1) return incorrect bytes: expect %d, got %d", true, ret);
+
+    ret = ascii_verify(s2, sizeof(s2) - 1);
+    cr_expect(ret == true, "ascii_verify(s2) return incorrect bytes: expect %d, got %d", true, ret);
+
+    ret = ascii_verify(s3, sizeof(s3) - 1);
+    cr_expect(ret == true, "ascii_verify(s3) return incorrect bytes: expect %d, got %d", true, ret);
+
+    ret = ascii_verify(b1, sizeof(b1) - 1);
+    cr_expect(ret == false, "ascii_verify(b1) return incorrect bytes: expect %d, got %d", false, ret);
+
+    ret = ascii_verify(b2, sizeof(b2) - 1);
+    cr_expect(ret == false, "ascii_verify(b2) return incorrect bytes: expect %d, got %d", false, ret);
+
+    ret = ascii_verify(b3, sizeof(b3) - 1);
+    cr_expect(ret == false, "ascii_verify(b3) return incorrect bytes: expect %d, got %d", false, ret);
+} // ascii_verify
