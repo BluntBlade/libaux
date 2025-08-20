@@ -15,4 +15,4 @@ add_compile_options (-D_GNU_SOURCE --std=c99 -Wall)
 file (GLOB_RECURSE SOURCE_FILES src/*.c)
 add_library (aux SHARED ${SOURCE_FILES})
 
-#add_subdirectory (test)
+add_subdirectory (test)
