@@ -38,3 +38,13 @@ Test(Function, utf8_measure)
     ret = utf8_measure(b1_2);
     cr_expect(ret == 0, "utf8_measure('\\xA0'): expect %d, got %d", 0, ret);
 } // utf_measure
+
+Test(Function, utf8_count)
+{
+    int32_t bytes = 0;
+    int32_t chars = 0;
+
+    bytes = utf8_count(s1, sizeof(s1) - 1, &chars);
+    cr_expect(bytes == 1, "utf8_measure('A') return incorrect bytes: expect %d, got %d", 1, bytes);
+    cr_expect(chars == 1, "utf8_measure('A') return incorrect chars: expect %d, got %d", 1, chars);
+} // utf8_count
