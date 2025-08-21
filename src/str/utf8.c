@@ -3,19 +3,19 @@
 int32_t utf8_count(const char_t * start, int32_t size, int32_t * chars)
 {
     const char_t * pos = NULL;
-    uint8_t follower = 0xC0;
     int32_t i = 0;
     int32_t max = 0;
+    int32_t bytes = 0;
     int32_t r_bytes = 0;
 
     max = (chars && 0 < *chars && *chars < size) ? *chars : size; // UTF-8 字符数必然少于或等于字节数
     for (pos = start; i < max && pos < start + size; ++i, pos += r_bytes) {
-        r_bytes = utf8_measure(pos);
+        bytes = r_bytes = utf8_measure(pos);
         switch (r_bytes) {
-            case 4: follower |= (pos[3] & 0xC0);
-            case 3: follower |= (pos[2] & 0xC0);
-            case 2: follower |= (pos[1] & 0xC0);
-                if (follower == 0xC0) {
+            case 4: bytes -= ((pos[3] & 0xC0) == 0x80);
+            case 3: bytes -= ((pos[2] & 0xC0) == 0x80);
+            case 2: bytes -= ((pos[1] & 0xC0) == 0x80);
+                if (bytes == 1) {
             case 1: continue;
                 } // if
             default:
