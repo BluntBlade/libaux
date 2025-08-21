@@ -110,3 +110,26 @@ Test(Function, utf8_count)
         cr_expect(chars == sc[i].chars, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", sc[i].name, sc[i].repr, sc[i].chars, chars);
     } // for
 } // utf8_count
+
+Test(Function, utf8_verify)
+{
+    int32_t i = 0;
+    bool ret = false;
+
+    ret = utf8_verify(s1.str, s1.bytes);
+    cr_expect(ret == true, "%s: utf8_verify('%s') return incorrect result: expect %d, got %d", s1.name, s1.repr, true, ret);
+
+    ret = utf8_verify(s2.str, s2.bytes);
+    cr_expect(ret == true, "%s: utf8_verify('%s') return incorrect result: expect %d, got %d", s2.name, s2.repr, true, ret);
+
+    ret = utf8_verify(s3.str, s3.bytes);
+    cr_expect(ret == true, "%s: utf8_verify('%s') return incorrect result: expect %d, got %d", s3.name, s3.repr, true, ret);
+
+    ret = utf8_verify(s4.str, s4.bytes);
+    cr_expect(ret == true, "%s: utf8_verify('%s') return incorrect result: expect %d, got %d", s4.name, s4.repr, true, ret);
+
+    for (i = 0; i < sizeof(sc) / sizeof(sc[0]); ++i) {
+        ret = utf8_verify(sc[i].str, sc[i].bytes);
+        cr_expect(ret == true, "%s: utf8_verify('%s') return incorrect result: expect %d, got %d", sc[i].name, sc[i].repr, true, ret);
+    } // for
+} // utf8_verify
