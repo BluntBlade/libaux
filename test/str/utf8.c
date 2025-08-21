@@ -51,6 +51,8 @@ test_data_t sc[] = {
 
 const char_t b1_1[] = {"\x80"};
 const char_t b1_2[] = {"\xA0"};
+const char_t b1_3[] = {"\xF8"};
+const char_t b1_4[] = {"\xFF"};
 const char_t b2[] = {"\xDA\xFF"};
 const char_t b3[] = {"\xEA\xBF\xC0"};
 const char_t b4[] = {"\xF2\xBF\x80\x25"};
@@ -76,6 +78,12 @@ Test(Function, utf8_measure)
 
     ret = utf8_measure(b1_2);
     cr_expect(ret == 0, "%s: utf8_measure('\\xA0'): expect %d, got %d", "b1_2", 0, ret);
+
+    ret = utf8_measure(b1_3);
+    cr_expect(ret == -1, "%s: utf8_measure('\\xF8'): expect %d, got %d", "b1_3", -1, ret);
+
+    ret = utf8_measure(b1_4);
+    cr_expect(ret == -1, "%s: utf8_measure('\\xFF'): expect %d, got %d", "b1_4", -1, ret);
 } // utf_measure
 
 Test(Function, utf8_count)
