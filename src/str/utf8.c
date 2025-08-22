@@ -33,17 +33,16 @@ int32_t utf8_count(const char_t * start, int32_t size, int32_t * chars)
     int32_t ena = 0;
 
     for (pos = start; i < *chars && pos < start + size; ++i) { // UTF-8 字符数必然少于或等于字节数
-        bytes = 1;
-        sum = 2;
-        ena = 1;
+        bytes = 0;
+        sum = 0;
 
-        ena &= !!(pos[0] & 0x80); bytes += ena * -1;
-        ena &= !!(pos[0] & 0x40); bytes += ena * 2; sum += ena * (pos[1] >> 6);
+        ena = !!(pos[0] & 0x80);
+        ena &= !!(pos[0] & 0x40); bytes += ena; sum += ena * (pos[1] >> 6);
         ena &= !!(pos[0] & 0x20); bytes += ena; sum += ena * (pos[2] >> 6);
         ena &= !!(pos[0] & 0x10); bytes += ena; sum += ena * (pos[3] >> 6);
 
         if (sum != (bytes + (ena & !!(pos[0] & 0x08))) * 2) return -1;
-        pos += bytes;
+        pos += bytes + 1;
     } // for
 
     *chars = i;
