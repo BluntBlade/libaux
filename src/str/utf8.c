@@ -30,23 +30,24 @@ int32_t utf8_count(const char_t * start, int32_t size, int32_t * chars)
     int32_t i = 0;
     int32_t max = 0;
     int32_t sum = 0;
-    int32_t bytes = 1;
-    int32_t ena = 1;
+    int32_t bytes = 0;
+    int32_t ena = 0;
 
     max = (chars && 0 < *chars && *chars < size) ? *chars : size; // UTF-8 字符数必然少于或等于字节数
     for (pos = start; i < max && pos < start + size; ++i) {
-        ena &= ((pos[0] & 0x80) >> 7); bytes += ena * -1;
-        ena &= ((pos[0] & 0x40) >> 6); bytes += ena * 2; sum += ena * ((pos[1] & 0xC0) >> 6);
-        ena &= ((pos[0] & 0x20) >> 5); bytes += ena * 1; sum += ena * ((pos[2] & 0xC0) >> 6);
-        ena &= ((pos[0] & 0x10) >> 4); bytes += ena * 1; sum += ena * ((pos[3] & 0xC0) >> 6);
-        ena &= ((pos[0] & 0x08) >> 3); bytes += ena * -5;
-
-        if (sum != (bytes - 1) * 2) return -1;
-
-        pos += bytes;
-        sum = 0;
+        sum = 2;
         bytes = 1;
         ena = 1;
+
+        ena &= !!(pos[0] & 0x80); bytes += ena * -1;
+        ena &= !!(pos[0] & 0x40); bytes += ena * 2; sum += ena * (pos[1] >> 6);
+        ena &= !!(pos[0] & 0x20); bytes += ena * 1; sum += ena * (pos[2] >> 6);
+        ena &= !!(pos[0] & 0x10); bytes += ena * 1; sum += ena * (pos[3] >> 6);
+        ena &= !!(pos[0] & 0x08); bytes += ena * -5;
+
+        if (sum != bytes * 2) return -1;
+
+        pos += bytes;
     } // for
 
     if (chars) *chars = i;
