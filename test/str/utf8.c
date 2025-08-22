@@ -55,7 +55,11 @@ const char_t b1_3[] = {"\xF8"};
 const char_t b1_4[] = {"\xFF"};
 const char_t b2[] = {"\xDA\xFF"};
 const char_t b3[] = {"\xEA\xBF\xC0"};
-const char_t b4[] = {"\xF2\xBF\x80\x25"};
+
+#define B4_STR "\xF2\xBF\x80\x25"
+#define B4_REPR "\\xF2\\xBF\\x80\\x25"
+
+test_data_t b4 = {.bytes = 4, .chars = 1, .name = {"b4"}, .str = {B4_STR}, .repr = {B4_REPR}};
 
 Test(Function, utf8_measure)
 {
@@ -92,11 +96,12 @@ Test(Function, utf8_count)
     int32_t chars = 0;
     int32_t i = 0;
 
+    chars = s1.chars;
     bytes = utf8_count(s1.str, s1.bytes, &chars);
     cr_expect(bytes == s1.bytes, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", s1.name, s1.repr, s1.bytes, bytes);
     cr_expect(chars == s1.chars, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", s1.name, s1.repr, s1.chars, chars);
 
-    chars = s2.chars - 1;
+    chars = s2.chars;
     bytes = utf8_count(s2.str, s2.bytes, &chars);
     cr_expect(bytes == s2.bytes, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", s2.name, s2.repr, s2.bytes, bytes);
     cr_expect(chars == s2.chars, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", s2.name, s2.repr, s2.chars, chars);
@@ -117,6 +122,11 @@ Test(Function, utf8_count)
         cr_expect(bytes == sc[i].bytes, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", sc[i].name, sc[i].repr, sc[i].bytes, bytes);
         cr_expect(chars == sc[i].chars, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", sc[i].name, sc[i].repr, sc[i].chars, chars);
     } // for
+
+    chars = b4.chars;
+    bytes = utf8_count(b4.str, b4.bytes, &chars);
+    cr_expect(bytes == -1, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", b4.name, b4.repr, -1, bytes);
+    cr_expect(chars == b4.chars, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", b4.name, b4.repr, b4.chars, chars);
 } // utf8_count
 
 Test(Function, utf8_verify)
