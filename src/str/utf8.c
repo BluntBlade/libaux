@@ -39,11 +39,10 @@ int32_t utf8_count(const char_t * start, int32_t size, int32_t * chars)
 
         ena &= !!(pos[0] & 0x80); bytes += ena * -1;
         ena &= !!(pos[0] & 0x40); bytes += ena * 2; sum += ena * (pos[1] >> 6);
-        ena &= !!(pos[0] & 0x20); bytes += ena * 1; sum += ena * (pos[2] >> 6);
-        ena &= !!(pos[0] & 0x10); bytes += ena * 1; sum += ena * (pos[3] >> 6);
-        ena &= !!(pos[0] & 0x08); bytes += ena * -5;
+        ena &= !!(pos[0] & 0x20); bytes += ena; sum += ena * (pos[2] >> 6);
+        ena &= !!(pos[0] & 0x10); bytes += ena; sum += ena * (pos[3] >> 6);
 
-        if (sum != bytes * 2) return -1;
+        if (sum != (bytes + (ena & !!(pos[0] & 0x08))) * 2) return -1;
         pos += bytes;
     } // for
 
