@@ -11,17 +11,24 @@
 
 #include "types.h"
 
-// 测量给定位置的 UTF-8 字符长度（字节数），返回 0 表示存在异常字节。
+extern uint8_t utf8_map[128];
+
+// 测量给定位置的 UTF-8 字符长度（字节数），返回 <= 0 表示存在异常字节。
+//inline static int32_t utf8_measure(const char_t * pos)
+//{
+//    char_t ch = pos[0];
+//    if ((ch & 0x80) == 0) return 1;
+//    if (((ch <<= 1) & 0x80) == 0) return 0;
+//    if (((ch <<= 1) & 0x80) == 0) return 2;
+//    if (((ch <<= 1) & 0x80) == 0) return 3;
+//    if (((ch <<= 1) & 0x80) == 0) return 4;
+//    return -1;
+//} // utf8_measure
+
 inline static int32_t utf8_measure(const char_t * pos)
 {
-    char_t ch = pos[0];
-    if ((ch & 0x80) == 0) return 1;
-    if (((ch <<= 1) & 0x80) == 0) return 0;
-    if (((ch <<= 1) & 0x80) == 0) return 2;
-    if (((ch <<= 1) & 0x80) == 0) return 3;
-    if (((ch <<= 1) & 0x80) == 0) return 4;
-    return 0;
-} // utf8_measure
+    return (utf8_map[pos[0] / 2] >> ((pos[0] & 0x1) * 4)) & 0x7;
+} // utf8_measure;
 
 // 计算给定字节范围内有多少个 UTF-8 字符。
 int32_t utf8_count(const char_t * start, int32_t size, int32_t * chars);
