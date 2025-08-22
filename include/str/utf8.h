@@ -51,7 +51,8 @@ int32_t utf8_count(const char_t * start, int32_t size, int32_t * chars);
 // 校验给定节字范围是否完全包含正确的 UTF-8 字符（除了 NUL 字符）
 inline static bool utf8_verify(const char_t * start, int32_t size)
 {
-    return utf8_count(start, size, NULL) == size;
+    int32_t chars = size;
+    return utf8_count(start, size, &chars) == size;
 } // if
 
 #endif // _AUX_UTF8_H_
