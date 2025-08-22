@@ -29,22 +29,24 @@ int32_t utf8_count(const char_t * start, int32_t size, int32_t * chars)
     const char_t * pos = NULL;
     int32_t i = 0;
     int32_t max = 0;
-    int32_t bytes = 0;
-    int32_t r_bytes = 0;
+    int32_t sum = 0;
+    int32_t bytes = 1;
+    int32_t ena = 1;
 
     max = (chars && 0 < *chars && *chars < size) ? *chars : size; // UTF-8 字符数必然少于或等于字节数
-    for (pos = start; i < max && pos < start + size; ++i, pos += r_bytes) {
-        bytes = r_bytes = utf8_measure(pos);
-        switch (r_bytes) {
-            case 4: bytes -= ((pos[3] & 0xC0) == 0x80);
-            case 3: bytes -= ((pos[2] & 0xC0) == 0x80);
-            case 2: bytes -= ((pos[1] & 0xC0) == 0x80);
-                if (bytes == 1) {
-            case 1: continue;
-                } // if
-            default:
-                return -1; // 存在异常字节
-        } // switch
+    for (pos = start; i < max && pos < start + size; ++i) {
+        ena &= ((pos[0] & 0x80) >> 7); bytes += ena * -1;
+        ena &= ((pos[0] & 0x40) >> 6); bytes += ena * 2; sum += ena * ((pos[1] & 0xC0) >> 6);
+        ena &= ((pos[0] & 0x20) >> 5); bytes += ena * 1; sum += ena * ((pos[2] & 0xC0) >> 6);
+        ena &= ((pos[0] & 0x10) >> 4); bytes += ena * 1; sum += ena * ((pos[3] & 0xC0) >> 6);
+        ena &= ((pos[0] & 0x08) >> 3); bytes += ena * -5;
+
+        if (sum != (bytes - 1) * 2) return -1;
+
+        pos += bytes;
+        sum = 0;
+        bytes = 1;
+        ena = 1;
     } // for
 
     if (chars) *chars = i;
