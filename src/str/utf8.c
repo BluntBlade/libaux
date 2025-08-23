@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "str/utf8.h"
 
 uint8_t utf8_map[128] = {
@@ -28,20 +29,20 @@ int32_t utf8_count(const char_t * start, int32_t size, int32_t * chars)
 {
     const char_t * pos = NULL;
     int32_t i = 0;
-    int32_t sum = 0;
+    int32_t code = 0;
     int32_t bytes = 0;
     int32_t ena = 0;
 
     for (pos = start; i < *chars && pos < start + size; ++i) { // UTF-8 字符数必然少于或等于字节数
-        sum = 0;
+        code = 0;
         bytes = 0;
 
-        ena = !!(pos[0] & 0x80);
-        ena &= !!(pos[0] & 0x40); bytes += ena; sum += ena * !!(pos[1] & 0xC0);
-        ena &= !!(pos[0] & 0x20); bytes += ena; sum += ena * !!(pos[2] & 0xC0);
-        ena &= !!(pos[0] & 0x10); bytes += ena; sum += ena * !!(pos[3] & 0xC0);
+        ena = (pos[0] >> 7);
+        ena &= (pos[0] >> 6); bytes += ena; code |= (ena * (pos[1] >> 6)) << 0; // code=0b00000010 0x02
+        ena &= (pos[0] >> 5); bytes += ena; code |= (ena * (pos[2] >> 6)) << 2; // code=0b00001010 0x0A
+        ena &= (pos[0] >> 4); bytes += ena; code |= (ena * (pos[3] >> 6)) << 4; // code=0b00101010 0x2A
 
-        if (sum != (bytes + (ena & !!(pos[0] & 0x08)))) {
+        if (code != (0x2A >> ((3 - bytes + (ena & (pos[0] >> 3))) * 2))) {
             *chars = i;
             return start - pos - 1;
         } // if
