@@ -126,7 +126,7 @@ Test(Function, utf8_count)
     chars = b4.chars;
     bytes = utf8_count(b4.str, b4.bytes, &chars);
     cr_expect(bytes == -1, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", b4.name, b4.repr, -1, bytes);
-    cr_expect(chars == b4.chars, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", b4.name, b4.repr, b4.chars, chars);
+    cr_expect(chars == 0, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", b4.name, b4.repr, 0, chars);
 } // utf8_count
 
 Test(Function, utf8_verify)
