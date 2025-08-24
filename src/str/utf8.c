@@ -43,7 +43,7 @@ int32_t utf8_count(const char_t * start, int32_t size, int32_t * chars)
             ena &= (pos[0] >> 5); bytes += ena; code |= (ena * (pos[2] >> 6)) << 2; // code=0b00001010 0x0A
             ena &= (pos[0] >> 4); bytes += ena; code |= (ena * (pos[3] >> 6)) << 4; // code=0b00101010 0x2A
 
-            if (code != (0x2A >> ((3 - bytes + (ena & (pos[0] >> 3))) * 2))) {
+            if (code == 0 || code != (0x2A >> ((3 - bytes + (ena & (pos[0] >> 3))) * 2))) {
                 *chars = i;
                 return start - pos - 1;
             } // if
