@@ -61,6 +61,11 @@ const char_t b3[] = {"\xEA\xBF\xC0"};
 
 test_data_t b4 = {.bytes = 4, .chars = 1, .name = {"b4"}, .str = {B4_STR}, .repr = {B4_REPR}};
 
+#define BZ_STR "\x92\xBF\x80\xA5"
+#define BZ_REPR "\\x92\\xBF\\x80\\xA5"
+
+test_data_t bz = {.bytes = 4, .chars = 1, .name = {"bz"}, .str = {BZ_STR}, .repr = {BZ_REPR}};
+
 Test(Function, utf8_measure)
 {
     int32_t ret = 0;
@@ -127,6 +132,11 @@ Test(Function, utf8_count)
     bytes = utf8_count(b4.str, b4.bytes, &chars);
     cr_expect(bytes == -1, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", b4.name, b4.repr, -1, bytes);
     cr_expect(chars == 0, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", b4.name, b4.repr, 0, chars);
+
+    chars = bz.chars;
+    bytes = utf8_count(bz.str, bz.bytes, &chars);
+    cr_expect(bytes == -1, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", bz.name, bz.repr, -1, bytes);
+    cr_expect(chars == 0, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", bz.name, bz.repr, 0, chars);
 } // utf8_count
 
 Test(Function, utf8_verify)
