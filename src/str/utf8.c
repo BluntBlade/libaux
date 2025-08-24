@@ -33,20 +33,23 @@ int32_t utf8_count(const char_t * start, int32_t size, int32_t * chars)
     int32_t bytes = 0;
     int32_t ena = 0;
 
-    for (pos = start; i < *chars && pos < start + size; ++i) { // UTF-8 字符数必然少于或等于字节数
-        code = 0;
-        bytes = 0;
+    for (pos = start; i < *chars && pos < start + size; ++i) {
+        // UTF-8 字符数必然少于或等于字节数
+        if ((ena = (pos[0] >> 7))) {
+            code = 0;
+            bytes = 0;
 
-        ena = (pos[0] >> 7);
-        ena &= (pos[0] >> 6); bytes += ena; code |= (ena * (pos[1] >> 6)) << 0; // code=0b00000010 0x02
-        ena &= (pos[0] >> 5); bytes += ena; code |= (ena * (pos[2] >> 6)) << 2; // code=0b00001010 0x0A
-        ena &= (pos[0] >> 4); bytes += ena; code |= (ena * (pos[3] >> 6)) << 4; // code=0b00101010 0x2A
+            ena &= (pos[0] >> 6); bytes += ena; code |= (ena * (pos[1] >> 6)) << 0; // code=0b00000010 0x02
+            ena &= (pos[0] >> 5); bytes += ena; code |= (ena * (pos[2] >> 6)) << 2; // code=0b00001010 0x0A
+            ena &= (pos[0] >> 4); bytes += ena; code |= (ena * (pos[3] >> 6)) << 4; // code=0b00101010 0x2A
 
-        if (code != (0x2A >> ((3 - bytes + (ena & (pos[0] >> 3))) * 2))) {
-            *chars = i;
-            return start - pos - 1;
+            if (code != (0x2A >> ((3 - bytes + (ena & (pos[0] >> 3))) * 2))) {
+                *chars = i;
+                return start - pos - 1;
+            } // if
+            pos += bytes;
         } // if
-        pos += bytes + 1;
+        pos += 1;
     } // for
 
     *chars = i;
