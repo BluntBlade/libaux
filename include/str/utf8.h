@@ -33,14 +33,14 @@ inline static int32_t utf8_measure_by_lookup(const char_t * pos)
 inline static int32_t utf8_measure_by_addup(const char_t * pos)
 {
     int32_t ena = 1;
-    int32_t sum = 1;
+    int32_t bytes = 1;
 
-    ena &= ((pos[0] & 0x80) >> 7); sum += ena * -1;
-    ena &= ((pos[0] & 0x40) >> 6); sum += ena * 2;
-    ena &= ((pos[0] & 0x20) >> 5); sum += ena * 1;
-    ena &= ((pos[0] & 0x10) >> 4); sum += ena * 1;
-    ena &= ((pos[0] & 0x08) >> 3); sum += ena * -5;
-    return sum;
+    ena &= (pos[0] >> 7); bytes -= ena;
+    ena &= (pos[0] >> 6); bytes += ena * 2;
+    ena &= (pos[0] >> 5); bytes += ena;
+    ena &= (pos[0] >> 4); bytes += ena;
+    ena &= (pos[0] >> 3); bytes -= ena * 4 + ena;
+    return bytes;
 } // utf8_measure_by_addup
 
 #define utf8_measure utf8_measure_by_addup
