@@ -39,14 +39,16 @@ int32_t utf8_count(const char_t * start, int32_t size, int32_t * chars)
             code = 0;
             bytes = 0;
 
-            ena &= (pos[0] >> 6); bytes += ena; code |= (ena * (pos[1] >> 6)) << 0; // code=0b00000010 0x02
-            ena &= (pos[0] >> 5); bytes += ena; code |= (ena * (pos[2] >> 6)) << 2; // code=0b00001010 0x0A
-            ena &= (pos[0] >> 4); bytes += ena; code |= (ena * (pos[3] >> 6)) << 4; // code=0b00101010 0x2A
+            if ((ena &= (pos[0] >> 6)) == 0) goto UTF8_COUNT_ERROR;
+            bytes += ena; code |= (ena * (pos[1] >> 6)) << 0; // code=0b00000010 0x02
 
-            if (code == 0 || code != (0x2A >> ((3 - bytes + (ena & (pos[0] >> 3))) * 2))) {
-                *chars = i;
-                return start - pos - 1;
-            } // if
+            ena &= (pos[0] >> 5);
+            bytes += ena; code |= (ena * (pos[2] >> 6)) << 2; // code=0b00001010 0x0A
+
+            ena &= (pos[0] >> 4);
+            bytes += ena; code |= (ena * (pos[3] >> 6)) << 4; // code=0b00101010 0x2A
+
+            if (code != (0x2A >> ((3 - bytes + (ena & (pos[0] >> 3))) * 2))) goto UTF8_COUNT_ERROR;
             pos += bytes;
         } // if
         pos += 1;
@@ -54,4 +56,8 @@ int32_t utf8_count(const char_t * start, int32_t size, int32_t * chars)
 
     *chars = i;
     return pos - start;
+
+UTF8_COUNT_ERROR:
+    *chars = i;
+    return start - pos - 1;
 } // utf8_count
