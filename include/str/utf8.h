@@ -13,7 +13,15 @@
 
 extern uint8_t utf8_map[128];
 
-// 测量给定位置的 UTF-8 字符长度（字节数），返回 <= 0 表示存在异常字节
+// 功能：测量单个 UTF-8 字符包含的字节数
+// 参数：
+//     pos      IN  字符串指针，不能为 NULL
+// 返回值：
+//     0 <          字节数
+//     0            首字节错误
+//     < 0          存在异常字节
+// 说明：
+//     逐个检查字节，直观但较慢的逻辑。
 inline static int32_t utf8_measure(const char_t * pos)
 {
     char_t ch = pos[0];
@@ -25,22 +33,39 @@ inline static int32_t utf8_measure(const char_t * pos)
     return -1;
 } // utf8_measure
 
+// 功能：测量单个 UTF-8 字符包含的字节数（查表法）
+// 参数：
+//     pos      IN  字符串指针，不能为 NULL
+// 返回值：
+//     0 <          字节数
+//     0            首字节错误
+//     < 0          存在异常字节
+// 说明：
+//     逻辑最简单，需加载表格到缓存中，会影响性能。
 inline static int32_t utf8_measure_by_lookup(const char_t * pos)
 {
     return (utf8_map[pos[0] / 2] >> ((pos[0] & 0x1) * 4)) & 0x7;
 } // utf8_measure_by_lookup
 
+// 功能：测量单个 UTF-8 字符包含的字节数（累加法）
+// 参数：
+//     pos      IN  字符串指针，不能为 NULL
+// 返回值：
+//     0 <          字节数
+//     0            首字节错误
+//     < 0          存在异常字节
+// 说明：
+//     平衡机器码字节数、缓存命中率和计算性能的逻辑实现。
 inline static int32_t utf8_measure_by_addup(const char_t * pos)
 {
-    int32_t ena = 1;
-    int32_t bytes = 1;
+    int32_t ena = 0;    // 累加开关
+    int32_t bytes = 1;  // 字节数
 
-    ena &= (pos[0] >> 7); bytes -= ena;
-    ena &= (pos[0] >> 6); bytes += ena * 2;
-    ena &= (pos[0] >> 5); bytes += ena;
-    ena &= (pos[0] >> 4); bytes += ena;
-    ena &= (pos[0] >> 3); bytes -= ena * 4 + ena;
-    return bytes;
+    bytes -= (ena  = (pos[0] >> 7));            // 首字节可能以 0b10 打头，预先减 1
+    bytes += (ena &= (pos[0] >> 6)) * 2;        // 2 字节
+    bytes += (ena &= (pos[0] >> 5));            // 3 字节
+    bytes += (ena &= (pos[0] >> 4));            // 4 字节
+    return bytes - (ena & (pos[0] >> 3)) * 5;   // 首字节是 0b11111xxx ，返回 -1
 } // utf8_measure_by_addup
 
 #define utf8_measure utf8_measure_by_addup
