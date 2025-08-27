@@ -80,5 +80,58 @@ inline static bool utf8_verify(const char_t * start, int32_t size)
     return utf8_count(start, size, &chars) == size;
 } // if
 
+inline static uchar_t utf8_decode(const char_t * pos)
+{
+    uchar_t cpt = 0;    // Unicode 码点
+    int32_t ena = 0;    // 操作开关
+    int32_t bytes = 0;  // 字节数
+
+    if ((ena = pos[0] >> 7)) {
+        if ((ena &= pos[0] >> 6) == 0) return ~0L; // 返回明显错误的码点
+        bytes += ena;
+        cpt = (cpt << (ena * 6)) | (ena * (pos[1] & 0x3F)); // 2 字节
+
+        ena &= pos[0] >> 5;
+        bytes += ena;
+        cpt = (cpt << (ena * 6)) | (ena * (pos[2] & 0x3F)); // 3 字节
+
+        ena &= pos[0] >> 4;
+        bytes += ena;
+        cpt = (cpt << (ena * 6)) | (ena * (pos[3] & 0x3F)); // 4 字节
+
+        if ((ena & (pos[0] >> 3))) return ~0L;  // 返回明显错误的码点
+        return (cpt | (pos[0] & (0xFF >> (bytes + 1))) << (6 * bytes));
+    } // if
+    return pos[0];
+} // utf8_decode
+
+inline static int32_t utf8_encode(uchar_t ch, char_t buf[4])
+{
+    int32_t bytes = 0;
+    char_t h = 0xF0;
+
+    if (ch < 0x80) {
+        bytes = 1;
+        buf[0] = ch & 0x7F;
+    } else {
+        buf[0] = (0x80 | ((ch >>  0) & 0x3F)); bytes += !!((ch >>  0) & 0x3F);
+        buf[1] = (0x80 | ((ch >>  6) & 0x3F)); bytes += !!((ch >>  6) & 0x3F);
+        buf[2] = (0x80 | ((ch >> 12) & 0x3F)); bytes += !!((ch >> 12) & 0x3F);
+        buf[3] = (0x80 | ((ch >> 18) & 0x3F)); bytes += !!((ch >> 18) & 0x3F);
+
+        h <<= (4 - bytes);
+        buf[4 - bytes] = h | (buf[4 - bytes] & ~h);
+
+        buf[0] = buf[0] ^ buf[4];
+        buf[4] = buf[0] ^ buf[4];
+        buf[0] = buf[0] ^ buf[4];
+
+        buf[2] = buf[2] ^ buf[3];
+        buf[3] = buf[2] ^ buf[3];
+        buf[2] = buf[2] ^ buf[3];
+    } // if
+    return bytes;
+} // utf8_encode
+
 #endif // _AUX_UTF8_H_
 

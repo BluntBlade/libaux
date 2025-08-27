@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 typedef unsigned char char_t;
+typedef uint32_t uchar_t;
 
 #endif // _AUX_TYPES_H_
 
