@@ -166,20 +166,32 @@ typedef struct TEST_UNICODE_DATA {
     uchar_t ch;
     int32_t bytes;
     char_t seq[8];
+    char_t repr[80];
 } test_unicode_data_t;
 
-test_unicode_data_t unicodes[] = {
-    {.ch = 0x000000, .bytes = 1, .seq = {"\x00"}},
-    {.ch = 0x00007F, .bytes = 1, .seq = {"\x7F"}},
-    {.ch = 0x000080, .bytes = 2, .seq = {"\xC2\x80"}},
-    {.ch = 0x0003A9, .bytes = 2, .seq = {"\xCE\xA9"}},
-    {.ch = 0x0007FF, .bytes = 2, .seq = {"\xDF\xBF"}},
-    {.ch = 0x000800, .bytes = 3, .seq = {"\xE0\xA0\x80"}},
-    {.ch = 0x005AD0, .bytes = 3, .seq = {"\xE5\xAB\x90"}},
-    {.ch = 0x00FFFF, .bytes = 3, .seq = {"\xEF\xBF\xBF"}},
-    {.ch = 0x010000, .bytes = 4, .seq = {"\xF0\x90\x80\x80"}},
-    {.ch = 0x10FFFF, .bytes = 4, .seq = {"\xF4\x8F\xBF\xBF"}},
+test_unicode_data_t ug[] = {
+    {.ch = 0x000000, .bytes = 1, .seq = {"\x00"}, .repr = {"\\x00"}},
+    {.ch = 0x00007F, .bytes = 1, .seq = {"\x7F"}, .repr = {"\\x7f"}},
+    {.ch = 0x000080, .bytes = 2, .seq = {"\xC2\x80"}, .repr = {"\\xC2\\x80"}},
+    {.ch = 0x0003A9, .bytes = 2, .seq = {"\xCE\xA9"}, .repr = {"\\xCE\\xA9"}},
+    {.ch = 0x0007FF, .bytes = 2, .seq = {"\xDF\xBF"}, .repr = {"\\xDF\\xBF"}},
+    {.ch = 0x000800, .bytes = 3, .seq = {"\xE0\xA0\x80"}, .repr = {"\\xE0\\xA0\\x80"}},
+    {.ch = 0x005AD0, .bytes = 3, .seq = {"\xE5\xAB\x90"}, .repr = {"\\xE5\\xAB\\x90"}},
+    {.ch = 0x00FFFF, .bytes = 3, .seq = {"\xEF\xBF\xBF"}, .repr = {"\\xEF\\xBF\\xBF"}},
+    {.ch = 0x010000, .bytes = 4, .seq = {"\xF0\x90\x80\x80"}, .repr = {"\\xF0\\x90\\x80\\x80"}},
+    {.ch = 0x10FFFF, .bytes = 4, .seq = {"\xF4\x8F\xBF\xBF"}, .repr = {"\\xF4\\x8F\\xBF\\xBF"}},
 };
+
+Test(Function, utf8_decode)
+{
+    uchar_t ch = 0;
+    int i = 0;
+
+    for (i = 0; i < sizeof(ug) / sizeof(ug[0]); ++i) {
+        ch = utf8_decode(ug[i].seq);
+        cr_expect(ch == ug[i].ch, "utf8_decode(%s) return incorrect ch: expect %06X, got %06X", ug[i].repr, ug[i].ch, ch);
+    } // for
+} // utf8_decode
 
 Test(Function, utf8_encode)
 {
@@ -188,12 +200,12 @@ Test(Function, utf8_encode)
     int i = 0;
     int j = 0;
 
-    for (i = 0; i < sizeof(unicodes) / sizeof(unicodes[0]); ++i) {
+    for (i = 0; i < sizeof(ug) / sizeof(ug[0]); ++i) {
         memset(seq, 0, sizeof(seq));
-        bytes = utf8_encode(unicodes[i].ch, seq);
-        cr_expect(bytes == unicodes[i].bytes, "utf8_encode(0x%06X) return incorrect bytes: expect %d, got %d", unicodes[i].ch, unicodes[i].bytes, bytes);
-        for (j = 0; j < unicodes[i].bytes; ++j) {
-            cr_expect(seq[j] == unicodes[i].seq[j], "utf8_encode(0x%06X) return incorrect seq[%d]: expect %02X, got %02X", unicodes[i].ch, j, unicodes[i].seq[j], seq[j]);
+        bytes = utf8_encode(ug[i].ch, seq);
+        cr_expect(bytes == ug[i].bytes, "utf8_encode(0x%06X) return incorrect bytes: expect %d, got %d", ug[i].ch, ug[i].bytes, bytes);
+        for (j = 0; j < ug[i].bytes; ++j) {
+            cr_expect(seq[j] == ug[i].seq[j], "utf8_encode(0x%06X) return incorrect seq[%d]: expect %02X, got %02X", ug[i].ch, j, ug[i].seq[j], seq[j]);
         } // for
     } // for
 } // utf8_encode
