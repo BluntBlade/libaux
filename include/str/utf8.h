@@ -105,31 +105,24 @@ inline static uchar_t utf8_decode(const char_t * pos)
     return pos[0];
 } // utf8_decode
 
-inline static int32_t utf8_encode(uchar_t ch, char_t buf[4])
+inline static int32_t utf8_encode(uchar_t ch, char_t seq[4])
 {
+    int32_t ena = 0;
     int32_t bytes = 0;
-    char_t h = 0xF0;
+    char_t h = 0xF0; // 0b11110000
 
     if (ch < 0x80) {
-        bytes = 1;
-        buf[0] = ch & 0x7F;
-    } else {
-        buf[0] = (0x80 | ((ch >>  0) & 0x3F)); bytes += !!((ch >>  0) & 0x3F);
-        buf[1] = (0x80 | ((ch >>  6) & 0x3F)); bytes += !!((ch >>  6) & 0x3F);
-        buf[2] = (0x80 | ((ch >> 12) & 0x3F)); bytes += !!((ch >> 12) & 0x3F);
-        buf[3] = (0x80 | ((ch >> 18) & 0x3F)); bytes += !!((ch >> 18) & 0x3F);
-
-        h <<= (4 - bytes);
-        buf[4 - bytes] = h | (buf[4 - bytes] & ~h);
-
-        buf[0] = buf[0] ^ buf[4];
-        buf[4] = buf[0] ^ buf[4];
-        buf[0] = buf[0] ^ buf[4];
-
-        buf[2] = buf[2] ^ buf[3];
-        buf[3] = buf[2] ^ buf[3];
-        buf[2] = buf[2] ^ buf[3];
+        seq[0] = ch & 0x7F;
+        return 1;
     } // if
+
+    ena |= !!(ch >> 16); seq[bytes] = ena * (0x80 | ((ch >> 18) & 0x3F)); bytes += ena;
+    ena |= !!(ch >> 11); seq[bytes] = ena * (0x80 | ((ch >> 12) & 0x3F)); bytes += ena;
+    seq[bytes++] = (0x80 | ((ch >> 6) & 0x3F));
+    seq[bytes++] = (0x80 | ((ch >> 0) & 0x3F));
+
+    h <<= (4 - bytes);
+    seq[0] = h | (seq[0] & ~h);
     return bytes;
 } // utf8_encode
 
