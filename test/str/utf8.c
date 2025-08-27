@@ -5,13 +5,13 @@
 #include "str/utf8.c"
 #endif
 
-typedef struct TEST_DATA {
+typedef struct TEST_STR_DATA {
     int32_t bytes;
     int32_t chars;
     const char_t name[80];
     const char_t str[80];
     const char_t repr[80];
-} test_data_t;
+} test_str_data_t;
 
 #define S1_STR "A"
 #define S1_REPR "A"
@@ -22,12 +22,12 @@ typedef struct TEST_DATA {
 #define S4_STR "\xF2\xBF\x80\xA5"
 #define S4_REPR "\\xF2\\xBF\\x80\\xA5"
 
-test_data_t s1 = {.bytes = 1, .chars = 1, .name = {"s1"}, .str = {S1_STR}, .repr = {S1_REPR}};
-test_data_t s2 = {.bytes = 2, .chars = 1, .name = {"s2"}, .str = {S2_STR}, .repr = {S2_REPR}};
-test_data_t s3 = {.bytes = 3, .chars = 1, .name = {"s3"}, .str = {S3_STR}, .repr = {S3_REPR}};
-test_data_t s4 = {.bytes = 4, .chars = 1, .name = {"s4"}, .str = {S4_STR}, .repr = {S4_REPR}};
+test_str_data_t s1 = {.bytes = 1, .chars = 1, .name = {"s1"}, .str = {S1_STR}, .repr = {S1_REPR}};
+test_str_data_t s2 = {.bytes = 2, .chars = 1, .name = {"s2"}, .str = {S2_STR}, .repr = {S2_REPR}};
+test_str_data_t s3 = {.bytes = 3, .chars = 1, .name = {"s3"}, .str = {S3_STR}, .repr = {S3_REPR}};
+test_str_data_t s4 = {.bytes = 4, .chars = 1, .name = {"s4"}, .str = {S4_STR}, .repr = {S4_REPR}};
 
-test_data_t sc[] = {
+test_str_data_t sc[] = {
     {.bytes = 2, .chars = 2, .name = {"s11"}, .str = {S1_STR S1_STR}, .repr = {S1_REPR S1_REPR}},
     {.bytes = 3, .chars = 2, .name = {"s12"}, .str = {S1_STR S2_STR}, .repr = {S1_REPR S2_REPR}},
     {.bytes = 4, .chars = 2, .name = {"s13"}, .str = {S1_STR S3_STR}, .repr = {S1_REPR S3_REPR}},
@@ -59,12 +59,12 @@ const char_t b3[] = {"\xEA\xBF\xC0"};
 #define B4_STR "\xF2\xBF\x80\x25"
 #define B4_REPR "\\xF2\\xBF\\x80\\x25"
 
-test_data_t b4 = {.bytes = 4, .chars = 1, .name = {"b4"}, .str = {B4_STR}, .repr = {B4_REPR}};
+test_str_data_t b4 = {.bytes = 4, .chars = 1, .name = {"b4"}, .str = {B4_STR}, .repr = {B4_REPR}};
 
 #define BZ_STR "\x92\xBF\x80\xA5"
 #define BZ_REPR "\\x92\\xBF\\x80\\xA5"
 
-test_data_t bz = {.bytes = 4, .chars = 1, .name = {"bz"}, .str = {BZ_STR}, .repr = {BZ_REPR}};
+test_str_data_t bz = {.bytes = 4, .chars = 1, .name = {"bz"}, .str = {BZ_STR}, .repr = {BZ_REPR}};
 
 Test(Function, utf8_measure)
 {
@@ -162,73 +162,38 @@ Test(Function, utf8_verify)
     } // for
 } // utf8_verify
 
+typedef struct TEST_UNICODE_DATA {
+    uchar_t ch;
+    int32_t bytes;
+    char_t seq[8];
+} test_unicode_data_t;
+
+test_unicode_data_t unicodes[] = {
+    {.ch = 0x000000, .bytes = 1, .seq = {"\x00"}},
+    {.ch = 0x00007F, .bytes = 1, .seq = {"\x7F"}},
+    {.ch = 0x000080, .bytes = 2, .seq = {"\xC2\x80"}},
+    {.ch = 0x0003A9, .bytes = 2, .seq = {"\xCE\xA9"}},
+    {.ch = 0x0007FF, .bytes = 2, .seq = {"\xDF\xBF"}},
+    {.ch = 0x000800, .bytes = 3, .seq = {"\xE0\xA0\x80"}},
+    {.ch = 0x005AD0, .bytes = 3, .seq = {"\xE5\xAB\x90"}},
+    {.ch = 0x00FFFF, .bytes = 3, .seq = {"\xEF\xBF\xBF"}},
+    {.ch = 0x010000, .bytes = 4, .seq = {"\xF0\x90\x80\x80"}},
+    {.ch = 0x10FFFF, .bytes = 4, .seq = {"\xF4\x8F\xBF\xBF"}},
+};
+
 Test(Function, utf8_encode)
 {
-    char_t code[4] = {0};
+    char_t seq[4] = {0};
     int32_t bytes = 0;
+    int i = 0;
+    int j = 0;
 
-    memset(code, 0, sizeof(code));
-    bytes = utf8_encode((uchar_t)0x00, code);
-    cr_expect(bytes == 1, "utf8_encode(0x00) return incorrect bytes: expect %d, got %d", 1, bytes);
-    cr_expect(code[0] == 0x00, "utf8_encode(0x00) return incorrect code[0]: expect %02X, got %02X", 0, code[0]);
-
-    memset(code, 0, sizeof(code));
-    bytes = utf8_encode((uchar_t)0x7F, code);
-    cr_expect(bytes == 1, "utf8_encode(0x7F) return incorrect bytes: expect %d, got %d", 1, bytes);
-    cr_expect(code[0] == 0x7F, "utf8_encode(0x7F) return incorrect code[0]: expect %02X, got %02X", 0, code[0]);
-
-    memset(code, 0, sizeof(code));
-    bytes = utf8_encode((uchar_t)0x80, code); // 0b1000_0000 => 0b11000010 0b10000000
-    cr_expect(bytes == 2, "utf8_encode(0x80) return incorrect bytes: expect %d, got %d", 2, bytes);
-    cr_expect(code[0] == 0xC2, "utf8_encode(0x80) return incorrect code[0]: expect %02X, got %02X", 0xC2, code[0]);
-    cr_expect(code[1] == 0x80, "utf8_encode(0x80) return incorrect code[1]: expect %02X, got %02X", 0x80, code[1]);
-
-    memset(code, 0, sizeof(code));
-    bytes = utf8_encode((uchar_t)0x3A9, code); // Ω 0b0011_1010_1001 => 0b11001110 0b10101001
-    cr_expect(bytes == 2, "utf8_encode(0x3A9) return incorrect bytes: expect %d, got %d", 2, bytes);
-    cr_expect(code[0] == 0xCE, "utf8_encode(0x3A9) return incorrect code[0]: expect %02X, got %02X", 0xCE, code[0]);
-    cr_expect(code[1] == 0xA9, "utf8_encode(0x3A9) return incorrect code[1]: expect %02X, got %02X", 0xA9, code[1]);
-
-    memset(code, 0, sizeof(code));
-    bytes = utf8_encode((uchar_t)0x7FF, code); // 0b0111_1111_1111 => 0b11011111 0b10111111
-    cr_expect(bytes == 2, "utf8_encode(0x7FF) return incorrect bytes: expect %d, got %d", 2, bytes);
-    cr_expect(code[0] == 0xDF, "utf8_encode(0x7FF) return incorrect code[0]: expect %02X, got %02X", 0xDF, code[0]);
-    cr_expect(code[1] == 0xBF, "utf8_encode(0x7FF) return incorrect code[1]: expect %02X, got %02X", 0xBF, code[1]);
-
-    memset(code, 0, sizeof(code));
-    bytes = utf8_encode((uchar_t)0x800, code); // 0b1000_0000_0000 => 0b11100000 0b10100000 0b10000000
-    cr_expect(bytes == 3, "utf8_encode(0x800) return incorrect bytes: expect %d, got %d", 3, bytes);
-    cr_expect(code[0] == 0xE0, "utf8_encode(0x800) return incorrect code[0]: expect %02X, got %02X", 0xE0, code[0]);
-    cr_expect(code[1] == 0xA0, "utf8_encode(0x800) return incorrect code[1]: expect %02X, got %02X", 0xA0, code[1]);
-    cr_expect(code[2] == 0x80, "utf8_encode(0x800) return incorrect code[2]: expect %02X, got %02X", 0x80, code[2]);
-
-    memset(code, 0, sizeof(code));
-    bytes = utf8_encode((uchar_t)0x5AD0, code); // 嫐 0b0101_1010_1101_0000 => 0b11100101 0b10101011 0b10010000
-    cr_expect(bytes == 3, "utf8_encode(0x5AD0) return incorrect bytes: expect %d, got %d", 3, bytes);
-    cr_expect(code[0] == 0xE5, "utf8_encode(0x5AD0) return incorrect code[0]: expect %02X, got %02X", 0xE5, code[0]);
-    cr_expect(code[1] == 0xAB, "utf8_encode(0x5AD0) return incorrect code[1]: expect %02X, got %02X", 0xAB, code[1]);
-    cr_expect(code[2] == 0x90, "utf8_encode(0x5AD0) return incorrect code[2]: expect %02X, got %02X", 0x90, code[2]);
-
-    memset(code, 0, sizeof(code));
-    bytes = utf8_encode((uchar_t)0xFFFF, code); // 0b1111_1111_1111_1111 => 0b11101111 0b10111111 0b10111111
-    cr_expect(bytes == 3, "utf8_encode(0xFFFF) return incorrect bytes: expect %d, got %d", 3, bytes);
-    cr_expect(code[0] == 0xEF, "utf8_encode(0xFFFF) return incorrect code[0]: expect %02X, got %02X", 0xEF, code[0]);
-    cr_expect(code[1] == 0xBF, "utf8_encode(0xFFFF) return incorrect code[1]: expect %02X, got %02X", 0xBF, code[1]);
-    cr_expect(code[2] == 0xBF, "utf8_encode(0xFFFF) return incorrect code[2]: expect %02X, got %02X", 0xBF, code[2]);
-
-    memset(code, 0, sizeof(code));
-    bytes = utf8_encode((uchar_t)0x10000, code); // 0b0001_0000_0000_0000_0000 => 0b11110000 0b10010000 0b10000000 0b10000000
-    cr_expect(bytes == 4, "utf8_encode(0x10000) return incorrect bytes: expect %d, got %d", 4, bytes);
-    cr_expect(code[0] == 0xF0, "utf8_encode(0x10000) return incorrect code[0]: expect %02X, got %02X", 0xF0, code[0]);
-    cr_expect(code[1] == 0x90, "utf8_encode(0x10000) return incorrect code[1]: expect %02X, got %02X", 0x90, code[1]);
-    cr_expect(code[2] == 0x80, "utf8_encode(0x10000) return incorrect code[2]: expect %02X, got %02X", 0x80, code[2]);
-    cr_expect(code[3] == 0x80, "utf8_encode(0x10000) return incorrect code[3]: expect %02X, got %02X", 0x80, code[3]);
-
-    memset(code, 0, sizeof(code));
-    bytes = utf8_encode((uchar_t)0x10FFFF, code); // 0b0001_0000_1111_1111_1111_1111 => 0b11110100 0b10001111 0b10111111 0b10111111
-    cr_expect(bytes == 4, "utf8_encode(0x10FFFF) return incorrect bytes: expect %d, got %d", 4, bytes);
-    cr_expect(code[0] == 0xF4, "utf8_encode(0x10FFFF) return incorrect code[0]: expect %02X, got %02X", 0xF4, code[0]);
-    cr_expect(code[1] == 0x8F, "utf8_encode(0x10FFFF) return incorrect code[1]: expect %02X, got %02X", 0x8F, code[1]);
-    cr_expect(code[2] == 0xBF, "utf8_encode(0x10FFFF) return incorrect code[2]: expect %02X, got %02X", 0xBF, code[2]);
-    cr_expect(code[3] == 0xBF, "utf8_encode(0x10FFFF) return incorrect code[3]: expect %02X, got %02X", 0xBF, code[3]);
+    for (i = 0; i < sizeof(unicodes) / sizeof(unicodes[0]); ++i) {
+        memset(seq, 0, sizeof(seq));
+        bytes = utf8_encode(unicodes[i].ch, seq);
+        cr_expect(bytes == unicodes[i].bytes, "utf8_encode(0x%06X) return incorrect bytes: expect %d, got %d", unicodes[i].ch, unicodes[i].bytes, bytes);
+        for (j = 0; j < unicodes[i].bytes; ++j) {
+            cr_expect(seq[j] == unicodes[i].seq[j], "utf8_encode(0x%06X) return incorrect seq[%d]: expect %02X, got %02X", unicodes[i].ch, j, unicodes[i].seq[j], seq[j]);
+        } // for
+    } // for
 } // utf8_encode
