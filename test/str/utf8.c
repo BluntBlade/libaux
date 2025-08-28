@@ -261,31 +261,35 @@ test_unicode_data_t ug[] = {
 };
 
 test_unicode_data_t ub[] = {
-    {.ch = ~0L, .bytes = 1, .seq = {B1_1_STR}, .repr = {B1_1_REPR}},
-    {.ch = ~0L, .bytes = 1, .seq = {B1_2_STR}, .repr = {B1_2_REPR}},
-    {.ch = ~0L, .bytes = 1, .seq = {B1_3_STR}, .repr = {B1_3_REPR}},
-    {.ch = ~0L, .bytes = 1, .seq = {B1_4_STR}, .repr = {B1_4_REPR}},
-    {.ch = ~0L, .bytes = 2, .seq = {B2_STR}, .repr = {B2_REPR}},
-    {.ch = ~0L, .bytes = 3, .seq = {B3_STR}, .repr = {B3_REPR}},
-    {.ch = ~0L, .bytes = 4, .seq = {B4_STR}, .repr = {B4_REPR}},
-    {.ch = ~0L, .bytes = 4, .seq = {BZ_STR}, .repr = {BZ_REPR}},
+    {.ch = ~0L, .bytes = -1, .seq = {B1_1_STR}, .repr = {B1_1_REPR}},
+    {.ch = ~0L, .bytes = -1, .seq = {B1_2_STR}, .repr = {B1_2_REPR}},
+    {.ch = ~0L, .bytes = -1, .seq = {B1_3_STR}, .repr = {B1_3_REPR}},
+    {.ch = ~0L, .bytes = -1, .seq = {B1_4_STR}, .repr = {B1_4_REPR}},
+    {.ch = ~0L, .bytes = -1, .seq = {B2_STR}, .repr = {B2_REPR}},
+    {.ch = ~0L, .bytes = -1, .seq = {B3_STR}, .repr = {B3_REPR}},
+    {.ch = ~0L, .bytes = -1, .seq = {B4_STR}, .repr = {B4_REPR}},
+    {.ch = ~0L, .bytes = -1, .seq = {BZ_STR}, .repr = {BZ_REPR}},
 };
 
 Test(Function, utf8_decode)
 {
     uchar_t ch = 0;
+    int32_t bytes = 0;
     int i = 0;
 
     // 正常用例
     for (i = 0; i < sizeof(ug) / sizeof(ug[0]); ++i) {
-        ch = utf8_decode(ug[i].seq);
+        bytes = utf8_decode(ug[i].seq, &ch);
         cr_expect(ch == ug[i].ch, "ug[%d] utf8_decode(%s) return incorrect ch: expect 0x%06X, got 0x%06X", i, ug[i].repr, ug[i].ch, ch);
+        cr_expect(bytes == ug[i].bytes, "ug[%d] utf8_decode(%s) return incorrect bytes: expect %d, got %d", i, ug[i].repr, ug[i].bytes, bytes);
     } // for
 
     // 异常用例
     for (i = 0; i < sizeof(ub) / sizeof(ub[0]); ++i) {
-        ch = utf8_decode(ub[i].seq);
+        ch = ~0L;
+        bytes = utf8_decode(ub[i].seq, &ch);
         cr_expect(ch == ub[i].ch, "ub[%d] utf8_decode(%s) return incorrect ch: expect 0x%X, got 0x%X", i, ub[i].repr, ub[i].ch, ch);
+        cr_expect(bytes == ub[i].bytes, "ub[%d] utf8_decode(%s) return incorrect bytes: expect %d, got %d", i, ub[i].repr, ub[i].bytes, bytes);
     } // for
 } // utf8_decode
 
