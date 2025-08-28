@@ -13,13 +13,13 @@ typedef struct TEST_STR_DATA {
     const char_t repr[80];
 } test_str_data_t;
 
-#define S1_STR "A"
+#define S1_STR "A" // 0b00001010
 #define S1_REPR "A"
-#define S2_STR "\xDA\xBF"
+#define S2_STR "\xDA\xBF" // 0b11011010 0b10111111
 #define S2_REPR "\\xDA\\xBF"
-#define S3_STR "\xEA\xBF\x80"
+#define S3_STR "\xEA\xBF\x80" // 0b11101010 0b10111111 0b10000000
 #define S3_REPR "\\xEA\\xBF\\x80"
-#define S4_STR "\xF2\xBF\x80\xA5"
+#define S4_STR "\xF2\xBF\x80\xA5" // 0b11110010 0b10111111 0b10000000 0b10100101
 #define S4_REPR "\\xF2\\xBF\\x80\\xA5"
 
 test_str_data_t s1 = {.bytes = 1, .chars = 1, .name = {"s1"}, .str = {S1_STR}, .repr = {S1_REPR}};
@@ -49,24 +49,24 @@ test_str_data_t sc[] = {
     {.bytes = 8, .chars = 2, .name = {"s44"}, .str = {S4_STR S4_STR}, .repr = {S4_REPR S4_REPR}},
 };
 
-#define B1_1_STR "\x80"
-#define B1_1_REPR "\\x80"
-#define B1_2_STR "\xA0"
-#define B1_2_REPR "\\xA0"
-#define B1_3_STR "\xF8"
-#define B1_3_REPR "\\xF8"
-#define B1_4_STR "\xFF"
-#define B1_4_REPR "\\xFF"
-#define B1_5_STR "\xFA\xFF"
-#define B1_5_REPR "\\xFA\\xFF"
-#define B2_STR "\xDA\xFF"
-#define B2_REPR "\\xDA\\xFF"
-#define B3_STR "\xEA\xBF\xC0"
-#define B3_REPR "\\xEA\\xBF\\xC0"
-#define B4_STR "\xF2\xBF\x80\x25"
-#define B4_REPR "\\xF2\\xBF\\x80\\x25"
-#define BZ_STR "\x92\xBF\x80\xA5"
-#define BZ_REPR "\\x92\\xBF\\x80\\xA5"
+#define B1_1_STR "\x80"                     // 0b10000000
+#define B1_1_REPR "\\x80"                   //   ^^
+#define B1_2_STR "\xA0"                     // 0b10100000
+#define B1_2_REPR "\\xA0"                   //   ^^
+#define B1_3_STR "\xF8"                     // 0b11111000
+#define B1_3_REPR "\\xF8"                   //   ^^^^
+#define B1_4_STR "\xFF"                     // 0b11111111
+#define B1_4_REPR "\\xFF"                   //   ^^^^
+#define B1_5_STR "\xFA\xFF"                 // 0b11111010 0b11111111
+#define B1_5_REPR "\\xFA\\xFF"              //   ^^^^
+#define B2_STR "\xDA\xFF"                   // 0b10111010 0b11111111
+#define B2_REPR "\\xDA\\xFF"                //   ^^         ^^
+#define B3_STR "\xEA\xBF\xC0"               // 0b11101010 0b10111111 0b11000000
+#define B3_REPR "\\xEA\\xBF\\xC0"           //                         ^^
+#define B4_STR "\xF2\xBF\x80\x25"           // 0b11110010 0b10111111 0b10000000 0b00100101
+#define B4_REPR "\\xF2\\xBF\\x80\\x25"      //                                    ^^
+#define BZ_STR "\x92\xBF\x80\xA5"           // 0b10010010 0b10111111 0b10000000 0b10100101
+#define BZ_REPR "\\x92\\xBF\\x80\\xA5"      //   ^^
 
 test_str_data_t b1_1 = {.bytes = 1, .chars = 1, .name = {"b1_1"}, .str = {B1_1_STR}, .repr = {B1_1_REPR}};
 test_str_data_t b1_2 = {.bytes = 1, .chars = 1, .name = {"b1_2"}, .str = {B1_2_STR}, .repr = {B1_2_REPR}};
@@ -217,6 +217,26 @@ Test(Function, utf8_verify)
     } // for
 
     // 异常用例
+    ret = utf8_verify(b1_1.str, b1_1.bytes);
+    cr_expect(ret == false, "%s: utf8_verify('%s') return incorrect result: expect %d, got %d", b1_1.name, b1_1.repr, false, ret);
+
+    ret = utf8_verify(b1_2.str, b1_2.bytes);
+    cr_expect(ret == false, "%s: utf8_verify('%s') return incorrect result: expect %d, got %d", b1_2.name, b1_2.repr, false, ret);
+
+    ret = utf8_verify(b1_3.str, b1_3.bytes);
+    cr_expect(ret == false, "%s: utf8_verify('%s') return incorrect result: expect %d, got %d", b1_3.name, b1_3.repr, false, ret);
+
+    ret = utf8_verify(b1_4.str, b1_4.bytes);
+    cr_expect(ret == false, "%s: utf8_verify('%s') return incorrect result: expect %d, got %d", b1_4.name, b1_4.repr, false, ret);
+
+    ret = utf8_verify(b2.str, b2.bytes);
+    cr_expect(ret == false, "%s: utf8_verify('%s') return incorrect result: expect %d, got %d", b2.name, b2.repr, false, ret);
+
+    ret = utf8_verify(b3.str, b3.bytes);
+    cr_expect(ret == false, "%s: utf8_verify('%s') return incorrect result: expect %d, got %d", b3.name, b3.repr, false, ret);
+
+    ret = utf8_verify(b4.str, b4.bytes);
+    cr_expect(ret == false, "%s: utf8_verify('%s') return incorrect result: expect %d, got %d", b4.name, b4.repr, false, ret);
 } // utf8_verify
 
 typedef struct TEST_UNICODE_DATA {
@@ -228,7 +248,7 @@ typedef struct TEST_UNICODE_DATA {
 
 test_unicode_data_t ug[] = {
     {.ch = 0x000000, .bytes = 1, .seq = {"\x00"}, .repr = {"\\x00"}},
-    {.ch = 0x00007F, .bytes = 1, .seq = {"\x7F"}, .repr = {"\\x7f"}},
+    {.ch = 0x00007F, .bytes = 1, .seq = {"\x7F"}, .repr = {"\\x7F"}},
     {.ch = 0x000080, .bytes = 2, .seq = {"\xC2\x80"}, .repr = {"\\xC2\\x80"}},
     {.ch = 0x0003A9, .bytes = 2, .seq = {"\xCE\xA9"}, .repr = {"\\xCE\\xA9"}},
     {.ch = 0x0007FF, .bytes = 2, .seq = {"\xDF\xBF"}, .repr = {"\\xDF\\xBF"}},
