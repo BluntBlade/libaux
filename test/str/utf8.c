@@ -49,21 +49,33 @@ test_str_data_t sc[] = {
     {.bytes = 8, .chars = 2, .name = {"s44"}, .str = {S4_STR S4_STR}, .repr = {S4_REPR S4_REPR}},
 };
 
-const char_t b1_1[] = {"\x80"};
-const char_t b1_2[] = {"\xA0"};
-const char_t b1_3[] = {"\xF8"};
-const char_t b1_4[] = {"\xFF"};
-const char_t b2[] = {"\xDA\xFF"};
-const char_t b3[] = {"\xEA\xBF\xC0"};
-
+#define B1_1_STR "\x80"
+#define B1_1_REPR "\\x80"
+#define B1_2_STR "\xA0"
+#define B1_2_REPR "\\xA0"
+#define B1_3_STR "\xF8"
+#define B1_3_REPR "\\xF8"
+#define B1_4_STR "\xFF"
+#define B1_4_REPR "\\xFF"
+#define B1_5_STR "\xFA\xFF"
+#define B1_5_REPR "\\xFA\\xFF"
+#define B2_STR "\xDA\xFF"
+#define B2_REPR "\\xDA\\xFF"
+#define B3_STR "\xEA\xBF\xC0"
+#define B3_REPR "\\xEA\\xBF\\xC0"
 #define B4_STR "\xF2\xBF\x80\x25"
 #define B4_REPR "\\xF2\\xBF\\x80\\x25"
-
-test_str_data_t b4 = {.bytes = 4, .chars = 1, .name = {"b4"}, .str = {B4_STR}, .repr = {B4_REPR}};
-
 #define BZ_STR "\x92\xBF\x80\xA5"
 #define BZ_REPR "\\x92\\xBF\\x80\\xA5"
 
+test_str_data_t b1_1 = {.bytes = 1, .chars = 1, .name = {"b1_1"}, .str = {B1_1_STR}, .repr = {B1_1_REPR}};
+test_str_data_t b1_2 = {.bytes = 1, .chars = 1, .name = {"b1_2"}, .str = {B1_2_STR}, .repr = {B1_2_REPR}};
+test_str_data_t b1_3 = {.bytes = 1, .chars = 1, .name = {"b1_3"}, .str = {B1_3_STR}, .repr = {B1_3_REPR}};
+test_str_data_t b1_4 = {.bytes = 1, .chars = 1, .name = {"b1_4"}, .str = {B1_4_STR}, .repr = {B1_4_REPR}};
+test_str_data_t b1_5 = {.bytes = 1, .chars = 1, .name = {"b1_5"}, .str = {B1_5_STR}, .repr = {B1_5_REPR}};
+test_str_data_t b2 = {.bytes = 2, .chars = 1, .name = {"b2"}, .str = {B2_STR}, .repr = {B2_REPR}};
+test_str_data_t b3 = {.bytes = 3, .chars = 1, .name = {"b3"}, .str = {B3_STR}, .repr = {B3_REPR}};
+test_str_data_t b4 = {.bytes = 4, .chars = 1, .name = {"b4"}, .str = {B4_STR}, .repr = {B4_REPR}};
 test_str_data_t bz = {.bytes = 4, .chars = 1, .name = {"bz"}, .str = {BZ_STR}, .repr = {BZ_REPR}};
 
 Test(Function, utf8_measure)
@@ -82,17 +94,20 @@ Test(Function, utf8_measure)
     ret = utf8_measure(s4.str);
     cr_expect(ret == s4.bytes, "%s: utf8_measure('%s'): expect %d, got %d", s4.name, s4.repr, s4.bytes, ret);
 
-    ret = utf8_measure(b1_1);
-    cr_expect(ret == 0, "%s: utf8_measure('\\x80'): expect %d, got %d", "b1_1", 0, ret);
+    ret = utf8_measure(b1_1.str);
+    cr_expect(ret == 0, "%s: utf8_measure('%s'): expect %d, got %d", "b1_1", b1_1.repr, 0, ret);
 
-    ret = utf8_measure(b1_2);
-    cr_expect(ret == 0, "%s: utf8_measure('\\xA0'): expect %d, got %d", "b1_2", 0, ret);
+    ret = utf8_measure(b1_2.str);
+    cr_expect(ret == 0, "%s: utf8_measure('%s'): expect %d, got %d", "b1_2", b1_2.repr, 0, ret);
 
-    ret = utf8_measure(b1_3);
-    cr_expect(ret == -1, "%s: utf8_measure('\\xF8'): expect %d, got %d", "b1_3", -1, ret);
+    ret = utf8_measure(b1_3.str);
+    cr_expect(ret == -1, "%s: utf8_measure('%s'): expect %d, got %d", "b1_3", b1_3.repr, -1, ret);
 
-    ret = utf8_measure(b1_4);
-    cr_expect(ret == -1, "%s: utf8_measure('\\xFF'): expect %d, got %d", "b1_4", -1, ret);
+    ret = utf8_measure(b1_4.str);
+    cr_expect(ret == -1, "%s: utf8_measure('%s'): expect %d, got %d", "b1_4", b1_4.repr, -1, ret);
+
+    ret = utf8_measure(b1_5.str);
+    cr_expect(ret == -1, "%s: utf8_measure('%s'): expect %d, got %d", "b1_5", b1_5.repr, -1, ret);
 } // utf_measure
 
 Test(Function, utf8_count)
