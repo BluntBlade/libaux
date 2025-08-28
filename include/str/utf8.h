@@ -109,21 +109,27 @@ inline static bool utf8_verify(const char_t * start, int32_t size)
 //     0xFFFFFFFF   存在异常字节
 inline static uchar_t utf8_decode(const char_t * pos)
 {
-    uchar_t ch = 0;    // Unicode 码点
+    uchar_t ch = 0;     // Unicode 码点
     int32_t ena = 1;    // 操作开关
     int32_t bytes = 1;  // 字节数
+    int32_t bad = 0;    // 异常字节数
 
     if (0x80 <= pos[0]) {
         if ((pos[0] >> 6) == 0x2) return ~0L; // 返回明显错误的码点
         ch = (pos[1] & 0x3F); // 2 字节
+        bad = (pos[1] & 0xC0) != 0x80;
 
         ena &= pos[0] >> 5;
-        ch = (ch << (ena * 6)) | (ena * (pos[2] & 0x3F)); bytes += ena; // 3 字节
+        ch = (ch << (ena * 6)) | (ena * (pos[2] & 0x3F));
+        bad += ena * ((pos[2] & 0xC0) != 0x80);
+        bytes += ena; // 3 字节
 
         ena &= pos[0] >> 4;
-        ch = (ch << (ena * 6)) | (ena * (pos[3] & 0x3F)); bytes += ena; // 4 字节
+        ch = (ch << (ena * 6)) | (ena * (pos[3] & 0x3F));
+        bad += ena * ((pos[3] & 0xC0) != 0x80);
+        bytes += ena; // 4 字节
 
-        if ((ena & (pos[0] >> 3))) return ~0L;  // 返回明显错误的码点
+        if (bad > 0 || (ena & (pos[0] >> 3))) return ~0L;  // 返回明显错误的码点
         return ch | ((pos[0] & (0x3F >> bytes)) << (6 * bytes));
     } // if
     return pos[0];
