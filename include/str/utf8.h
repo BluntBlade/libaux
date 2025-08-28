@@ -1,17 +1,25 @@
-// UTF-8 encodes code points in one to four bytes, depending on the value of the code point. In the following table, the characters u to z are replaced by the bits of the code point, from the positions U+uvwxyz:
-// Code point ↔  UTF-8 conversion 
-// First Code Point    Last Code Point    Byte 1      Byte 2      Byte 3      Byte 4
-// U+0000              U+007F             0yyyzzzz
-// U+0080              U+07FF             110xxxyy    10yyzzzz
-// U+0800              U+FFFF             1110wwww    10xxxxyy    10yyzzzz
-// U+010000            U+10FFFF           11110uvv    10vvwwww    10xxxxyy    10yyzzzz
-
 #ifndef _AUX_UTF8_H_
 #define _AUX_UTF8_H_ 1
 
+// 引用: https://en.wikipedia.org/wiki/UTF-8
+//
+// UTF-8 encodes code points in one to four bytes, depending on the value of the code point.
+// In the following table, the characters u to z are replaced by the bits of the code point, from the positions U+uvwxyz:
+//
+// Code point ↔  UTF-8 conversion
+//
+// +------------------+-----------------+------------+------------+------------+------------+
+// | First Code Point | Last Code Point | Byte 1     | Byte 2     | Byte 3     | Byte 4     |
+// |------------------+-----------------+------------+------------+------------+------------+
+// | U+0000           | U+007F          | 0yyyzzzz   |            |            |            |
+// | U+0080           | U+07FF          | 110xxxyy   | 10yyzzzz   |            |            |
+// | U+0800           | U+FFFF          | 1110wwww   | 10xxxxyy   | 10yyzzzz   |            |
+// | U+010000         | U+10FFFF        | 11110uvv   | 10vvwwww   | 10xxxxyy   | 10yyzzzz   |
+// +------------------+-----------------+------------+------------+------------+------------+
+
 #include "types.h"
 
-extern uint8_t utf8_map[128];
+extern uint8_t utf8_bytes_map[128];
 
 // 功能：测量单个 UTF-8 字符包含的字节数
 // 参数：
@@ -44,7 +52,7 @@ inline static int32_t utf8_measure(const char_t * pos)
 //     逻辑最简单，需加载表格到缓存中，会影响性能。
 inline static int32_t utf8_measure_by_lookup(const char_t * pos)
 {
-    return (utf8_map[pos[0] / 2] >> ((pos[0] & 0x1) * 4)) & 0x7;
+    return (utf8_bytes_map[pos[0] / 2] >> ((pos[0] & 0x1) * 4)) & 0x7;
 } // utf8_measure_by_lookup
 
 // 功能：测量单个 UTF-8 字符包含的字节数（累加法）
@@ -52,8 +60,7 @@ inline static int32_t utf8_measure_by_lookup(const char_t * pos)
 //     pos      IN  字符串指针，不能为 NULL
 // 返回值：
 //     0 <          字节数
-//     0            首字节错误
-//     < 0          存在异常字节
+//     <= 0         存在异常字节
 // 说明：
 //     平衡机器码字节数、缓存命中率和计算性能的逻辑实现。
 inline static int32_t utf8_measure_by_addup(const char_t * pos)
@@ -70,16 +77,36 @@ inline static int32_t utf8_measure_by_addup(const char_t * pos)
 
 #define utf8_measure utf8_measure_by_addup
 
-// 计算给定字节范围内有多少个 UTF-8 字符
+// 功能：计算给定范围包含多少个 UTF-8 字符
+// 参数：
+//     start    IN  起始地址，不能为 NULL
+//     size     IN  范围长度（字节数）
+//     chars    IO  入参：最大字符数，不能为 NULL
+//                  出参：包含字符数
+// 返回值：
+//     0 <          字节数
+//     <= 0         存在异常字节
 int32_t utf8_count(const char_t * start, int32_t size, int32_t * chars);
 
-// 校验给定节字范围是否完全包含正确的 UTF-8 字符（除了 NUL 字符）
+// 功能：校验给定范围是否完全包含正确的 UTF-8 字符（除了 NUL 字符）
+// 参数：
+//     start    IN  起始地址，不能为 NULL
+//     size     IN  范围长度（字节数）
+// 返回值：
+//     true         已正确编码
+//     false        存在异常字节
 inline static bool utf8_verify(const char_t * start, int32_t size)
 {
     int32_t chars = size;
     return utf8_count(start, size, &chars) == size;
 } // if
 
+// 功能：解码 UTF-8 字符
+// 参数：
+//     pos      IN  起始地址，不能为 NULL
+// 返回值：
+//     0 <=         Unicode 码点值
+//     0xFFFFFFFF   存在异常字节
 inline static uchar_t utf8_decode(const char_t * pos)
 {
     uchar_t ch = 0;    // Unicode 码点
@@ -102,6 +129,12 @@ inline static uchar_t utf8_decode(const char_t * pos)
     return pos[0];
 } // utf8_decode
 
+// 功能：编码 UTF-8 字符
+// 参数：
+//     ch       IN  Unicode 码点值
+//     seq      OUT 编码结果
+// 返回值：
+//     1 <=         编码字节数
 inline static int32_t utf8_encode(uchar_t ch, char_t seq[4])
 {
     int32_t ena = 0;
