@@ -256,7 +256,19 @@ test_unicode_data_t ug[] = {
     {.ch = 0x005AD0, .bytes = 3, .seq = {"\xE5\xAB\x90"}, .repr = {"\\xE5\\xAB\\x90"}},
     {.ch = 0x00FFFF, .bytes = 3, .seq = {"\xEF\xBF\xBF"}, .repr = {"\\xEF\\xBF\\xBF"}},
     {.ch = 0x010000, .bytes = 4, .seq = {"\xF0\x90\x80\x80"}, .repr = {"\\xF0\\x90\\x80\\x80"}},
+    {.ch = 0x0F0000, .bytes = 4, .seq = {"\xF3\xB0\x80\x80"}, .repr = {"\\xF3\\xB0\\x80\\x80"}},
     {.ch = 0x10FFFF, .bytes = 4, .seq = {"\xF4\x8F\xBF\xBF"}, .repr = {"\\xF4\\x8F\\xBF\\xBF"}},
+};
+
+test_unicode_data_t ub[] = {
+    {.ch = ~0L, .bytes = 1, .seq = {B1_1_STR}, .repr = {B1_1_REPR}},
+    {.ch = ~0L, .bytes = 1, .seq = {B1_2_STR}, .repr = {B1_2_REPR}},
+    {.ch = ~0L, .bytes = 1, .seq = {B1_3_STR}, .repr = {B1_3_REPR}},
+    {.ch = ~0L, .bytes = 1, .seq = {B1_4_STR}, .repr = {B1_4_REPR}},
+    {.ch = ~0L, .bytes = 2, .seq = {B2_STR}, .repr = {B2_REPR}},
+    {.ch = ~0L, .bytes = 3, .seq = {B3_STR}, .repr = {B3_REPR}},
+    {.ch = ~0L, .bytes = 4, .seq = {B4_STR}, .repr = {B4_REPR}},
+    {.ch = ~0L, .bytes = 4, .seq = {BZ_STR}, .repr = {BZ_REPR}},
 };
 
 Test(Function, utf8_decode)
@@ -267,10 +279,14 @@ Test(Function, utf8_decode)
     // 正常用例
     for (i = 0; i < sizeof(ug) / sizeof(ug[0]); ++i) {
         ch = utf8_decode(ug[i].seq);
-        cr_expect(ch == ug[i].ch, "utf8_decode(%s) return incorrect ch: expect %06X, got %06X", ug[i].repr, ug[i].ch, ch);
+        cr_expect(ch == ug[i].ch, "ug[%d] utf8_decode(%s) return incorrect ch: expect 0x%06X, got 0x%06X", i, ug[i].repr, ug[i].ch, ch);
     } // for
 
     // 异常用例
+    for (i = 0; i < sizeof(ub) / sizeof(ub[0]); ++i) {
+        ch = utf8_decode(ub[i].seq);
+        cr_expect(ch == ub[i].ch, "ub[%d] utf8_decode(%s) return incorrect ch: expect 0x%X, got 0x%X", i, ub[i].repr, ub[i].ch, ch);
+    } // for
 } // utf8_decode
 
 Test(Function, utf8_encode)
