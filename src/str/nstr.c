@@ -50,8 +50,8 @@ vtable_t vtable[STR_ENC_COUNT] = {
     },
 };
 
-char_t c_blank[] = {""};
-nstr_t blank = {.start = c_blank, .encoding = STR_ENC_ASCII};
+nstr_t c_str = {0};
+nstr_t blank = {.start = blank.data, .encoding = STR_ENC_ASCII};
 
 inline static bool is_slice(nstr_p s)
 {
@@ -60,20 +60,19 @@ inline static bool is_slice(nstr_p s)
 
 inline static nstr_p get_entity(nstr_p s)
 {
-    return (is_slice(s) && s->offset >= 0) ? container_of(nstr_t, data, (s->start - s->offset)) : NULL;
+    return (s->offset < 0) ? &c_str : container_of(nstr_t, data, (s->start - s->offset));
 } // get_entity
 
-inline static nstr_p add_ref(nstr_p s)
+inline static void add_ref(nstr_p ent)
 {
-    nstr_p ent = get_entity(s);
-    if (ent) ent->slcs += 1;
-    return s;
+    ent->slcs += 1;
 } // add_ref
 
-inline static void del_ref(nstr_p s)
+inline static void del_ref(nstr_p ent)
 {
-    nstr_p ent = get_entity(s);
-    if (ent && --ent->slcs == 0) free(ent);
+    if (--ent->slcs == 0) {
+        if (ent != &blank && ent != &c_str) free(ent);
+    } // if
 } // del_ref
 
 static nstr_p new_entity(const char_t * src, int32_t bytes, int32_t chars, str_encoding_t encoding)
@@ -98,12 +97,14 @@ inline static nstr_p init_slice(nstr_p s, char_t * start, int32_t offset, int32_
     s->chars = chars;
     s->offset = offset;
     s->start = start;
-    return add_ref(s);
+
+    add_ref(get_entity(s));
+    return s;
 } // init_slice
 
 inline static void clean_slice(nstr_p s)
 {
-    del_ref(s);
+    del_ref(get_entity(s));
     s->bytes = 0;
     s->chars = 0;
     s->offset = 0;
@@ -179,7 +180,8 @@ nstr_p nstr_duplicate(nstr_p s)
 
 nstr_p nstr_blank_string(void)
 {
-    return add_ref(&blank);
+    add_ref(&blank);
+    return &blank;
 } // nstr_blank_string
 
 nstr_p nstr_blank_slice(void)
@@ -198,12 +200,14 @@ void nstr_delete(nstr_p s)
 {
     nstr_p ent = s;
 
-    if (! s) return; // 空指针
+    if (! s) return; // NULL 指针
+
     if (is_slice(s)) {
         ent = get_entity(s);
-        free(s); // 释放切片
+        free(s);
     } // if
-    if (ent) del_ref(ent);
+
+    del_ref(ent);
 } // nstr_delete
 
 void nstr_delete_array(nstr_array_p * as, int n)
@@ -611,8 +615,8 @@ nstr_p nstr_repeat(nstr_p s, int n, nstr_p slc)
     nstr_p new = NULL;
     int32_t b = 0;
 
-    if (s->bytes == 0) return nstr_blank_string(); // CASE-1: s 是空串。
-    if (n <= 1) return add_ref(s);
+    if (s->bytes == 0) return nstr_blank_string(); // CASE-1: s 是空串
+    if (n <= 1) return refer_to_whole(slc, s);
 
     new = new_entity(NULL, (s->bytes * n), (s->chars * n), s->encoding);
     if (! new) return NULL;
