@@ -7,3 +7,7 @@ target_link_libraries (ascii criterion)
 file (GLOB_RECURSE TEST_UTF8_SOURCE_FILES str/utf8.c)
 add_executable (utf8 ${TEST_UTF8_SOURCE_FILES})
 target_link_libraries (utf8 criterion)
+
+file (GLOB_RECURSE TEST_NSTR_SOURCE_FILES str/nstr.c ../src/str/ascii.c ../src/str/utf8.c)
+add_executable (nstr ${TEST_NSTR_SOURCE_FILES})
+target_link_libraries (nstr criterion)
