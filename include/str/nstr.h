@@ -31,23 +31,20 @@ typedef enum STR_LOCALE {
 
 // ---- 功能函数 ---- //
 
-// 从原生字符串生成新字符串
-extern nstr_p nstr_new(const char_t * src, int32_t bytes, str_encoding_t encoding);
+// 获取空字符串常量
+extern nstr_p nstr_blank(void);
 
-// 从源串或切片生成新字符串
+// 生成新串
+extern nstr_p nstr_new(const char_t * src, int32_t bytes, int32_t index, int32_t chars, str_encoding_t encoding);
+
+// 生成或重置空闲切片
+extern nstr_p nstr_idle(nstr_p s);
+
+// 复制源串（深拷贝）
 extern nstr_p nstr_clone(nstr_p s);
 
-// 从源串生成新字符串，或从切片生成新切片
+// 复制切片（浅拷贝）
 extern nstr_p nstr_duplicate(nstr_p s);
-
-// 获取空字符串常量
-extern nstr_p nstr_blank_string(void);
-
-// 生成空切片
-extern nstr_p nstr_blank_slice(void);
-
-// 重置切片
-extern void nstr_reset(nstr_p s);
 
 // 删除字符串
 extern void nstr_delete(nstr_p s);
@@ -74,14 +71,11 @@ inline static int32_t nstr_length(nstr_p s)
     return nstr_chars(s);
 } // nstr_length
 
-// 测试是否为字符串
-extern bool nstr_is_string(nstr_p s);
-
-// 测试是否为切片
-extern bool nstr_is_slice(nstr_p s);
-
 // 测试是否为空字符串
-extern bool nstr_is_blank(nstr_p s);
+inline static bool nstr_is_blank(nstr_p s)
+{
+    return nstr_chars(s) == 0;
+} // nstr_is_blank
 
 // 测试是否存在子串
 extern bool nstr_contain(nstr_p s, nstr_p sub);
@@ -129,9 +123,6 @@ inline static bool nstr_greater_or_equal(nstr_p s1, nstr_p s2, str_locale_t loca
     return nstr_compare(s1, s2, locale) >= 0;
 } // nstr_greater_or_equal
 
-// 校验编码正确性和完整性
-extern bool nstr_verify(nstr_p s);
-
 // 功能：获取字符数据区的起止地址
 // 参数：
 //     s      IN    入参：源串或切片，不能为 NULL
@@ -164,12 +155,12 @@ extern int32_t nstr_next_char(nstr_p s, const char_t ** start, int32_t * index, 
 //     STR_UNKNOWN_BYTE     源串包含异常字节（未正确编码）
 // 说明：
 //     本函数在源串中查找子串，并修改子串的引用位置。查找结束后，如再次以相同对象调用，则会绕回到源串开头，启动新一轮查找。
-extern int32_t nstr_next_sub(nstr_p s, nstr_p sub, char_t ** start, int32_t * index);
+extern int32_t nstr_next_sub(nstr_p s, nstr_p sub, const char_t ** start, int32_t * index);
 
 #define nstr_find next_next_sub
 
-// 基于字符范围，生成或更新切片
-extern nstr_p nstr_slice(nstr_p s, int32_t index, int32_t chars, nstr_p slc);
+// 基于字符范围，生成或设置切片
+extern nstr_p nstr_slice(nstr_p s, int32_t index, int32_t chars, nstr_p r);
 
 // 功能：切分字符串
 // 参数：
@@ -183,94 +174,94 @@ extern nstr_p nstr_slice(nstr_p s, int32_t index, int32_t chars, nstr_p slc);
 extern int nstr_split(nstr_p s, nstr_p deli, int max, nstr_array_p * as);
 
 // 重复拼接字符串
-extern nstr_p nstr_repeat(nstr_p s, int n, nstr_p slc);
+extern nstr_p nstr_repeat(nstr_p s, int n, nstr_p r);
 
 // 拼接字符串
-extern nstr_p nstr_concat(nstr_p * as, int n, nstr_p slc, ...);
+extern nstr_p nstr_concat(nstr_p * as, int n, nstr_p r, ...);
 
 // 拼接两个字符串
-extern nstr_p nstr_concat2(nstr_p s1, nstr_p s2, nstr_p slc);
+extern nstr_p nstr_concat2(nstr_p s1, nstr_p s2, nstr_p r);
 
 // 拼接三个字符串
-extern nstr_p nstr_concat3(nstr_p s1, nstr_p s2, nstr_p s3, nstr_p slc);
+extern nstr_p nstr_concat3(nstr_p s1, nstr_p s2, nstr_p s3, nstr_p r);
 
 // 拼接多个字符串，以给定字符串分隔
-extern nstr_p nstr_join(nstr_p deli, nstr_p * as, int n, nstr_p slc, ...);
+extern nstr_p nstr_join(nstr_p deli, nstr_p * as, int n, nstr_p r, ...);
 
 // 拼接多个字符串，以给定单字节字符分隔
-extern nstr_p nstr_join_by_char(char_t deli, nstr_p * as, int n, nstr_p slc, ...);
+extern nstr_p nstr_join_by_char(char_t deli, nstr_p * as, int n, nstr_p r, ...);
 
 // 拼接两个字符串，以给定字符串分隔
-inline static nstr_p nstr_join2(nstr_p deli, nstr_p s1, nstr_p s2, nstr_p slc)
+inline static nstr_p nstr_join2(nstr_p deli, nstr_p s1, nstr_p s2, nstr_p r)
 {
-    return nstr_concat3(s1, deli, s2, slc);
+    return nstr_concat3(s1, deli, s2, r);
 } // nstr_join2
 
 // 将给定位置处的固定长度子串替换成新串
-extern nstr_p nstr_replace(nstr_p s, int32_t index, int32_t chars, nstr_p to, nstr_p slc);
+extern nstr_p nstr_replace(nstr_p s, int32_t index, int32_t chars, nstr_p to, nstr_p r);
 
 // 将给定位置处的固定长度子串替换成单字节字符
-extern nstr_p nstr_replace_with_char(nstr_p s, int32_t index, int32_t chars, char_t ch, nstr_p slc);
+extern nstr_p nstr_replace_with_char(nstr_p s, int32_t index, int32_t chars, char_t ch, nstr_p r);
 
 // 在给定位置插入子串
-inline static nstr_p nstr_insert(nstr_p s, int32_t index, nstr_p sub, nstr_p slc)
+inline static nstr_p nstr_insert(nstr_p s, int32_t index, nstr_p sub, nstr_p r)
 {
-    return nstr_replace(s, index, 0, sub, slc);
+    return nstr_replace(s, index, 0, sub, r);
 } // nstr_insert
 
 // 在给定位置插入单字节字符
-inline static nstr_p nstr_insert_char(nstr_p s, int32_t index, char_t ch, nstr_p slc)
+inline static nstr_p nstr_insert_char(nstr_p s, int32_t index, char_t ch, nstr_p r)
 {
-    return nstr_replace_with_char(s, index, 0, ch, slc);
+    return nstr_replace_with_char(s, index, 0, ch, r);
 } // nstr_insert_char
 
 // 在串头前插入子串
-inline static nstr_p nstr_prepend(nstr_p s, nstr_p sub, nstr_p slc)
+inline static nstr_p nstr_prepend(nstr_p s, nstr_p sub, nstr_p r)
 {
-    return nstr_replace(s, 0, 0, sub, slc);
+    return nstr_replace(s, 0, 0, sub, r);
 } // nstr_prepend
 
 // 在串头前插入单字节字符
-inline static nstr_p nstr_prepend_char(nstr_p s, char_t ch, nstr_p slc)
+inline static nstr_p nstr_prepend_char(nstr_p s, char_t ch, nstr_p r)
 {
-    return nstr_replace_with_char(s, 0, 0, ch, slc);
+    return nstr_replace_with_char(s, 0, 0, ch, r);
 } // nstr_prepend_char
 
 // 在串尾后插入子串
-inline static nstr_p nstr_append(nstr_p s, nstr_p sub, nstr_p slc)
+inline static nstr_p nstr_append(nstr_p s, nstr_p sub, nstr_p r)
 {
-    return nstr_replace(s, nstr_chars(s), 0, sub, slc);
+    return nstr_replace(s, nstr_chars(s), 0, sub, r);
 } // nstr_append
 
 // 在串尾后插入单字节字符
-inline static nstr_p nstr_append_char(nstr_p s, char_t ch, nstr_p slc)
+inline static nstr_p nstr_append_char(nstr_p s, char_t ch, nstr_p r)
 {
-    return nstr_replace_with_char(s, nstr_chars(s), 0, ch, slc);
+    return nstr_replace_with_char(s, nstr_chars(s), 0, ch, r);
 } // nstr_append_char
 
 // 删除定位置处的固定长度子串
-extern nstr_p nstr_remove(nstr_p s, int32_t index, int32_t chars, nstr_p slc);
+extern nstr_p nstr_remove(nstr_p s, int32_t index, int32_t chars, nstr_p r);
 
 // 删除串头的固定长度子串
-extern nstr_p nstr_cut_head(nstr_p s, int32_t chars, nstr_p slc);
+extern nstr_p nstr_cut_head(nstr_p s, int32_t chars, nstr_p r);
 
 // 删除串尾的固定长度子串
-extern nstr_p nstr_cut_tail(nstr_p s, int32_t chars, nstr_p slc);
+extern nstr_p nstr_cut_tail(nstr_p s, int32_t chars, nstr_p r);
 
 // 删除串尾的换行符（以及可能的回车符）
-extern nstr_p nstr_chomp(nstr_p s, nstr_p slc);
+extern nstr_p nstr_chomp(nstr_p s, nstr_p r);
 
 // 删除串头和串尾的空白字符（SPACE/TAB/CR/NL等）
-extern nstr_p nstr_trim(nstr_p s, nstr_p slc);
+extern nstr_p nstr_trim(nstr_p s, nstr_p r);
 
 // 删除串头的空白字符（SPACE/TAB/CR/NL等）
-extern nstr_p nstr_ltrim(nstr_p s, nstr_p slc);
+extern nstr_p nstr_ltrim(nstr_p s, nstr_p r);
 
 // 删除串尾的空白字符（SPACE/TAB/CR/NL等）
-extern nstr_p nstr_rtrim(nstr_p s, nstr_p slc);
+extern nstr_p nstr_rtrim(nstr_p s, nstr_p r);
 
 // 替换子串
-extern nstr_p nstr_substitute(nstr_p s, bool all, nstr_p from, nstr_p to, nstr_p slc);
+extern nstr_p nstr_substitute(nstr_p s, bool all, nstr_p from, nstr_p to, nstr_p r);
 
 #endif // _AUX_STRING_H_
 
