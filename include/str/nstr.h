@@ -11,13 +11,8 @@ typedef enum STR_ENCODING {
     STR_ENC_ASCII = 0,
     STR_ENC_UTF8  = 1,
     STR_ENC_COUNT = 2,
-    STR_ENC_MAX = (1 << 8) - 1,  // 支持最多 255 种编码方案
+    STR_ENC_MAX = (1 << 6) - 1,  // 支持最多 64 种编码方案
 } str_encoding_t;
-
-enum {
-    STR_AND_NEW = true,
-    STR_NOT_NEW = false,
-};
 
 enum {
     STR_OUT_OF_MEMORY = -1,
@@ -36,6 +31,11 @@ extern nstr_p nstr_blank(void);
 
 // 生成新串
 extern nstr_p nstr_new(const char_t * src, int32_t bytes, int32_t index, int32_t chars, str_encoding_t encoding);
+
+inline static nstr_p nstr_refer_to_cstr(const char_t * src, str_encoding_t encoding)
+{
+    return nstr_new(src, -1, 0, -1, encoding);
+} // nstr_refer_to_cstr
 
 // 生成或重置空闲切片
 extern nstr_p nstr_idle(nstr_p s);

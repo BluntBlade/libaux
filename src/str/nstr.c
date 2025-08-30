@@ -55,15 +55,15 @@ vtable_t vtable[STR_ENC_COUNT] = {
     },
 };
 
-entity_t idle = {0};
-entity_t cstr = {0};
+entity_t idle_dummy = {0};
+entity_t cstr_dummy = {0};
 entity_t blank_dummy = {0};
 
 nstr_t blank = {.start = blank_dummy.data, .encoding = STR_ENC_ASCII};
 
 inline static entity_p get_entity(nstr_p s)
 {
-    return (s->offset < 0) ? &cstr : container_of(entity_t, data, (s->start - s->offset));
+    return (s->offset < 0) ? &cstr_dummy : container_of(entity_t, data, (s->start - s->offset));
 } // get_entity
 
 inline static void add_ref(entity_p ent)
@@ -110,8 +110,9 @@ inline static void clean_slice(nstr_p s)
     s->bytes = 0;
     s->chars = 0;
     s->offset = 0;
-    s->start = NULL;
+    s->start = idle_dummy.data;
     s->encoding = STR_ENC_ASCII;
+    add_ref(get_entity(s));
 } // clean_slice
 
 static nstr_p new_slice(const char_t * start, int32_t offset, int32_t bytes, int32_t chars, str_encoding_t encoding)
@@ -156,14 +157,14 @@ nstr_p nstr_blank(void)
 
 nstr_p nstr_new(const char_t * src, int32_t bytes, int32_t index, int32_t chars, str_encoding_t encoding)
 {
-    nstr_p new = NULL;
     entity_p ent = NULL;
+    nstr_p new = NULL;
     const char_t * start = NULL;
     int32_t r_bytes = 0;
     int32_t r_chars = 0;
     bool refer_to_cstr = bytes < 0;
 
-    if (! src) return new_slice(idle.data, 0, 0, 0, STR_ENC_ASCII);
+    if (! src) return new_slice(idle_dummy.data, 0, 0, 0, STR_ENC_ASCII);
     if (bytes == 0) return nstr_blank();
 
     if (refer_to_cstr) bytes = strlen((void *)src);
@@ -175,7 +176,7 @@ nstr_p nstr_new(const char_t * src, int32_t bytes, int32_t index, int32_t chars,
     } // if
     start = src + r_bytes;
 
-    r_chars = chars;
+    r_chars = chars < 0 ? bytes - r_bytes : chars;
     r_bytes = vtable[encoding].count(start, bytes - r_bytes, &r_chars);
     if (r_bytes < 0) return NULL;
 
@@ -191,7 +192,7 @@ nstr_p nstr_new(const char_t * src, int32_t bytes, int32_t index, int32_t chars,
 
 nstr_p nstr_idle(nstr_p s)
 {
-    if (! s) return nstr_new(NULL, 0, 0, 0, STR_ENC_ASCII);
+    if (! s) return nstr_new(idle_dummy.data, 0, 0, 0, STR_ENC_ASCII);
     clean_slice(s);
     return s;
 } // nstr_idle
