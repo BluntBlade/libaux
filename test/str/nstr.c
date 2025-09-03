@@ -17,6 +17,19 @@ Test(Creation, nstr_blank)
     nstr_delete(blk);
 } // nstr_blank
 
+void check_slice(const char_t * func, nstr_p s, int32_t need_free, int32_t bytes, int32_t chars, str_encoding_t encoding, const char_t * start, int32_t offset, entity_p ent, int32_t slcs)
+{
+    cr_expect(s != NULL, "%s() return pointer: expect non-NULL, got NULL", func);
+    cr_expect(s->need_free == need_free, "%s() don't set .need_free right: expect %d, got %d", func, need_free, s->need_free);
+    cr_expect(s->bytes == bytes, "%s() don't set .bytes right: expect %d, got %d", func, bytes, s->bytes);
+    cr_expect(s->chars == chars, "%s() don't set .chars right: expect %d, got %d", func, chars, s->chars);
+    cr_expect(s->encoding == encoding, "%s() don't set .encoding right: expect %d, got %d", func, encoding, s->encoding);
+    cr_expect(s->start == start, "%s() don't set .start right: expect %p, got %p", func, start, s->start);
+    cr_expect(s->offset == offset, "%s() don't set .offset right: expect %d, got %d", func, offset, s->offset);
+    cr_expect(get_entity(s) == ent, "%s() ain't refering to %p", func, ent);
+    cr_expect(get_entity(s)->slcs == slcs, "%s() don't add references: expect %d, got %d", func, slcs, get_entity(s)->slcs);
+} // check_slice
+
 Test(Creation, nstr_refer_to_cstr)
 {
     const char_t cstr[] = {"Hello world!"};
@@ -24,15 +37,7 @@ Test(Creation, nstr_refer_to_cstr)
     nstr_p new = NULL;
 
     new = nstr_refer_to_cstr(cstr, STR_ENC_ASCII);
-    cr_expect(new != NULL, "nstr_refer_to_cstr() return pointer: expect non-NULL, got NULL");
-    cr_expect(new->need_free == 1, "nstr_refer_to_cstr() don't set .need_free right: expect %d, got %d", 1, new->need_free);
-    cr_expect(new->bytes == size, "nstr_refer_to_cstr() don't set .bytes right: expect %d, got %d", size, new->bytes);
-    cr_expect(new->chars == size, "nstr_refer_to_cstr() don't set .chars right: expect %d, got %d", size, new->chars);
-    cr_expect(new->encoding == STR_ENC_ASCII, "nstr_refer_to_cstr() don't set .encoding right: expect %d, got %d", STR_ENC_ASCII, new->encoding);
-    cr_expect(new->start == cstr, "nstr_refer_to_cstr() don't set .start right: expect %p, got %p", cstr, new->start);
-    cr_expect(new->offset == -1, "nstr_refer_to_cstr() don't set .offset right: expect %d, got %d", -1, new->offset);
-    cr_expect(get_entity(new) == &cstr_dummy, "nstr_refer_to_cstr() ain't refering to cstr_dummy");
-    cr_expect(get_entity(new)->slcs == 1, "nstr_refer_to_cstr() don't add references: expect %d, got %d", 1, get_entity(new)->slcs);
+    check_slice((const char_t *)"nstr_refer_to_cstr", new, 1, size, size, STR_ENC_ASCII, cstr, -1, &cstr_dummy, 1);
 
     nstr_delete(new);
 } // nstr_new
