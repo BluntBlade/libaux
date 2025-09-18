@@ -55,15 +55,14 @@ vtable_t vtable[STR_ENC_COUNT] = {
     },
 };
 
-entity_t idle_dummy = {0};
-entity_t cstr_dummy = {0};
-entity_t blank_dummy = {0};
+entity_t cstr_ent = {0};
+entity_t blank_ent = {0};
 
-nstr_t blank = {.start = blank_dummy.data, .encoding = STR_ENC_ASCII};
+nstr_t blank = {.start = blank_ent.data, .encoding = STR_ENC_ASCII };
 
 inline static entity_p get_entity(nstr_p s)
 {
-    return (s->offset < 0) ? &cstr_dummy : container_of(entity_t, data, (s->start - s->offset));
+    return (s->offset < 0) ? &cstr_ent : container_of(entity_t, data, (s->start - s->offset));
 } // get_entity
 
 inline static void add_ref(entity_p ent)
@@ -110,7 +109,7 @@ inline static void clean_slice(nstr_p s)
     s->bytes = 0;
     s->chars = 0;
     s->offset = 0;
-    s->start = idle_dummy.data;
+    s->start = blank_ent.data;
     s->encoding = STR_ENC_ASCII;
     add_ref(get_entity(s));
 } // clean_slice
@@ -122,17 +121,26 @@ static nstr_p new_slice(const char_t * start, int32_t offset, int32_t bytes, int
     return new;
 } // new_slice
 
+inline static nstr_p new_blank(void)
+{
+    return new_slice(blank_ent.data, 0, 0, 0, STR_ENC_ASCII);
+} // new_blank
+
+inline static nstr_p refer_to_other(nstr_p r, const char_t * start, int32_t offset, int32_t bytes, int32_t chars, str_encoding_t encoding)
+{
+    del_ref(get_entity(r));
+    r->bytes = bytes;
+    r->chars = chars;
+    r->offset = offset;
+    r->start = start;
+    r->encoding = encoding;
+    add_ref(get_entity(r));
+    return r;
+} // refer_to_other
+
 inline static nstr_p refer_to_or_new_slice(nstr_p r, const char_t * start, int32_t offset, int32_t bytes, int32_t chars, str_encoding_t encoding)
 {
-    if (r) {
-        clean_slice(r);
-        init_slice(r, r->need_free, start, offset, bytes, chars, encoding);
-        return r;
-    } // if
-    if (start == blank_dummy.data) {
-        add_ref(&blank_dummy);
-        return &blank;
-    } // if
+    if (r) return refer_to_other(r, start, offset, bytes, chars, encoding);
     return new_slice(start, offset, bytes, chars, encoding);
 } // refer_to_or_new_slice
 
@@ -149,53 +157,55 @@ inline static void copy3(char_t * dst, const char_t * s1, int32_t b1, const char
     dst[b1 + b2 + b3] = 0;
 } // copy3
 
-nstr_p nstr_blank(void)
-{
-    add_ref(&blank_dummy);
-    return &blank;
-} // nstr_blank
-
 nstr_p nstr_new(const char_t * src, int32_t bytes, int32_t index, int32_t chars, str_encoding_t encoding)
 {
     entity_p ent = NULL;
     nstr_p new = NULL;
     const char_t * start = NULL;
+    int32_t offset = 0;
     int32_t r_bytes = 0;
     int32_t r_chars = 0;
-    bool refer_to_cstr = bytes < 0;
 
-    if (! src) return new_slice(idle_dummy.data, 0, 0, 0, STR_ENC_ASCII);
-    if (bytes == 0) return nstr_blank();
+    if (! src || bytes == 0) return new_blank();
 
-    if (refer_to_cstr) bytes = strlen((void *)src);
-
-    if (0 < index) {
-        r_chars = index;
-        r_bytes = vtable[encoding].count(src, bytes, &r_chars);
-        if (r_bytes < 0) return NULL;
+    if (bytes < 0) {
+        bytes = strlen((void *)src);
+        offset = -1;
     } // if
-    start = src + r_bytes;
 
-    r_chars = chars < 0 ? bytes - r_bytes : chars;
-    r_bytes = vtable[encoding].count(start, bytes - r_bytes, &r_chars);
-    if (r_bytes < 0) return NULL;
+    if (encoding != STR_ENC_ASCII) {
+        if (0 < index) {
+            r_chars = index;
+            r_bytes = vtable[encoding].count(src, bytes, &r_chars);
+            if (r_bytes < 0) return NULL;
+        } // if
 
-    if (refer_to_cstr) return new_slice(start, -1, r_bytes, r_chars, encoding);
+        start = src + r_bytes;
 
-    ent = new_entity(start, r_bytes, r_chars, encoding);
-    if (! ent) return NULL;
+        r_chars = chars < 0 ? bytes - r_bytes : chars;
+        r_bytes = vtable[encoding].count(start, bytes - r_bytes, &r_chars);
+        if (r_bytes < 0) return NULL;
+    } else {
+        if (bytes <= index) return new_blank();
 
-    new = new_slice(ent->data, 0, r_bytes, r_chars, encoding);
-    if (! new) free(ent);
-    return new;
+        start = src + index;
+        r_chars = r_bytes = bytes - index;
+    } // if
+
+    new = malloc(sizeof(nstr_t));
+    if (! new) return NULL;
+
+    if (offset == 0) {
+        ent = new_entity(start, r_bytes, r_chars, encoding);
+        if (! ent) {
+            free(new);
+            return NULL;
+        } // if
+        start = ent->data;
+    } // if
+
+    return init_slice(new, true, start, offset, r_bytes, r_chars, encoding);
 } // nstr_new
-
-nstr_p nstr_idle(nstr_p s)
-{
-    if (! s) return nstr_new(idle_dummy.data, 0, 0, 0, STR_ENC_ASCII);
-    clean_slice(s);
-    return s;
-} // nstr_idle
 
 nstr_p nstr_clone(nstr_p s)
 {
@@ -261,8 +271,7 @@ int32_t nstr_next_char(nstr_p s, const char_t ** start, int32_t * index, nstr_p 
     if (! *start) {
         *start = s->start;
         *index = 0;
-        clean_slice(ch);
-        init_slice(ch, ch->need_free, s->start, 0, 0, 1, s->encoding);
+        refer_to_other(ch, s->start, 0, 0, 1, s->encoding);
     } else {
         *start += ch->bytes;
         *index += 1;
@@ -332,7 +341,7 @@ int32_t nstr_next_sub(nstr_p s, nstr_p sub, const char_t ** start, int32_t * ind
 
 nstr_p nstr_slice(nstr_p s, int32_t index, int32_t chars, nstr_p r)
 {
-    const char_t * start = blank.start;
+    const char_t * start = blank_ent.data;
     int32_t r_bytes = 0;
     int32_t r_chars = 0;
 
@@ -391,7 +400,7 @@ int nstr_split(nstr_p s, nstr_p deli, int max, nstr_array_p * as)
         // CASE-1: 源串是空串
         *as = malloc(sizeof(as[0]) * 2);
         if (! *as) return STR_OUT_OF_MEMORY;
-        (*as)[0] = nstr_blank();
+        (*as)[0] = new_blank();
         (*as)[1] = NULL;
         return 1;
     } // if
@@ -561,7 +570,7 @@ static entity_p join_strings(nstr_p deli, nstr_p * as, int n, va_list * ap)
     } // while
     va_end(cp);
 
-    if (cnt == 0) return &blank_dummy;
+    if (cnt == 0) return &blank_ent;
 
     if (deli && deli->bytes > 0) {
         dbuf = deli->start;
@@ -771,13 +780,15 @@ nstr_p nstr_remove(nstr_p s, int32_t index, int32_t chars, nstr_p r)
 
 nstr_p nstr_cut_head(nstr_p s, int32_t chars, nstr_p r)
 {
-    if (s->chars < chars) return refer_to_whole(r, &blank); // CASE-1: 删除长度大于字符串长度
+    // CASE-1: 删除长度大于字符串长度
+    if (s->chars < chars) return refer_to_whole(r, &blank);
     return nstr_replace(s, 0, chars, &blank, r);
 } // nstr_cut_head
 
 nstr_p nstr_cut_tail(nstr_p s, int32_t chars, nstr_p r)
 {
-    if (s->chars < chars) return refer_to_whole(r, &blank); // CASE-1: 删除长度大于字符串长度
+    // CASE-1: 删除长度大于字符串长度
+    if (s->chars < chars) return refer_to_whole(r, &blank);
     return nstr_replace(s, s->chars - chars, chars, &blank, r);
 } // nstr_cut_tail
 

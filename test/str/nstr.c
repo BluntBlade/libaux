@@ -7,14 +7,17 @@
 
 Test(Creation, nstr_blank)
 {
-    nstr_p blk = nstr_blank();
+    nstr_p blk1 = nstr_blank();
+    nstr_p blk2 = nstr_blank();
 
-    cr_expect(blk == &blank, "nstr_blank() return pointer: expect %p, got %p", &blank, blk);
-    cr_expect(blank_dummy.slcs == 1, "nstr_blank() don't add references: expect %d, got %d", 1, blank_dummy.slcs);
-    cr_expect(blank_dummy.need_free == 0);
-    cr_expect(blank.need_free == 0);
+    cr_expect(blk1 != NULL, "nstr_blank() return new pointer: expect non-NULL, got NULL");
+    cr_expect(blk1 != &blank, "nstr_blank() return pointer to constant blank");
+    cr_expect(blk2 != blk1, "nstr_blank() return same pointer");
+    cr_expect(blank_ent.slcs == 2, "nstr_blank() don't add references: expect %d, got %d", 2, blank_ent.slcs);
+    cr_expect(blank_ent.need_free == 0);
 
-    nstr_delete(blk);
+    nstr_delete(blk2);
+    nstr_delete(blk1);
 } // nstr_blank
 
 void check_slice(const char_t * func, nstr_p s, int32_t need_free, int32_t bytes, int32_t chars, str_encoding_t encoding, const char_t * start, int32_t offset, entity_p ent, int32_t slcs)
@@ -37,7 +40,7 @@ Test(Creation, nstr_refer_to_cstr)
     nstr_p new = NULL;
 
     new = nstr_refer_to_cstr(cstr, STR_ENC_ASCII);
-    check_slice((const char_t *)"nstr_refer_to_cstr", new, 1, size, size, STR_ENC_ASCII, cstr, -1, &cstr_dummy, 1);
+    check_slice((const char_t *)"nstr_refer_to_cstr", new, 1, size, size, STR_ENC_ASCII, cstr, -1, &cstr_ent, 1);
 
     nstr_delete(new);
 } // nstr_new

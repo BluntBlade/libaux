@@ -26,19 +26,19 @@ typedef enum STR_LOCALE {
 
 // ---- 功能函数 ---- //
 
-// 获取空字符串常量
-extern nstr_p nstr_blank(void);
-
 // 生成新串
 extern nstr_p nstr_new(const char_t * src, int32_t bytes, int32_t index, int32_t chars, str_encoding_t encoding);
+
+// 生成空串
+inline static nstr_p nstr_blank(void)
+{
+    return nstr_new(NULL, 0, 0, 0, STR_ENC_ASCII);
+} // nstr_blank
 
 inline static nstr_p nstr_refer_to_cstr(const char_t * src, str_encoding_t encoding)
 {
     return nstr_new(src, -1, 0, -1, encoding);
 } // nstr_refer_to_cstr
-
-// 生成或重置空闲切片
-extern nstr_p nstr_idle(nstr_p s);
 
 // 复制源串（深拷贝）
 extern nstr_p nstr_clone(nstr_p s);
