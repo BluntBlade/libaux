@@ -19,11 +19,9 @@ typedef struct VTABLE {
 
 typedef struct ENTITY {
     int32_t         bytes;          // 串内容占用字节数
-    int32_t         chars;          // 编码后的字符个数
 
     uint32_t        need_free:1;    // 是否释放内存
-    uint32_t        unused:25;
-    uint32_t        encoding:6;     // 编码方案，支持最多 64 种
+    uint32_t        unused:31;
 
     int32_t         slcs;           // （仅用于字符串）切片计数，减到 0 则销毁字符串并释放内存
     char_t          data[1];        // 字符存储区，包含结尾的 NUL 字符
@@ -75,17 +73,13 @@ inline static void del_ref(entity_p ent)
     if (--ent->slcs == 0 && ent->need_free) free(ent);
 } // del_ref
 
-static entity_p new_entity(const char_t * src, int32_t bytes, int32_t chars, str_encoding_t encoding)
+static entity_p new_entity(int32_t bytes)
 {
     entity_p new = malloc(sizeof(entity_t) + bytes);
     if (new) {
         new->need_free = true;
-        new->encoding = encoding;
         new->bytes = bytes;
-        new->chars = chars;
         new->slcs = 1;  // 引用自身
-        if (src) memcpy(new->data, src, bytes);
-        new->data[bytes] = 0;
     } // if
     return new;
 } // new_entity
@@ -170,11 +164,14 @@ nstr_p nstr_new(const char_t * src, int32_t bytes)
     new = malloc(sizeof(nstr_t));
     if (! new) return NULL;
 
-    ent = new_entity(src, bytes, bytes, STR_ENC_ASCII);
+    ent = new_entity(bytes);
     if (! ent) {
         free(new);
         return NULL;
     } // if
+
+    memcpy(ent->data, src, bytes);
+    ent->data[bytes] = 0;
 
     return init_slice(new, true, ent->data, 0, bytes, bytes, STR_ENC_ASCII);
 } // nstr_new
@@ -560,7 +557,7 @@ static char_t * copy_strings_with_long_deli(char_t * pos, nstr_p * as, int n, co
     return pos;
 } // copy_strings_with_long_deli
 
-static entity_p join_strings(nstr_p deli, nstr_p * as, int n, va_list * ap)
+static entity_p join_strings(nstr_p deli, nstr_p * as, int n, va_list * ap, int32_t * chars)
 {
     va_list cp;
     copy_strings_t copy = &copy_strings;
@@ -569,7 +566,6 @@ static entity_p join_strings(nstr_p deli, nstr_p * as, int n, va_list * ap)
     char_t * pos = NULL;
     const char_t * dbuf = NULL;
     int32_t bytes = 0;
-    int32_t chars = 0;
     int32_t dbytes = 0;
     int i = 0;
     int n2 = 0;
@@ -579,7 +575,7 @@ static entity_p join_strings(nstr_p deli, nstr_p * as, int n, va_list * ap)
     cnt += n;
     for (i = 0; i < n; ++i) {
         bytes += as[i]->bytes;
-        chars += as[i]->chars;
+        *chars += as[i]->chars;
     } // for
 
     va_copy(cp, *ap);
@@ -588,7 +584,7 @@ static entity_p join_strings(nstr_p deli, nstr_p * as, int n, va_list * ap)
         cnt += n2;
         for (i = 0; i < n2; ++i) {
             bytes += (as2[i])->bytes;
-            chars += (as2[i])->chars;
+            *chars += (as2[i])->chars;
         } // for
     } // while
     va_end(cp);
@@ -600,12 +596,12 @@ static entity_p join_strings(nstr_p deli, nstr_p * as, int n, va_list * ap)
         dbytes = deli->bytes;
 
         bytes += dbytes * cnt; // 字节总数包含尾部间隔符，简化拷贝逻辑
-        chars += deli->chars * (cnt - 1); // 字符总数不包含尾部间隔符
+        *chars += deli->chars * (cnt - 1); // 字符总数不包含尾部间隔符
 
         copy = (deli->bytes == 1) ? &copy_strings_with_short_deli : &copy_strings_with_long_deli;
     } // if
 
-    ent = new_entity(NULL, bytes, chars, as[0]->encoding);
+    ent = new_entity(bytes);
     if (! ent) return NULL;
 
     // 第二遍：拷贝字节数据
@@ -637,7 +633,7 @@ nstr_p nstr_repeat(nstr_p s, int n, nstr_p r)
 
     if (s->bytes == 0 || n <= 1) return refer_to_whole(r, s); // CASE-1: s 是空串
 
-    ent = new_entity(NULL, (s->bytes * n), (s->chars * n), s->encoding);
+    ent = new_entity(s->bytes * n);
     if (! ent) return NULL;
 
     pos = copy_strings(ent->data, as, n % (sizeof(as) / sizeof(as[0])), NULL, 0);
@@ -645,7 +641,7 @@ nstr_p nstr_repeat(nstr_p s, int n, nstr_p r)
     b = n / (sizeof(as) / sizeof(as[0]));
     while (b-- > 0) pos = copy_strings(pos, as, (sizeof(as) / sizeof(as[0])), NULL, 0);
 
-    new = new_slice(ent->data, 0, ent->bytes, ent->chars, ent->encoding);
+    new = new_slice(ent->data, 0, ent->bytes, s->bytes * n, s->encoding);
     if (! new) free(ent);
     return new;
 } // repeat
@@ -655,13 +651,14 @@ nstr_p nstr_concat(nstr_p * as, int n, nstr_p r, ...)
     va_list ap;
     entity_p ent = NULL;
     nstr_p new = NULL;
+    int32_t chars = 0;
 
     va_start(ap, r);
-    ent = join_strings(NULL, as, n, &ap);
+    ent = join_strings(NULL, as, n, &ap, &chars);
     va_end(ap);
     if (! ent) return NULL;
 
-    new = new_slice(ent->data, 0, ent->bytes, ent->chars, ent->encoding);
+    new = new_slice(ent->data, 0, ent->bytes, chars, as[0]->encoding);
     if (! new) free(ent);
     return new;
 } // nstr_concat
@@ -675,14 +672,14 @@ nstr_p nstr_concat2(nstr_p s1, nstr_p s2, nstr_p r)
     bytes = s1->bytes + s2->bytes;
     if (bytes == 0) return refer_to_whole(r, &blank);
 
-    ent = new_entity(NULL, bytes, s1->chars + s2->chars, s1->encoding);
+    ent = new_entity(bytes);
     if (! ent) return NULL;
 
     memcpy(ent->data, s1->start, s1->bytes);
     memcpy(ent->data + s1->bytes, s2->start, s2->bytes);
     ent->data[bytes] = 0;
 
-    new = new_slice(ent->data, 0, ent->bytes, ent->chars, ent->encoding);
+    new = new_slice(ent->data, 0, ent->bytes, s1->chars + s2->chars, s1->encoding);
     if (! new) free(ent);
     return new;
 } // nstr_concat2
@@ -696,12 +693,12 @@ nstr_p nstr_concat3(nstr_p s1, nstr_p s2, nstr_p s3, nstr_p r)
     bytes = s1->bytes + s2->bytes + s3->bytes;
     if (bytes == 0) return refer_to_whole(r, &blank);
 
-    ent = new_entity(NULL, bytes, s1->chars + s2->chars + s3->chars, s1->encoding);
+    ent = new_entity(bytes);
     if (! ent) return NULL;
 
     copy3(ent->data, s1->start, s1->bytes, s2->start, s2->bytes, s3->start, s3->bytes);
 
-    new = new_slice(ent->data, 0, ent->bytes, ent->chars, ent->encoding);
+    new = new_slice(ent->data, 0, ent->bytes, s1->chars + s2->chars + s3->chars, s1->encoding);
     if (! new) free(ent);
     return new;
 } // nstr_concat3
@@ -711,13 +708,14 @@ nstr_p nstr_join(nstr_p deli, nstr_p * as, int n, nstr_p r, ...)
     va_list ap;
     entity_p ent = NULL;
     nstr_p new = NULL;
+    int32_t chars = 0;
 
     va_start(ap, r);
-    ent = join_strings(deli, as, n, &ap);
+    ent = join_strings(deli, as, n, &ap, &chars);
     va_end(ap);
     if (! ent) return NULL;
 
-    new = new_slice(ent->data, 0, ent->bytes, ent->chars, ent->encoding);
+    new = new_slice(ent->data, 0, ent->bytes, chars, as[0]->encoding);
     if (! new) free(ent);
     return new;
 } // nstr_join
@@ -728,15 +726,16 @@ nstr_p nstr_join_by_char(char_t deli, nstr_p * as, int n, nstr_p r, ...)
     nstr_t d = {0};
     entity_p ent = NULL;
     nstr_p new = NULL;
+    int32_t chars = 0;
 
     init_slice(&d, false, &deli, -1, 1, 1, STR_ENC_ASCII);
     va_start(ap, r);
-    ent = join_strings(&d, as, n, &ap);
+    ent = join_strings(&d, as, n, &ap, &chars);
     va_end(ap);
     clean_slice(&d);
     if (! ent) return NULL;
 
-    new = new_slice(ent->data, 0, ent->bytes, ent->chars, ent->encoding);
+    new = new_slice(ent->data, 0, ent->bytes, chars, as[0]->encoding);
     if (! new) free(ent);
     return new;
 } // nstr_join_by_char
@@ -775,7 +774,7 @@ nstr_p nstr_replace(nstr_p s, int32_t index, int32_t chars, nstr_p to, nstr_p r)
     p3_bytes = s->bytes - p1_bytes - p2_bytes;
     bytes = p1_bytes + to->bytes + p3_bytes;
 
-    ent = new_entity(NULL, bytes, p1_chars + to->chars + p3_chars, s->encoding);
+    ent = new_entity(bytes);
     if (! ent) return NULL;
 
     copy3(ent->data, s->start, p1_bytes, to->start, to->bytes, s->start + p1_bytes + p2_bytes, p3_bytes);
