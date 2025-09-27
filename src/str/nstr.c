@@ -97,17 +97,6 @@ inline static nstr_p init_slice(nstr_p s, bool need_free, const char_t * start, 
     return s;
 } // init_slice
 
-inline static void clean_slice(nstr_p s)
-{
-    del_ref(get_entity(s));
-    s->bytes = 0;
-    s->chars = 0;
-    s->offset = 0;
-    s->start = blank_ent.data;
-    s->encoding = STR_ENC_ASCII;
-    add_ref(get_entity(s));
-} // clean_slice
-
 static nstr_p new_slice(const char_t * start, int32_t offset, int32_t bytes, int32_t chars, str_encoding_t encoding)
 {
     nstr_p new = malloc(sizeof(nstr_t));
@@ -386,8 +375,7 @@ void nstr_narrow_down(nstr_p s, int32_t index, int32_t chars)
 nstr_p nstr_slice(nstr_p s, int32_t index, int32_t chars, nstr_p r)
 {
     if (r) {
-        del_ref(get_entity(r));
-        init_slice(r, s->need_free, s->start, s->offset, s->bytes, s->chars, s->encoding);
+        refer_to_other(r, s->start, s->offset, s->bytes, s->chars, s->encoding);
     } else {
         r = new_slice(s->start, s->offset, s->bytes, s->chars, s->encoding);
     } // if
@@ -732,7 +720,7 @@ nstr_p nstr_join_by_char(char_t deli, nstr_p * as, int n, nstr_p r, ...)
     va_start(ap, r);
     ent = join_strings(&d, as, n, &ap, &chars);
     va_end(ap);
-    clean_slice(&d);
+    del_ref(get_entity(&d));
     if (! ent) return NULL;
 
     new = new_slice(ent->data, 0, ent->bytes, chars, as[0]->encoding);
@@ -791,7 +779,7 @@ nstr_p nstr_replace_with_char(nstr_p s, int32_t index, int32_t chars, char_t ch,
 
     init_slice(&to, false, &ch, -1, 1, 1, STR_ENC_ASCII);
     new = nstr_replace(s, index, chars, &to, r);
-    clean_slice(&to);
+    del_ref(get_entity(&to));
     return new;
 } // nstr_replace_with_char
 
