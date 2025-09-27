@@ -155,7 +155,7 @@ extern int32_t nstr_next_sub(nstr_p s, nstr_p sub, const char_t ** start, int32_
 #define nstr_find next_next_sub
 
 // 转换编码
-extern bool nstr_to_encoding(nstr_p s, str_encoding_t encoding);
+extern int32_t nstr_to_encoding(nstr_p s, str_encoding_t encoding);
 
 // 收窄切片范围
 extern void nstr_narrow_down(nstr_p s, int32_t index, int32_t chars);

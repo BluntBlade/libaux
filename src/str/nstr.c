@@ -309,28 +309,24 @@ int32_t nstr_next_sub(nstr_p s, nstr_p sub, const char_t ** start, int32_t * ind
 
     chars = s->chars; // 最大跳过字符数小于源串字符数
     bytes = vtable[s->encoding].count(*start, loc - *start, &chars);
-    if (bytes < 0) {
-        *start = NULL; // 停止查找
-        *index = s->chars;
-        return STR_UNKNOWN_BYTE; // 源串包含异常字节
-    } // if
 
     *index += chars;
     return bytes;
 } // nstr_next_sub
 
-bool nstr_to_encoding(nstr_p s, str_encoding_t encoding)
+int32_t nstr_to_encoding(nstr_p s, str_encoding_t encoding)
 {
     int32_t r_bytes = 0;
     int32_t r_chars = 0;
 
     r_chars = s->bytes; // 字符数上限为字节数
     r_bytes = vtable[encoding].count(s->start, s->bytes, &r_chars);
-    if (r_bytes < 0) return false; // 编码不正确，无法转换
-
-    s->chars = r_chars;
-    s->encoding = encoding;
-    return true;
+    if (r_bytes >= 0) {
+        // 编码正确
+        s->chars = r_chars;
+        s->encoding = encoding;
+    } // if
+    return r_bytes;
 } // nstr_to_encoding
 
 void nstr_narrow_down(nstr_p s, int32_t index, int32_t chars)
@@ -749,15 +745,8 @@ nstr_p nstr_replace(nstr_p s, int32_t index, int32_t chars, nstr_p to, nstr_p r)
 
     if (to->chars == 0) return refer_to_whole(r, s); // CASE: 替换部分零长度
 
-    if (p1_chars > 0) {
-        p1_bytes = vtable[s->encoding].count(s->start, s->bytes, &p1_chars);
-        if (p1_bytes < 0) return NULL; // 编码不正确
-    } // if
-
-    if (p2_chars > 0) {
-        p2_bytes = vtable[s->encoding].count(s->start + p1_bytes, s->bytes - p1_bytes, &p2_chars);
-        if (p2_bytes < 0) return NULL; // 编码不正确
-    } // if
+    if (p1_chars > 0) p1_bytes = vtable[s->encoding].count(s->start, s->bytes, &p1_chars);
+    if (p2_chars > 0) p2_bytes = vtable[s->encoding].count(s->start + p1_bytes, s->bytes - p1_bytes, &p2_chars);
 
     p3_bytes = s->bytes - p1_bytes - p2_bytes;
     bytes = p1_bytes + to->bytes + p3_bytes;
