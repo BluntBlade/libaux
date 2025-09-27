@@ -33,14 +33,14 @@ void check_slice(const char_t * func, nstr_p s, int32_t need_free, int32_t bytes
     cr_expect(get_entity(s)->slcs == slcs, "%s() don't add references: expect %d, got %d", func, slcs, get_entity(s)->slcs);
 } // check_slice
 
-Test(Creation, nstr_refer_to_cstr)
+Test(Creation, nstr_refer_to)
 {
     const char_t cstr[] = {"Hello world!"};
     int32_t size = sizeof(cstr) - 1;
     nstr_p new = NULL;
 
-    new = nstr_refer_to_cstr(cstr, STR_ENC_ASCII);
-    check_slice((const char_t *)"nstr_refer_to_cstr", new, 1, size, size, STR_ENC_ASCII, cstr, -1, &cstr_ent, 1);
+    new = nstr_refer_to(cstr, size);
+    check_slice((const char_t *)"nstr_refer_to", new, 1, size, size, STR_ENC_ASCII, cstr, -1, &cstr_ent, 1);
 
     nstr_delete(new);
 } // nstr_new

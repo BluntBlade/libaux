@@ -26,19 +26,14 @@ typedef enum STR_LOCALE {
 
 // ---- 功能函数 ---- //
 
-// 生成新串
-extern nstr_p nstr_new(const char_t * src, int32_t bytes, int32_t index, int32_t chars, str_encoding_t encoding);
+// 引用一个新串
+extern nstr_p nstr_new(const char_t * src, int32_t bytes);
 
-// 生成空串
-inline static nstr_p nstr_blank(void)
-{
-    return nstr_new(NULL, 0, 0, 0, STR_ENC_ASCII);
-} // nstr_blank
+// 引用外部字节范围
+extern nstr_p nstr_refer_to(const char_t * src, int32_t bytes);
 
-inline static nstr_p nstr_refer_to_cstr(const char_t * src, str_encoding_t encoding)
-{
-    return nstr_new(src, -1, 0, -1, encoding);
-} // nstr_refer_to_cstr
+// 引用一个新空串
+extern nstr_p nstr_blank(void);
 
 // 复制源串（深拷贝）
 extern nstr_p nstr_clone(nstr_p s);
@@ -158,6 +153,12 @@ extern int32_t nstr_next_char(nstr_p s, const char_t ** start, int32_t * index, 
 extern int32_t nstr_next_sub(nstr_p s, nstr_p sub, const char_t ** start, int32_t * index);
 
 #define nstr_find next_next_sub
+
+// 转换编码
+extern bool nstr_to_encoding(nstr_p s, str_encoding_t encoding);
+
+// 收窄切片范围
+extern void nstr_narrow_down(nstr_p s, int32_t index, int32_t chars);
 
 // 基于字符范围，生成或设置切片
 extern nstr_p nstr_slice(nstr_p s, int32_t index, int32_t chars, nstr_p r);

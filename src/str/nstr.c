@@ -157,59 +157,53 @@ inline static void copy3(char_t * dst, const char_t * s1, int32_t b1, const char
     dst[b1 + b2 + b3] = 0;
 } // copy3
 
-nstr_p nstr_new(const char_t * src, int32_t bytes, int32_t index, int32_t chars, str_encoding_t encoding)
+nstr_p nstr_new(const char_t * src, int32_t bytes)
 {
     entity_p ent = NULL;
     nstr_p new = NULL;
-    const char_t * start = NULL;
-    int32_t offset = 0;
-    int32_t r_bytes = 0;
-    int32_t r_chars = 0;
 
-    if (! src || bytes == 0) return new_blank();
+    assert(src);
 
-    if (bytes < 0) {
-        bytes = strlen((void *)src);
-        offset = -1;
-    } // if
-
-    if (encoding != STR_ENC_ASCII) {
-        if (0 < index) {
-            r_chars = index;
-            r_bytes = vtable[encoding].count(src, bytes, &r_chars);
-            if (r_bytes < 0) return NULL;
-        } // if
-
-        start = src + r_bytes;
-
-        r_chars = chars < 0 ? bytes - r_bytes : chars;
-        r_bytes = vtable[encoding].count(start, bytes - r_bytes, &r_chars);
-        if (r_bytes < 0) return NULL;
-    } else {
-        if (bytes <= index) return new_blank();
-
-        start = src + index;
-        r_chars = r_bytes = bytes - index;
-    } // if
+    if (bytes <= 0) bytes = strlen((void *)src);
+    if (bytes == 0) return new_blank();
 
     new = malloc(sizeof(nstr_t));
     if (! new) return NULL;
 
-    if (offset == 0) {
-        ent = new_entity(start, r_bytes, r_chars, encoding);
-        if (! ent) {
-            free(new);
-            return NULL;
-        } // if
-        start = ent->data;
+    ent = new_entity(src, bytes, bytes, STR_ENC_ASCII);
+    if (! ent) {
+        free(new);
+        return NULL;
     } // if
 
-    return init_slice(new, true, start, offset, r_bytes, r_chars, encoding);
+    return init_slice(new, true, ent->data, 0, bytes, bytes, STR_ENC_ASCII);
 } // nstr_new
+
+nstr_p nstr_refer_to(const char_t * src, int32_t bytes)
+{
+    nstr_p new = NULL;
+
+    assert(src);
+
+    if (bytes <= 0) bytes = strlen((void *)src);
+    if (bytes == 0) return new_blank();
+
+    new = malloc(sizeof(nstr_t));
+    if (! new) return NULL;
+
+    return init_slice(new, true, src, -1, bytes, bytes, STR_ENC_ASCII);
+} // nstr_refer_to
+
+nstr_p nstr_blank(void)
+{
+    return new_blank();
+} // nstr_blank
 
 nstr_p nstr_clone(nstr_p s)
 {
-    return nstr_new(s->start, s->bytes, 0, s->chars, s->encoding);
+    nstr_p new = nstr_new(s->start, s->bytes);
+    if (new) nstr_to_encoding(new, s->encoding);
+    return new;
 } // nstr_clone
 
 nstr_p nstr_duplicate(nstr_p s)
@@ -339,9 +333,23 @@ int32_t nstr_next_sub(nstr_p s, nstr_p sub, const char_t ** start, int32_t * ind
     return bytes;
 } // nstr_next_sub
 
-nstr_p nstr_slice(nstr_p s, int32_t index, int32_t chars, nstr_p r)
+bool nstr_to_encoding(nstr_p s, str_encoding_t encoding)
 {
-    const char_t * start = blank_ent.data;
+    int32_t r_bytes = 0;
+    int32_t r_chars = 0;
+
+    r_chars = s->bytes; // 字符数上限为字节数
+    r_bytes = vtable[encoding].count(s->start, s->bytes, &r_chars);
+    if (r_bytes < 0) return false; // 编码不正确，无法转换
+
+    s->chars = r_chars;
+    s->encoding = encoding;
+    return true;
+} // nstr_to_encoding
+
+void nstr_narrow_down(nstr_p s, int32_t index, int32_t chars)
+{
+    const char_t * start = NULL;
     int32_t r_bytes = 0;
     int32_t r_chars = 0;
 
@@ -350,7 +358,11 @@ nstr_p nstr_slice(nstr_p s, int32_t index, int32_t chars, nstr_p r)
     // CASE-1: 切片起点超出范围
     // CASE-2: 源串是空串
     // CASE-3: 切片长度是零
-    if (index >= s->chars || s->chars == 0 || chars == 0) goto NSTR_SLICE_END;
+    if (s->chars <= index || chars == 0 || s->chars == 0) {
+        s->bytes = 0;
+        s->chars = 0;
+        return;
+    } // if
 
     // CASE-4: 源字符串不是空串
     start = s->start;
@@ -358,7 +370,6 @@ nstr_p nstr_slice(nstr_p s, int32_t index, int32_t chars, nstr_p r)
         // 跳过前导部分
         r_chars = index;
         r_bytes = vtable[s->encoding].count(start, s->bytes, &r_chars);
-        if (r_bytes < 0) return NULL; // 编码不正确
         start += r_bytes;
     } // if
 
@@ -368,11 +379,23 @@ nstr_p nstr_slice(nstr_p s, int32_t index, int32_t chars, nstr_p r)
     if (chars < r_chars) {
         r_chars = chars;
         r_bytes = vtable[s->encoding].count(start, r_bytes, &r_chars);
-        if (r_bytes < 0) return NULL; // 编码不正确
     } // if
 
-NSTR_SLICE_END:
-    return refer_to_or_new_slice(r, start, start - s->start, r_bytes, r_chars, s->encoding);
+    s->start = start;
+    s->bytes = r_bytes;
+    s->chars = r_chars;
+} // nstr_narrow_down
+
+nstr_p nstr_slice(nstr_p s, int32_t index, int32_t chars, nstr_p r)
+{
+    if (r) {
+        del_ref(get_entity(r));
+        init_slice(r, s->need_free, s->start, s->offset, s->bytes, s->chars, s->encoding);
+    } else {
+        r = new_slice(s->start, s->offset, s->bytes, s->chars, s->encoding);
+    } // if
+    if (r) nstr_narrow_down(r, index, chars);
+    return r;
 } // nstr_slice
 
 inline static int32_t augment_array(nstr_p ** as, int * cap, int delta)
