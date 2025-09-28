@@ -5,20 +5,21 @@
 #include "str/nstr.c"
 #endif
 
-Test(Creation, nstr_blank)
+Test(Creation, nstr_new_blank)
 {
-    nstr_p blk1 = nstr_blank();
-    nstr_p blk2 = nstr_blank();
+    nstr_p blk1 = nstr_new_blank(STR_ENC_ASCII);
+    nstr_p blk2 = nstr_new_blank(STR_ENC_UTF8);
 
-    cr_expect(blk1 != NULL, "nstr_blank() return new pointer: expect non-NULL, got NULL");
-    cr_expect(blk1 != &blank, "nstr_blank() return pointer to constant blank");
-    cr_expect(blk2 != blk1, "nstr_blank() return same pointer");
-    cr_expect(blank_ent.slcs == 2, "nstr_blank() don't add references: expect %d, got %d", 2, blank_ent.slcs);
+    cr_expect(blk1 != NULL, "nstr_new_blank() return new pointer: expect non-NULL, got NULL");
+    cr_expect(blk1 != &blanks[STR_ENC_ASCII], "nstr_new_blank() return pointer to constant blank");
+    cr_expect(blk2 != &blanks[STR_ENC_UTF8], "nstr_new_blank() return pointer to constant blank");
+    cr_expect(blk2 != blk1, "nstr_new_blank() return same pointer");
+    cr_expect(blank_ent.slcs == 5, "nstr_new_blank() don't add references: expect %d, got %d", 2, blank_ent.slcs);
     cr_expect(blank_ent.need_free == 0);
 
     nstr_delete(blk2);
     nstr_delete(blk1);
-} // nstr_blank
+} // nstr_new_blank
 
 void check_slice(const char_t * func, nstr_p s, int32_t need_free, int32_t bytes, int32_t chars, str_encoding_t encoding, const char_t * start, int32_t offset, entity_p ent, int32_t slcs)
 {
@@ -33,14 +34,14 @@ void check_slice(const char_t * func, nstr_p s, int32_t need_free, int32_t bytes
     cr_expect(get_entity(s)->slcs == slcs, "%s() don't add references: expect %d, got %d", func, slcs, get_entity(s)->slcs);
 } // check_slice
 
-Test(Creation, nstr_refer_to)
+Test(Creation, nstr_new_reference)
 {
     const char_t cstr[] = {"Hello world!"};
     int32_t size = sizeof(cstr) - 1;
     nstr_p new = NULL;
 
-    new = nstr_refer_to(cstr, size);
-    check_slice((const char_t *)"nstr_refer_to", new, 1, size, size, STR_ENC_ASCII, cstr, -1, &cstr_ent, 1);
+    new = nstr_new_reference(cstr, size);
+    check_slice((const char_t *)"nstr_new_reference", new, 1, size, size, STR_ENC_ASCII, cstr, -1, &cstr_ent, 1);
 
     nstr_delete(new);
 } // nstr_new
