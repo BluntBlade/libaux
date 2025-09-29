@@ -56,12 +56,6 @@ vtable_t vtable[STR_ENC_COUNT] = {
 entity_t cstr_ent = {0};
 entity_t blank_ent = {.slcs = STR_ENC_COUNT };
 
-nstr_t blanks[] = {
-    {.start = blank_ent.data, .encoding = STR_ENC_ASCII },
-    {.start = blank_ent.data, .encoding = STR_ENC_UTF8  },
-    {.start = blank_ent.data, .encoding = STR_ENC_UTF16 },
-};
-
 inline static entity_p get_entity(nstr_p s)
 {
     return (s->offset < 0) ? &cstr_ent : container_of(entity_t, data, (s->start - s->offset));
@@ -147,7 +141,7 @@ nstr_p nstr_new(const char_t * src, int32_t bytes)
     assert(src);
 
     if (bytes <= 0) bytes = strlen((void *)src);
-    if (bytes == 0) return &blanks[STR_ENC_ASCII];
+    if (bytes == 0) return nstr_new_blank(STR_ENC_ASCII);
 
     new = malloc(sizeof(nstr_t));
     if (! new) return NULL;
@@ -176,7 +170,7 @@ nstr_p nstr_new_reference(const char_t * src, int32_t bytes)
     assert(src);
 
     if (bytes <= 0) bytes = strlen((void *)src);
-    if (bytes == 0) return &blanks[STR_ENC_ASCII];
+    if (bytes == 0) return nstr_new_blank(STR_ENC_ASCII);
 
     new = malloc(sizeof(nstr_t));
     if (! new) return NULL;
@@ -403,7 +397,7 @@ int nstr_split(nstr_p s, nstr_p deli, int max, nstr_array_p * as)
         // CASE-1: 源串是空串
         *as = malloc(sizeof(as[0]) * 2);
         if (! *as) return STR_OUT_OF_MEMORY;
-        (*as)[0] = &blanks[s->encoding];
+        (*as)[0] = nstr_new_blank(s->encoding);
         (*as)[1] = NULL;
         return 1;
     } // if
@@ -653,7 +647,7 @@ nstr_p nstr_concat2(nstr_p s1, nstr_p s2, nstr_p r)
     int32_t bytes = 0;
 
     bytes = s1->bytes + s2->bytes;
-    if (bytes == 0) return refer_to_whole(r, &blanks[s1->encoding]);
+    if (bytes == 0) return refer_to_or_new_slice(r, blank_ent.data, 0, 0, 0, s1->encoding);
 
     ent = new_entity(bytes);
     if (! ent) return NULL;
@@ -674,7 +668,7 @@ nstr_p nstr_concat3(nstr_p s1, nstr_p s2, nstr_p s3, nstr_p r)
     int32_t bytes = 0;
 
     bytes = s1->bytes + s2->bytes + s3->bytes;
-    if (bytes == 0) return refer_to_whole(r, &blanks[s1->encoding]);
+    if (bytes == 0) return refer_to_or_new_slice(r, blank_ent.data, 0, 0, 0, s1->encoding);
 
     ent = new_entity(bytes);
     if (! ent) return NULL;
@@ -773,21 +767,24 @@ nstr_p nstr_replace_with_char(nstr_p s, int32_t index, int32_t chars, char_t ch,
 
 nstr_p nstr_remove(nstr_p s, int32_t index, int32_t chars, nstr_p r)
 {
-    return nstr_replace(s, index, chars, &blanks[s->encoding], r);
+    nstr_t b = {.start = blank_ent.data, .encoding = s->encoding };
+    return nstr_replace(s, index, chars, &b, r);
 } // nstr_remove
 
 nstr_p nstr_cut_head(nstr_p s, int32_t chars, nstr_p r)
 {
+    nstr_t b = {.start = blank_ent.data, .encoding = s->encoding };
     // CASE-1: 删除长度大于字符串长度
-    if (s->chars < chars) return refer_to_whole(r, &blanks[s->encoding]);
-    return nstr_replace(s, 0, chars, &blanks[s->encoding], r);
+    if (s->chars < chars) return refer_to_or_new_slice(r, blank_ent.data, 0, 0, 0, s->encoding);
+    return nstr_replace(s, 0, chars, &b, r);
 } // nstr_cut_head
 
 nstr_p nstr_cut_tail(nstr_p s, int32_t chars, nstr_p r)
 {
+    nstr_t b = {.start = blank_ent.data, .encoding = s->encoding };
     // CASE-1: 删除长度大于字符串长度
-    if (s->chars < chars) return refer_to_whole(r, &blanks[s->encoding]);
-    return nstr_replace(s, s->chars - chars, chars, &blanks[s->encoding], r);
+    if (s->chars < chars) return refer_to_or_new_slice(r, blank_ent.data, 0, 0, 0, s->encoding);
+    return nstr_replace(s, s->chars - chars, chars, &b, r);
 } // nstr_cut_tail
 
 nstr_p nstr_substitute(nstr_p s, bool all, nstr_p from, nstr_p to, nstr_p r)

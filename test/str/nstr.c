@@ -11,8 +11,6 @@ Test(Creation, nstr_new_blank)
     nstr_p blk2 = nstr_new_blank(STR_ENC_UTF8);
 
     cr_expect(blk1 != NULL, "nstr_new_blank() return new pointer: expect non-NULL, got NULL");
-    cr_expect(blk1 != &blanks[STR_ENC_ASCII], "nstr_new_blank() return pointer to constant blank");
-    cr_expect(blk2 != &blanks[STR_ENC_UTF8], "nstr_new_blank() return pointer to constant blank");
     cr_expect(blk2 != blk1, "nstr_new_blank() return same pointer");
     cr_expect(blank_ent.slcs == 5, "nstr_new_blank() don't add references: expect %d, got %d", 2, blank_ent.slcs);
     cr_expect(blank_ent.need_free == 0);
