@@ -54,7 +54,7 @@ vtable_t vtable[STR_ENC_COUNT] = {
 };
 
 entity_t cstr_ent = {0};
-entity_t blank_ent = {.slcs = STR_ENC_COUNT };
+entity_t blank_ent = {0};
 
 inline static entity_p get_entity(nstr_p s)
 {

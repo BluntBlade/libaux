@@ -12,7 +12,7 @@ Test(Creation, nstr_new_blank)
 
     cr_expect(blk1 != NULL, "nstr_new_blank() return new pointer: expect non-NULL, got NULL");
     cr_expect(blk2 != blk1, "nstr_new_blank() return same pointer");
-    cr_expect(blank_ent.slcs == 5, "nstr_new_blank() don't add references: expect %d, got %d", 2, blank_ent.slcs);
+    cr_expect(blank_ent.slcs == 2, "nstr_new_blank() don't add references: expect %d, got %d", 2, blank_ent.slcs);
     cr_expect(blank_ent.need_free == 0);
 
     nstr_delete(blk2);
