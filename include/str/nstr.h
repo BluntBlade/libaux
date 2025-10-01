@@ -31,7 +31,7 @@ typedef enum STR_LOCALE {
 // ---- 功能函数 ---- //
 
 // 引用一个新串
-extern nstr_p nstr_new(const char_t * src, int32_t bytes, bool copy);
+extern nstr_p nstr_new(const char_t * src, uint32_t bytes, bool copy);
 
 // 引用一个新空串
 extern nstr_p nstr_new_blank(str_encoding_t encoding);
@@ -56,20 +56,20 @@ extern void nstr_delete(nstr_p s);
 extern void nstr_delete_strings(nstr_p * as, int n);
 
 // 返回编码方案代号
-extern int32_t nstr_encoding(nstr_p s);
+extern str_encoding_t nstr_encoding(nstr_p s);
 
 // 返回字节数，不包含最后的 NUL 字符
-extern int32_t nstr_bytes(nstr_p s);
+extern uint32_t nstr_bytes(nstr_p s);
 
-inline static int32_t nstr_size(nstr_p s)
+inline static uint32_t nstr_size(nstr_p s)
 {
     return nstr_bytes(s);
 } // nstr_size
 
 // 返回字符数，不包含最后的 NUL 字符
-extern int32_t nstr_chars(nstr_p s);
+extern uint32_t nstr_chars(nstr_p s);
 
-inline static int32_t nstr_length(nstr_p s)
+inline static uint32_t nstr_length(nstr_p s)
 {
     return nstr_chars(s);
 } // nstr_length
@@ -142,10 +142,9 @@ extern void nstr_byte_range(nstr_p s, const char_t ** start, const char_t ** end
 //     s      IN    入参：源串或切片，指向一个非零长度的串
 //     sub    OUT   出参：下一字符的切片，引用其在源串中的正确位置
 // 返回值：
-//     0 或 1               跳过字符数，累加可得字符下标
-//     STR_NOT_FOUND        没有更多字符，遍历结束
-//     STR_UNKNOWN_BYTE     源串包含异常字节（编码不正确）
-extern int32_t nstr_next_char(nstr_p s, const char_t ** start, int32_t * index, nstr_p ch);
+//     0 <          跳过字节数，累加可得字节下标
+//     == 0         没有更多字符，遍历结束
+extern uint32_t nstr_next_char(nstr_p s, const char_t ** start, uint32_t * index, nstr_p ch);
 
 // 功能：查找子串
 // 参数：
@@ -158,18 +157,18 @@ extern int32_t nstr_next_char(nstr_p s, const char_t ** start, int32_t * index, 
 //     STR_UNKNOWN_BYTE     源串包含异常字节（未正确编码）
 // 说明：
 //     本函数在源串中查找子串，并修改子串的引用位置。查找结束后，如再次以相同对象调用，则会绕回到源串开头，启动新一轮查找。
-extern int32_t nstr_next_sub(nstr_p s, nstr_p sub, const char_t ** start, int32_t * index);
+extern uint32_t nstr_next_sub(nstr_p s, nstr_p sub, const char_t ** start, uint32_t * index);
 
 #define nstr_find next_next_sub
 
-// 转换编码
-extern int32_t nstr_to_encoding(nstr_p s, str_encoding_t encoding);
+// 设置编码
+extern bool nstr_set_encoding(nstr_p s, str_encoding_t encoding);
 
 // 收窄切片范围
-extern void nstr_narrow_down(nstr_p s, int32_t index, int32_t chars);
+extern void nstr_narrow_down(nstr_p s, uint32_t index, uint32_t chars);
 
 // 基于字符范围，生成或设置切片
-extern nstr_p nstr_slice(nstr_p s, int32_t index, int32_t chars, nstr_p r);
+extern nstr_p nstr_slice(nstr_p s, uint32_t index, uint32_t chars, nstr_p r);
 
 // 功能：切分字符串
 // 参数：
@@ -207,19 +206,19 @@ inline static nstr_p nstr_join2(nstr_p deli, nstr_p s1, nstr_p s2, nstr_p r)
 } // nstr_join2
 
 // 将给定位置处的固定长度子串替换成新串
-extern nstr_p nstr_replace(nstr_p s, int32_t index, int32_t chars, nstr_p to, nstr_p r);
+extern nstr_p nstr_replace(nstr_p s, uint32_t index, uint32_t chars, nstr_p to, nstr_p r);
 
 // 将给定位置处的固定长度子串替换成单字节字符
-extern nstr_p nstr_replace_with_char(nstr_p s, int32_t index, int32_t chars, char_t ch, nstr_p r);
+extern nstr_p nstr_replace_with_char(nstr_p s, uint32_t index, uint32_t chars, char_t ch, nstr_p r);
 
 // 在给定位置插入子串
-inline static nstr_p nstr_insert(nstr_p s, int32_t index, nstr_p sub, nstr_p r)
+inline static nstr_p nstr_insert(nstr_p s, uint32_t index, nstr_p sub, nstr_p r)
 {
     return nstr_replace(s, index, 0, sub, r);
 } // nstr_insert
 
 // 在给定位置插入单字节字符
-inline static nstr_p nstr_insert_char(nstr_p s, int32_t index, char_t ch, nstr_p r)
+inline static nstr_p nstr_insert_char(nstr_p s, uint32_t index, char_t ch, nstr_p r)
 {
     return nstr_replace_with_char(s, index, 0, ch, r);
 } // nstr_insert_char
@@ -249,13 +248,13 @@ inline static nstr_p nstr_append_char(nstr_p s, char_t ch, nstr_p r)
 } // nstr_append_char
 
 // 删除定位置处的固定长度子串
-extern nstr_p nstr_remove(nstr_p s, int32_t index, int32_t chars, nstr_p r);
+extern nstr_p nstr_remove(nstr_p s, uint32_t index, uint32_t chars, nstr_p r);
 
 // 删除串头的固定长度子串
-extern nstr_p nstr_cut_head(nstr_p s, int32_t chars, nstr_p r);
+extern nstr_p nstr_cut_head(nstr_p s, uint32_t chars, nstr_p r);
 
 // 删除串尾的固定长度子串
-extern nstr_p nstr_cut_tail(nstr_p s, int32_t chars, nstr_p r);
+extern nstr_p nstr_cut_tail(nstr_p s, uint32_t chars, nstr_p r);
 
 // 删除串尾的换行符（以及可能的回车符）
 extern nstr_p nstr_chomp(nstr_p s, nstr_p r);
