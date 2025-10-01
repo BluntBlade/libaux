@@ -1,6 +1,9 @@
 #ifndef _AUX_STRING_H_
 #define _AUX_STRING_H_ 1
 
+#include <assert.h>
+#include <string.h>
+
 #include "types.h"
 
 struct NSTR;
@@ -11,7 +14,7 @@ typedef enum STR_ENCODING {
     STR_ENC_ASCII = 0,
     STR_ENC_UTF8  = 1,
     STR_ENC_UTF16 = 2,
-    STR_ENC_COUNT = 3,
+    STR_ENC_COUNT,
     STR_ENC_MAX = (1 << 6),     // 支持最多 64 种编码方案
 } str_encoding_t;
 
@@ -28,13 +31,17 @@ typedef enum STR_LOCALE {
 // ---- 功能函数 ---- //
 
 // 引用一个新串
-extern nstr_p nstr_new(const char_t * src, int32_t bytes);
+extern nstr_p nstr_new(const char_t * src, int32_t bytes, bool copy);
 
 // 引用一个新空串
 extern nstr_p nstr_new_blank(str_encoding_t encoding);
 
 // 引用外部字节范围
-extern nstr_p nstr_new_reference(const char_t * src, int32_t bytes);
+inline static nstr_p nstr_new_reference(const char_t * src)
+{
+    assert(src);
+    return nstr_new(src, strlen((void *)src), false);
+} // nstr_new_reference
 
 // 复制源串（深拷贝）
 extern nstr_p nstr_clone(nstr_p s);

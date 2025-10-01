@@ -1,5 +1,3 @@
-#include <assert.h>
-#include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
 
@@ -133,29 +131,36 @@ inline static void copy3(char_t * dst, const char_t * s1, int32_t b1, const char
     dst[b1 + b2 + b3] = 0;
 } // copy3
 
-nstr_p nstr_new(const char_t * src, int32_t bytes)
+nstr_p nstr_new(const char_t * src, int32_t bytes, bool copy)
 {
+    const char_t * start = blank_ent.data;
     entity_p ent = NULL;
     nstr_p new = NULL;
-
-    assert(src);
-
-    if (bytes <= 0) bytes = strlen((void *)src);
-    if (bytes == 0) return nstr_new_blank(STR_ENC_ASCII);
+    int32_t offset = 0;
 
     new = malloc(sizeof(nstr_t));
     if (! new) return NULL;
 
-    ent = new_entity(bytes);
-    if (! ent) {
-        free(new);
-        return NULL;
+    if (src && bytes > 0) {
+        if (copy) {
+            ent = new_entity(bytes);
+            if (! ent) {
+                free(new);
+                return NULL;
+            } // if
+
+            memcpy(ent->data, src, bytes);
+            ent->data[bytes] = 0;
+
+            start = ent->data;
+            offset = 0;
+        } else {
+            start = src;
+            offset = -1;
+        } // if
     } // if
 
-    memcpy(ent->data, src, bytes);
-    ent->data[bytes] = 0;
-
-    return init_slice(new, true, ent->data, 0, bytes, bytes, STR_ENC_ASCII);
+    return init_slice(new, true, start, offset, bytes, bytes, STR_ENC_ASCII);
 } // nstr_new
 
 nstr_p nstr_new_blank(str_encoding_t encoding)
@@ -163,24 +168,9 @@ nstr_p nstr_new_blank(str_encoding_t encoding)
     return new_slice(blank_ent.data, 0, 0, 0, encoding);
 } // nstr_new_blank
 
-nstr_p nstr_new_reference(const char_t * src, int32_t bytes)
-{
-    nstr_p new = NULL;
-
-    assert(src);
-
-    if (bytes <= 0) bytes = strlen((void *)src);
-    if (bytes == 0) return nstr_new_blank(STR_ENC_ASCII);
-
-    new = malloc(sizeof(nstr_t));
-    if (! new) return NULL;
-
-    return init_slice(new, true, src, -1, bytes, bytes, STR_ENC_ASCII);
-} // nstr_new_reference
-
 nstr_p nstr_clone(nstr_p s)
 {
-    nstr_p new = nstr_new(s->start, s->bytes);
+    nstr_p new = nstr_new(s->start, s->bytes, true);
     if (new) nstr_to_encoding(new, s->encoding);
     return new;
 } // nstr_clone

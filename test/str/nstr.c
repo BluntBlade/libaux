@@ -38,7 +38,7 @@ Test(Creation, nstr_new_reference)
     int32_t size = sizeof(cstr) - 1;
     nstr_p new = NULL;
 
-    new = nstr_new_reference(cstr, size);
+    new = nstr_new_reference(cstr);
     check_slice((const char_t *)"nstr_new_reference", new, 1, size, size, STR_ENC_ASCII, cstr, -1, &cstr_ent, 1);
 
     nstr_delete(new);
