@@ -26,11 +26,10 @@ extern uint8_t utf8_bytes_map[128];
 //     pos      IN  字符串指针，不能为 NULL
 // 返回值：
 //     0 <          字节数
-//     0            首字节错误
-//     < 0          存在异常字节
+//     0            存在异常字节
 // 说明：
 //     逐个检查字节，直观但较慢的逻辑。
-inline static int32_t utf8_measure(const char_t * pos)
+inline static uint32_t utf8_measure(const char_t * pos)
 {
     char_t ch = pos[0];
     if ((ch & 0x80) == 0) return 1;
@@ -38,7 +37,7 @@ inline static int32_t utf8_measure(const char_t * pos)
     if (((ch <<= 1) & 0x80) == 0) return 2;
     if (((ch <<= 1) & 0x80) == 0) return 3;
     if (((ch <<= 1) & 0x80) == 0) return 4;
-    return -1;
+    return 0;
 } // utf8_measure
 
 // 功能：测量单个 UTF-8 字符包含的字节数（查表法）
@@ -46,11 +45,10 @@ inline static int32_t utf8_measure(const char_t * pos)
 //     pos      IN  字符串指针，不能为 NULL
 // 返回值：
 //     0 <          字节数
-//     0            首字节错误
-//     < 0          存在异常字节
+//     0            存在异常字节
 // 说明：
 //     逻辑最简单，需加载表格到缓存中，会影响性能。
-inline static int32_t utf8_measure_by_lookup(const char_t * pos)
+inline static uint32_t utf8_measure_by_lookup(const char_t * pos)
 {
     return (utf8_bytes_map[pos[0] / 2] >> ((pos[0] & 0x1) * 4)) & 0x7;
 } // utf8_measure_by_lookup
@@ -60,10 +58,10 @@ inline static int32_t utf8_measure_by_lookup(const char_t * pos)
 //     pos      IN  字符串指针，不能为 NULL
 // 返回值：
 //     0 <          字节数
-//     <= 0         存在异常字节
+//     0            存在异常字节
 // 说明：
 //     平衡机器码字节数、缓存命中率和计算性能的逻辑实现。
-inline static int32_t utf8_measure_by_addup(const char_t * pos)
+inline static uint32_t utf8_measure_by_addup(const char_t * pos)
 {
     int32_t ena = 0;    // 累加开关
     int32_t bytes = 1;  // 字节数
@@ -72,7 +70,7 @@ inline static int32_t utf8_measure_by_addup(const char_t * pos)
     bytes += (ena &= (pos[0] >> 6)) * 2;        // 2 字节
     bytes += (ena &= (pos[0] >> 5));            // 3 字节
     bytes += (ena &= (pos[0] >> 4));            // 4 字节
-    return bytes - (ena & (pos[0] >> 3)) * 5;   // 首字节是 0b11111xxx ，返回 -1
+    return bytes - (ena & (pos[0] >> 3)) * 4;   // 首字节是 0b11111xxx ，返回 0
 } // utf8_measure_by_addup
 
 #define utf8_measure utf8_measure_by_addup
@@ -80,26 +78,13 @@ inline static int32_t utf8_measure_by_addup(const char_t * pos)
 // 功能：计算给定范围包含多少个 UTF-8 字符
 // 参数：
 //     start    IN  起始地址，不能为 NULL
-//     size     IN  范围长度（字节数）
+//     bytes    IN  范围长度（字节数）
 //     chars    IO  入参：最大字符数，不能为 NULL
 //                  出参：包含字符数
 // 返回值：
-//     0 <          字节数
-//     <= 0         存在异常字节
-int32_t utf8_count(const char_t * start, int32_t size, int32_t * chars);
-
-// 功能：校验给定范围是否完全包含正确的 UTF-8 字符（除了 NUL 字符）
-// 参数：
-//     start    IN  起始地址，不能为 NULL
-//     size     IN  范围长度（字节数）
-// 返回值：
-//     true         已正确编码
-//     false        存在异常字节
-inline static bool utf8_verify(const char_t * start, int32_t size)
-{
-    int32_t chars = size;
-    return utf8_count(start, size, &chars) == size;
-} // if
+//     true         编码正确
+//     false        编码错误
+bool utf8_count(const char_t * start, uint32_t * bytes, uint32_t * chars);
 
 // 功能：解码 UTF-8 字符
 // 参数：

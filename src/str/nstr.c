@@ -7,8 +7,8 @@
 
 #define container_of(type, member, addr) ((type *)((void *)(addr) - (void *)(&(((type *)0)->member))))
 
-typedef int32_t (*measure_t)(const char_t * pos);
-typedef int32_t (*count_t)(const char_t * start, int32_t size, int32_t * chars);
+typedef uint32_t (*measure_t)(const char_t * pos);
+typedef bool (*count_t)(const char_t * start, uint32_t * bytes, uint32_t * chars);
 
 typedef struct VTABLE {
     measure_t   measure;        // 度量单个字符的字节数
@@ -283,8 +283,9 @@ uint32_t nstr_next_sub(nstr_p s, nstr_p sub, const char_t ** start, uint32_t * i
         return STR_NOT_FOUND; // 找不到子串
     } // if
 
+    bytes = loc - *start;
     chars = s->chars; // 最大跳过字符数小于源串字符数
-    bytes = vtable[s->encoding].count(*start, loc - *start, &chars);
+    vtable[s->encoding].count(*start, &bytes, &chars);
 
     *index += chars;
     return bytes;
@@ -292,17 +293,18 @@ uint32_t nstr_next_sub(nstr_p s, nstr_p sub, const char_t ** start, uint32_t * i
 
 bool nstr_set_encoding(nstr_p s, str_encoding_t encoding)
 {
-    int32_t r_bytes = 0;
-    int32_t r_chars = 0;
+    uint32_t r_bytes = 0;
+    uint32_t r_chars = 0;
+    bool ret = false;
 
+    r_bytes = s->bytes;
     r_chars = s->bytes; // 字符数上限为字节数
-    r_bytes = vtable[encoding].count(s->start, s->bytes, &r_chars);
-    if (r_bytes >= 0) {
+    if ((ret = vtable[encoding].count(s->start, &r_bytes, &r_chars))) {
         // 编码正确
         s->chars = r_chars;
         s->encoding = encoding;
     } // if
-    return r_bytes;
+    return ret;
 } // nstr_set_encoding
 
 void nstr_narrow_down(nstr_p s, uint32_t index, uint32_t chars)
@@ -326,8 +328,9 @@ void nstr_narrow_down(nstr_p s, uint32_t index, uint32_t chars)
     start = s->start;
     if (0 < index) {
         // 跳过前导部分
+        r_bytes = s->bytes;
         r_chars = index;
-        r_bytes = vtable[s->encoding].count(start, s->bytes, &r_chars);
+        vtable[s->encoding].count(start, &r_bytes, &r_chars);
         start += r_bytes;
     } // if
 
@@ -336,7 +339,7 @@ void nstr_narrow_down(nstr_p s, uint32_t index, uint32_t chars)
     r_chars = s->chars - r_chars;
     if (chars < r_chars) {
         r_chars = chars;
-        r_bytes = vtable[s->encoding].count(start, r_bytes, &r_chars);
+        vtable[s->encoding].count(start, &r_bytes, &r_chars);
     } // if
 
     s->start = start;
@@ -711,8 +714,6 @@ nstr_p nstr_replace(nstr_p s, uint32_t index, uint32_t chars, nstr_p to, nstr_p 
     uint32_t p2_chars = 0;
     uint32_t p3_chars = 0;
 
-    // TODO: Support negtive index and chars.
-
     p1_chars = index; // 跳过部分
     p2_chars = s->chars - p1_chars; // 待替换部分
     if (chars < p2_chars) p2_chars = chars;
@@ -720,8 +721,14 @@ nstr_p nstr_replace(nstr_p s, uint32_t index, uint32_t chars, nstr_p to, nstr_p 
 
     if (to->chars == 0) return refer_to_whole(r, s); // CASE: 替换部分零长度
 
-    if (p1_chars > 0) p1_bytes = vtable[s->encoding].count(s->start, s->bytes, &p1_chars);
-    if (p2_chars > 0) p2_bytes = vtable[s->encoding].count(s->start + p1_bytes, s->bytes - p1_bytes, &p2_chars);
+    if (p1_chars > 0) {
+        p1_bytes = s->bytes;
+        vtable[s->encoding].count(s->start, &p1_bytes, &p1_chars);
+    } // if
+    if (p2_chars > 0) {
+        p2_bytes = s->bytes - p1_bytes;
+        vtable[s->encoding].count(s->start + p1_bytes, &p2_bytes, &p2_chars);
+    } // if
 
     p3_bytes = s->bytes - p1_bytes - p2_bytes;
     bytes = p1_bytes + to->bytes + p3_bytes;

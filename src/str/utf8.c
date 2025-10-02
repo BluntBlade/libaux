@@ -1,4 +1,6 @@
+#include <assert.h>
 #include <stdio.h>
+
 #include "str/utf8.h"
 
 uint8_t utf8_bytes_map[128] = {
@@ -25,39 +27,44 @@ uint8_t utf8_bytes_map[128] = {
     0x00, 0x00, 0x00, 0x00,
 };
 
-int32_t utf8_count(const char_t * start, int32_t size, int32_t * chars)
+bool utf8_count(const char_t * start, uint32_t * bytes, uint32_t * chars)
 {
     const char_t * pos = NULL;
-    int32_t i = 0;
-    int32_t code = 0;
-    int32_t bytes = 0;
-    int32_t ena = 0;
+    const char_t * end = NULL;
+    uint32_t i = 0;
+    uint32_t code = 0;
+    uint32_t cnt = 0;
+    uint32_t ena = 0;
+    uint32_t max = 0;
 
-    for (pos = start; i < *chars && pos < start + size; ++i) {
+    assert(bytes != NULL);
+    assert(chars != NULL);
+
+    max = *bytes < *chars ? *bytes : *chars;
+    end = start + *bytes;
+    for (pos = start; i < max && pos < end; ++i) {
         // UTF-8 字符数必然少于或等于字节数
         if ((ena = (pos[0] >> 7))) {
-            code = 0;
-            bytes = 0;
+            if ((ena &= (pos[0] >> 6)) == 0) break;
 
-            if ((ena &= (pos[0] >> 6)) == 0) goto UTF8_COUNT_ERROR;
-            bytes += ena; code |= (ena * (pos[1] >> 6)) << 0; // code=0b00000010 0x02
+            cnt += ena; code |= (ena * (pos[1] >> 6)) << 0; // code=0b00000010 0x02
 
             ena &= (pos[0] >> 5);
-            bytes += ena; code |= (ena * (pos[2] >> 6)) << 2; // code=0b00001010 0x0A
+            cnt += ena; code |= (ena * (pos[2] >> 6)) << 2; // code=0b00001010 0x0A
 
             ena &= (pos[0] >> 4);
-            bytes += ena; code |= (ena * (pos[3] >> 6)) << 4; // code=0b00101010 0x2A
+            cnt += ena; code |= (ena * (pos[3] >> 6)) << 4; // code=0b00101010 0x2A
 
-            if (code != (0x2A >> ((3 - bytes + (ena & (pos[0] >> 3))) * 2))) goto UTF8_COUNT_ERROR;
-            pos += bytes;
+            if (code != (0x2A >> ((3 - cnt + (ena & (pos[0] >> 3))) * 2))) break;
+
+            pos += cnt;
+            code = 0;
+            cnt = 0;
         } // if
         pos += 1;
     } // for
 
+    *bytes = pos - start + cnt;
     *chars = i;
-    return pos - start;
-
-UTF8_COUNT_ERROR:
-    *chars = i;
-    return start - pos - 1;
+    return i == max || pos == end;
 } // utf8_count
