@@ -519,7 +519,7 @@ static char_t * copy_strings_with_long_deli(char_t * pos, nstr_p * as, int n, co
     return pos;
 } // copy_strings_with_long_deli
 
-static entity_p join_strings(nstr_p deli, nstr_p * as, int n, va_list * ap, int32_t * chars)
+static entity_p join_strings(nstr_p deli, nstr_p * as, int n, va_list * ap, uint32_t * chars)
 {
     va_list cp;
     copy_strings_t copy = &copy_strings;
@@ -551,7 +551,7 @@ static entity_p join_strings(nstr_p deli, nstr_p * as, int n, va_list * ap, int3
     } // while
     va_end(cp);
 
-    if (cnt == 0) return nstr_new_blank(as[0]->encoding);
+    if (cnt == 0) return &blank_ent;
 
     if (deli && deli->bytes > 0) {
         dbuf = deli->start;
