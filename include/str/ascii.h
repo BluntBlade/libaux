@@ -10,7 +10,12 @@ inline static uint32_t ascii_measure(const char_t * pos)
 } // ascii_measure
 
 // 计算给定字节范围内有多少个 ASCII 字符
-bool ascii_count(const char_t * start, uint32_t * bytes, uint32_t * chars);
+bool ascii_count_plain(const char_t * start, uint32_t * bytes, uint32_t * chars);
+
+// 计算给定字节范围内有多少个 ASCII 字符（加速版）
+bool ascii_count_unroll(const char_t * start, uint32_t * bytes, uint32_t * chars);
+
+#define ascii_count ascii_count_unroll
 
 #endif // _AUX_ASCII_H_
 
