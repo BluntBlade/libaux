@@ -85,6 +85,22 @@ static ut_string_case_t bc[] = {
     {.name = {"b3"}, .bytes = 3, .chars = 1, .i_bytes = 3, .i_chars = 1, .r_bytes = 2, .r_chars = 0, .measure_ret = 3, .count_ret = false, .str = {B3_STR}, .repr = {B3_REPR}},
     {.name = {"b4"}, .bytes = 4, .chars = 1, .i_bytes = 4, .i_chars = 1, .r_bytes = 3, .r_chars = 0, .measure_ret = 4, .count_ret = false, .str = {B4_STR}, .repr = {B4_REPR}},
     {.name = {"bz"}, .bytes = 4, .chars = 1, .i_bytes = 4, .i_chars = 1, .r_bytes = 0, .r_chars = 0, .measure_ret = 0, .count_ret = false, .str = {BZ_STR}, .repr = {BZ_REPR}},
+
+    {.name = {"b12"}, .bytes = 3, .chars = 2, .i_bytes = 3, .i_chars = 2, .r_bytes = 1, .r_chars = 1, .measure_ret = 1, .count_ret = false, .str = {S1_STR B2_STR}, .repr = {B2_REPR}},
+    {.name = {"b13"}, .bytes = 4, .chars = 2, .i_bytes = 4, .i_chars = 2, .r_bytes = 3, .r_chars = 1, .measure_ret = 1, .count_ret = false, .str = {S1_STR B3_STR}, .repr = {B3_REPR}},
+    {.name = {"b14"}, .bytes = 5, .chars = 2, .i_bytes = 5, .i_chars = 2, .r_bytes = 4, .r_chars = 1, .measure_ret = 1, .count_ret = false, .str = {S1_STR B4_STR}, .repr = {B4_REPR}},
+
+    {.name = {"s2b2"}, .bytes = 4, .chars = 2, .i_bytes = 4, .i_chars = 2, .r_bytes = 2, .r_chars = 1, .measure_ret = 2, .count_ret = false, .str = {S2_STR B2_STR}, .repr = {S2_REPR B2_REPR}},
+    {.name = {"s2b3"}, .bytes = 5, .chars = 2, .i_bytes = 5, .i_chars = 2, .r_bytes = 4, .r_chars = 1, .measure_ret = 2, .count_ret = false, .str = {S2_STR B3_STR}, .repr = {S2_REPR B3_REPR}},
+    {.name = {"s2b4"}, .bytes = 6, .chars = 2, .i_bytes = 6, .i_chars = 2, .r_bytes = 5, .r_chars = 1, .measure_ret = 2, .count_ret = false, .str = {S2_STR B4_STR}, .repr = {S2_REPR B4_REPR}},
+
+    {.name = {"s3b2"}, .bytes = 5, .chars = 2, .i_bytes = 5, .i_chars = 2, .r_bytes = 3, .r_chars = 1, .measure_ret = 3, .count_ret = false, .str = {S3_STR B2_STR}, .repr = {S3_REPR B2_REPR}},
+    {.name = {"s3b3"}, .bytes = 6, .chars = 2, .i_bytes = 6, .i_chars = 2, .r_bytes = 5, .r_chars = 1, .measure_ret = 3, .count_ret = false, .str = {S3_STR B3_STR}, .repr = {S3_REPR B3_REPR}},
+    {.name = {"s3b4"}, .bytes = 7, .chars = 2, .i_bytes = 7, .i_chars = 2, .r_bytes = 6, .r_chars = 1, .measure_ret = 3, .count_ret = false, .str = {S3_STR B4_STR}, .repr = {S3_REPR B4_REPR}},
+
+    {.name = {"s4b2"}, .bytes = 6, .chars = 2, .i_bytes = 6, .i_chars = 2, .r_bytes = 4, .r_chars = 1, .measure_ret = 4, .count_ret = false, .str = {S4_STR B2_STR}, .repr = {S4_REPR B2_REPR}},
+    {.name = {"s4b3"}, .bytes = 7, .chars = 2, .i_bytes = 7, .i_chars = 2, .r_bytes = 6, .r_chars = 1, .measure_ret = 4, .count_ret = false, .str = {S4_STR B3_STR}, .repr = {S4_REPR B3_REPR}},
+    {.name = {"s4b4"}, .bytes = 8, .chars = 2, .i_bytes = 8, .i_chars = 2, .r_bytes = 7, .r_chars = 1, .measure_ret = 4, .count_ret = false, .str = {S4_STR B4_STR}, .repr = {S4_REPR B4_REPR}},
 };
 
 Test(Function, utf8_measure_plain)
