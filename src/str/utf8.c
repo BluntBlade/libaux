@@ -32,38 +32,31 @@ bool utf8_count(const char_t * start, uint32_t * bytes, uint32_t * chars)
     const char_t * pos = NULL;
     const char_t * end = NULL;
     uint32_t i = 0;
-    uint32_t code = 0; // 跟随字节前2比特集合
     uint32_t cnt = 0; // 跟随字节数
+    uint32_t chk = 0; // 正确字节数
     uint32_t ena = 0; // 累加开关
     uint32_t max = 0; // 检查字符数上限
-    bool loop = false;
 
-    assert(bytes != NULL);
-    assert(chars != NULL);
-
-    max = *bytes < *chars ? *bytes : *chars;
+    max = *bytes < *chars ? *bytes : *chars; // 字符数 <= 范围内字节数
     end = start + *bytes;
-    for (pos = start; (loop = (i < max && pos < end)); ++i) {
-        // UTF-8 字符数必然少于或等于字节数
+    for (pos = start; i < max && pos < end; ++i, ++pos) {
         if ((ena = (pos[0] >> 7))) {
-            cnt += (ena &= (pos[0] >> 6));
-            cnt += (ena &= (pos[0] >> 5));
-            cnt += (ena &= (pos[0] >> 4));
+            cnt += (ena &= (pos[0] >> 6)); chk += (ena & ((pos[1] & 0xC0) == 0x80));
+            cnt += (ena &= (pos[0] >> 5)); chk += (ena & ((pos[2] & 0xC0) == 0x80));
+            cnt += (ena &= (pos[0] >> 4)); chk += (ena & ((pos[3] & 0xC0) == 0x80));
             cnt &= 0x3 + (ena & (pos[0] >> 3));
-            if (cnt == 0) break; // 首字节匹配 0b10xxxxxx 或 0b11111xxx
 
-            // 0x00101010 => 0x2A
-            code = ((pos[1] & 0xC0) >> 2) + ((pos[2] & 0xC0) >> 4) + ((pos[3] & 0xC0) >> 6);
-            if ((code >> ((3 - cnt) * 2)) != (0x2A >> ((3 - cnt) * 2))) break;
+            if (cnt == 0) break; // 首字节匹配 0b10xxxxxx 或 0b11111xxx
+            if (cnt != chk++) break; // 正确字节少于跟随字节
 
             pos += cnt;
-            code = 0;
             cnt = 0;
+            chk = 0;
         } // if
-        pos += 1;
     } // for
 
-    *bytes = pos - start + cnt;
+    pos += chk;
+    *bytes = (pos < end ? pos : end) - start; // (start + *bytes) 指向第一个异常字节
     *chars = i;
-    return !loop;
+    return i == max || pos == end;
 } // utf8_count
