@@ -36,13 +36,14 @@ bool utf8_count(const char_t * start, uint32_t * bytes, uint32_t * chars)
     uint32_t cnt = 0; // 跟随字节数
     uint32_t ena = 0; // 累加开关
     uint32_t max = 0; // 检查字符数上限
+    bool loop = false;
 
     assert(bytes != NULL);
     assert(chars != NULL);
 
     max = *bytes < *chars ? *bytes : *chars;
     end = start + *bytes;
-    for (pos = start; i < max && pos < end; ++i) {
+    for (pos = start; (loop = (i < max && pos < end)); ++i) {
         // UTF-8 字符数必然少于或等于字节数
         if ((ena = (pos[0] >> 7))) {
             cnt += (ena &= (pos[0] >> 6));
@@ -64,5 +65,5 @@ bool utf8_count(const char_t * start, uint32_t * bytes, uint32_t * chars)
 
     *bytes = pos - start + cnt;
     *chars = i;
-    return i == max || pos == end;
+    return !loop;
 } // utf8_count
