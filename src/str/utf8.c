@@ -45,19 +45,15 @@ bool utf8_count(const char_t * start, uint32_t * bytes, uint32_t * chars)
     for (pos = start; i < max && pos < end; ++i) {
         // UTF-8 字符数必然少于或等于字节数
         if ((ena = (pos[0] >> 7))) {
-            if ((ena &= (pos[0] >> 6)) == 0) break;
+            cnt += (ena &= (pos[0] >> 6));
+            cnt += (ena &= (pos[0] >> 5));
+            cnt += (ena &= (pos[0] >> 4));
+            cnt &= 0x3 + (ena & (pos[0] >> 3));
+            if (cnt == 0) break; // 首字节匹配 0b10xxxxxx 或 0b11111xxx
 
-            cnt += ena; code |= (ena * (pos[1] >> 6)) << 0; // code=0b00000010 0x02
-
-            ena &= (pos[0] >> 5);
-            cnt += ena; code |= (ena * (pos[2] >> 6)) << 2; // code=0b00001010 0x0A
-
-            ena &= (pos[0] >> 4);
-            cnt += ena; code |= (ena * (pos[3] >> 6)) << 4; // code=0b00101010 0x2A
-
-            cnt *= !(ena & (pos[0] >> 3)); // 首字节是 0b11111xxx
-
-            if (cnt == 0 || code != (0x2A >> ((3 - cnt) * 2))) break;
+            // 0x00101010 => 0x2A
+            code = ((pos[1] & 0xC0) >> 2) + ((pos[2] & 0xC0) >> 4) + ((pos[3] & 0xC0) >> 6);
+            if ((code >> ((3 - cnt) * 2)) != (0x2A >> ((3 - cnt) * 2))) break;
 
             pos += cnt;
             code = 0;
