@@ -87,7 +87,7 @@ static ut_string_case_t bc[] = {
     {.name = {"bz"}, .bytes = 4, .chars = 1, .i_bytes = 4, .i_chars = 1, .r_bytes = 0, .r_chars = 0, .measure_ret = 0, .count_ret = false, .str = {BZ_STR}, .repr = {BZ_REPR}},
 };
 
-Test(Function, utf8_measure)
+Test(Function, utf8_measure_plain)
 {
     ut_string_case_p c = NULL;
     int i = 0;
@@ -96,17 +96,59 @@ Test(Function, utf8_measure)
     // 正常用例
     for (i = 0; i < sizeof(sc) / sizeof(sc[0]); ++i) {
         c = &sc[i];
-        ret = utf8_measure(c->str);
-        cr_expect(ret == c->measure_ret, "%s: utf8_measure('%s') returns incorrect result: expect %d, got %d", c->name, c->repr, c->measure_ret, ret);
+        ret = utf8_measure_plain(c->str);
+        cr_expect(ret == c->measure_ret, "%s: utf8_measure_plain('%s') returns incorrect result: expect %d, got %d", c->name, c->repr, c->measure_ret, ret);
     } // for
 
     // 异常用例
     for (i = 0; i < sizeof(bc) / sizeof(bc[0]); ++i) {
         c = &bc[i];
-        ret = utf8_measure(c->str);
-        cr_expect(ret == c->measure_ret, "%s: utf8_measure('%s') returns incorrect result: expect %d, got %d", c->name, c->repr, c->measure_ret, ret);
+        ret = utf8_measure_plain(c->str);
+        cr_expect(ret == c->measure_ret, "%s: utf8_measure_plain('%s') returns incorrect result: expect %d, got %d", c->name, c->repr, c->measure_ret, ret);
     } // for
-} // utf_measure
+} // utf8_measure_plain
+
+Test(Function, utf8_measure_by_lookup)
+{
+    ut_string_case_p c = NULL;
+    int i = 0;
+    uint32_t ret = 0;
+
+    // 正常用例
+    for (i = 0; i < sizeof(sc) / sizeof(sc[0]); ++i) {
+        c = &sc[i];
+        ret = utf8_measure_by_lookup(c->str);
+        cr_expect(ret == c->measure_ret, "%s: utf8_measure_by_lookup('%s') returns incorrect result: expect %d, got %d", c->name, c->repr, c->measure_ret, ret);
+    } // for
+
+    // 异常用例
+    for (i = 0; i < sizeof(bc) / sizeof(bc[0]); ++i) {
+        c = &bc[i];
+        ret = utf8_measure_by_lookup(c->str);
+        cr_expect(ret == c->measure_ret, "%s: utf8_measure_by_lookup('%s') returns incorrect result: expect %d, got %d", c->name, c->repr, c->measure_ret, ret);
+    } // for
+} // utf8_measure_by_lookup
+
+Test(Function, utf8_measure_by_addup)
+{
+    ut_string_case_p c = NULL;
+    int i = 0;
+    uint32_t ret = 0;
+
+    // 正常用例
+    for (i = 0; i < sizeof(sc) / sizeof(sc[0]); ++i) {
+        c = &sc[i];
+        ret = utf8_measure_by_addup(c->str);
+        cr_expect(ret == c->measure_ret, "%s: utf8_measure_by_addup('%s') returns incorrect result: expect %d, got %d", c->name, c->repr, c->measure_ret, ret);
+    } // for
+
+    // 异常用例
+    for (i = 0; i < sizeof(bc) / sizeof(bc[0]); ++i) {
+        c = &bc[i];
+        ret = utf8_measure_by_addup(c->str);
+        cr_expect(ret == c->measure_ret, "%s: utf8_measure_by_addup('%s') returns incorrect result: expect %d, got %d", c->name, c->repr, c->measure_ret, ret);
+    } // for
+} // utf8_measure_by_addup
 
 Test(Function, utf8_count)
 {
