@@ -29,7 +29,7 @@ extern uint8_t utf8_bytes_map[128];
 //     0            存在异常字节
 // 说明：
 //     逐个检查字节，直观但较慢的逻辑。
-inline static uint32_t utf8_measure(const char_t * pos)
+inline static uint32_t utf8_measure_plain(const char_t * pos)
 {
     char_t ch = pos[0];
     if ((ch & 0x80) == 0) return 1;
@@ -38,7 +38,7 @@ inline static uint32_t utf8_measure(const char_t * pos)
     if (((ch <<= 1) & 0x80) == 0) return 3;
     if (((ch <<= 1) & 0x80) == 0) return 4;
     return 0;
-} // utf8_measure
+} // utf8_measure_plain
 
 // 功能：测量单个 UTF-8 字符包含的字节数（查表法）
 // 参数：
@@ -70,7 +70,7 @@ inline static uint32_t utf8_measure_by_addup(const char_t * pos)
     bytes += (ena &= (pos[0] >> 6)) * 2;        // 2 字节
     bytes += (ena &= (pos[0] >> 5));            // 3 字节
     bytes += (ena &= (pos[0] >> 4));            // 4 字节
-    return bytes - (ena & (pos[0] >> 3)) * 4;   // 首字节是 0b11111xxx ，返回 0
+    return bytes * !(ena & (pos[0] >> 3));   // 首字节是 0b11111xxx ，返回 0
 } // utf8_measure_by_addup
 
 #define utf8_measure utf8_measure_by_addup
