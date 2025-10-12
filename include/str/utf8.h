@@ -63,14 +63,14 @@ inline static uint32_t utf8_measure_by_lookup(const char_t * pos)
 //     平衡机器码字节数、缓存命中率和计算性能的逻辑实现。
 inline static uint32_t utf8_measure_by_addup(const char_t * pos)
 {
-    int32_t ena = 0;    // 累加开关
-    int32_t bytes = 1;  // 字节数
+    uint32_t ena = 0;    // 累加开关
+    uint32_t bytes = 1;  // 字节数
 
     bytes -= (ena  = (pos[0] >> 7));            // 首字节可能以 0b10 打头，预先减 1
     bytes += (ena &= (pos[0] >> 6)) * 2;        // 2 字节
     bytes += (ena &= (pos[0] >> 5));            // 3 字节
     bytes += (ena &= (pos[0] >> 4));            // 4 字节
-    return bytes * !(ena & (pos[0] >> 3));   // 首字节是 0b11111xxx ，返回 0
+    return bytes * !(ena & (pos[0] >> 3));      // 首字节是 0b11111xxx ，返回 0
 } // utf8_measure_by_addup
 
 #define utf8_measure utf8_measure_by_addup

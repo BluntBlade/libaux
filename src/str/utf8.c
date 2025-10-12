@@ -32,10 +32,10 @@ bool utf8_count(const char_t * start, uint32_t * bytes, uint32_t * chars)
     const char_t * pos = NULL;
     const char_t * end = NULL;
     uint32_t i = 0;
-    uint32_t code = 0;
-    uint32_t cnt = 0;
-    uint32_t ena = 0;
-    uint32_t max = 0;
+    uint32_t code = 0; // 跟随字节前2比特集合
+    uint32_t cnt = 0; // 跟随字节数
+    uint32_t ena = 0; // 累加开关
+    uint32_t max = 0; // 检查字符数上限
 
     assert(bytes != NULL);
     assert(chars != NULL);
@@ -55,7 +55,9 @@ bool utf8_count(const char_t * start, uint32_t * bytes, uint32_t * chars)
             ena &= (pos[0] >> 4);
             cnt += ena; code |= (ena * (pos[3] >> 6)) << 4; // code=0b00101010 0x2A
 
-            if (code != (0x2A >> ((3 - cnt + (ena & (pos[0] >> 3))) * 2))) break;
+            cnt *= !(ena & (pos[0] >> 3)); // 首字节是 0b11111xxx
+
+            if (cnt == 0 || code != (0x2A >> ((3 - cnt) * 2))) break;
 
             pos += cnt;
             code = 0;

@@ -75,11 +75,11 @@ static ut_string_case_t sc[] = {
 #define BZ_REPR "\\x92\\xBF\\x80\\xA5"      //   ^^
 
 static ut_string_case_t bc[] = {
-    {.name = {"b1_1"}, .bytes = 1, .chars = 1, .i_bytes = 1, .i_chars = 1, .r_bytes = 0, .r_chars = 0, .measure_ret = 0, .count_ret = false, .str = {B1_1_STR}, .repr = {B1_1_REPR}},
-    {.name = {"b1_2"}, .bytes = 1, .chars = 1, .i_bytes = 1, .i_chars = 1, .r_bytes = 0, .r_chars = 0, .measure_ret = 0, .count_ret = false, .str = {B1_2_STR}, .repr = {B1_2_REPR}},
-    {.name = {"b1_3"}, .bytes = 1, .chars = 1, .i_bytes = 1, .i_chars = 1, .r_bytes = 0, .r_chars = 0, .measure_ret = 0, .count_ret = false, .str = {B1_3_STR}, .repr = {B1_3_REPR}},
-    {.name = {"b1_4"}, .bytes = 1, .chars = 1, .i_bytes = 1, .i_chars = 1, .r_bytes = 0, .r_chars = 0, .measure_ret = 0, .count_ret = false, .str = {B1_4_STR}, .repr = {B1_4_REPR}},
-    {.name = {"b1_5"}, .bytes = 1, .chars = 1, .i_bytes = 1, .i_chars = 1, .r_bytes = 0, .r_chars = 0, .measure_ret = 0, .count_ret = false, .str = {B1_5_STR}, .repr = {B1_5_REPR}},
+    {.name = {"b1-1"}, .bytes = 1, .chars = 1, .i_bytes = 1, .i_chars = 1, .r_bytes = 0, .r_chars = 0, .measure_ret = 0, .count_ret = false, .str = {B1_1_STR}, .repr = {B1_1_REPR}},
+    {.name = {"b1-2"}, .bytes = 1, .chars = 1, .i_bytes = 1, .i_chars = 1, .r_bytes = 0, .r_chars = 0, .measure_ret = 0, .count_ret = false, .str = {B1_2_STR}, .repr = {B1_2_REPR}},
+    {.name = {"b1-3"}, .bytes = 1, .chars = 1, .i_bytes = 1, .i_chars = 1, .r_bytes = 0, .r_chars = 0, .measure_ret = 0, .count_ret = false, .str = {B1_3_STR}, .repr = {B1_3_REPR}},
+    {.name = {"b1-4"}, .bytes = 1, .chars = 1, .i_bytes = 1, .i_chars = 1, .r_bytes = 0, .r_chars = 0, .measure_ret = 0, .count_ret = false, .str = {B1_4_STR}, .repr = {B1_4_REPR}},
+    {.name = {"b1-5"}, .bytes = 1, .chars = 1, .i_bytes = 1, .i_chars = 1, .r_bytes = 0, .r_chars = 0, .measure_ret = 0, .count_ret = false, .str = {B1_5_STR}, .repr = {B1_5_REPR}},
 
     {.name = {"b2"}, .bytes = 2, .chars = 1, .i_bytes = 2, .i_chars = 1, .r_bytes = 0, .r_chars = 0, .measure_ret = 0, .count_ret = false, .str = {B2_STR}, .repr = {B2_REPR}},
     {.name = {"b3"}, .bytes = 3, .chars = 1, .i_bytes = 3, .i_chars = 1, .r_bytes = 2, .r_chars = 0, .measure_ret = 3, .count_ret = false, .str = {B3_STR}, .repr = {B3_REPR}},
@@ -97,98 +97,47 @@ Test(Function, utf8_measure)
     for (i = 0; i < sizeof(sc) / sizeof(sc[0]); ++i) {
         c = &sc[i];
         ret = utf8_measure(c->str);
-        cr_expect(ret == c->measure_ret, "%s: utf8_measure('%s') returns wrong result: expect %d, got %d", c->name, c->repr, c->measure_ret, ret);
+        cr_expect(ret == c->measure_ret, "%s: utf8_measure('%s') returns incorrect result: expect %d, got %d", c->name, c->repr, c->measure_ret, ret);
     } // for
 
     // 异常用例
     for (i = 0; i < sizeof(bc) / sizeof(bc[0]); ++i) {
         c = &bc[i];
         ret = utf8_measure(c->str);
-        cr_expect(ret == c->measure_ret, "%s: utf8_measure('%s') returns wrong result: expect %d, got %d", c->name, c->repr, c->measure_ret, ret);
+        cr_expect(ret == c->measure_ret, "%s: utf8_measure('%s') returns incorrect result: expect %d, got %d", c->name, c->repr, c->measure_ret, ret);
     } // for
 } // utf_measure
-/*
+
 Test(Function, utf8_count)
 {
-    int32_t bytes = 0;
-    int32_t chars = 0;
+    ut_string_case_p c = NULL;
     int32_t i = 0;
+    uint32_t r_bytes = 0;
+    uint32_t r_chars = 0;
+    bool ret = false;
 
     // 正常用例
-    chars = 0;
-    bytes = utf8_count(s1.str, s1.bytes, &chars);
-    cr_expect(bytes == 0, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", s1.name, s1.repr, 0, 0);
-    cr_expect(chars == 0, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", s1.name, s1.repr, 0, 0);
-
-    chars = s1.chars;
-    bytes = utf8_count(s1.str, s1.bytes, &chars);
-    cr_expect(bytes == s1.bytes, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", s1.name, s1.repr, s1.bytes, bytes);
-    cr_expect(chars == s1.chars, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", s1.name, s1.repr, s1.chars, chars);
-
-    chars = s2.chars;
-    bytes = utf8_count(s2.str, s2.bytes, &chars);
-    cr_expect(bytes == s2.bytes, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", s2.name, s2.repr, s2.bytes, bytes);
-    cr_expect(chars == s2.chars, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", s2.name, s2.repr, s2.chars, chars);
-
-    chars = s3.chars + 1;
-    bytes = utf8_count(s3.str, s3.bytes, &chars);
-    cr_expect(bytes == s3.bytes, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", s3.name, s3.repr, s3.bytes, bytes);
-    cr_expect(chars == s3.chars, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", s3.name, s3.repr, s3.chars, chars);
-
-    chars = s4.chars + 2;
-    bytes = utf8_count(s4.str, s4.bytes, &chars);
-    cr_expect(bytes == s4.bytes, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", s4.name, s4.repr, s4.bytes, bytes);
-    cr_expect(chars == s4.chars, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", s4.name, s4.repr, s4.chars, chars);
-
     for (i = 0; i < sizeof(sc) / sizeof(sc[0]); ++i) {
-        chars = sc[i].chars;
-        bytes = utf8_count(sc[i].str, sc[i].bytes, &chars);
-        cr_expect(bytes == sc[i].bytes, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", sc[i].name, sc[i].repr, sc[i].bytes, bytes);
-        cr_expect(chars == sc[i].chars, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", sc[i].name, sc[i].repr, sc[i].chars, chars);
+        c= &sc[i];
+        r_bytes = c->i_bytes;
+        r_chars = c->i_chars;
+        ret = utf8_count(c->str, &r_bytes, &r_chars);
+        cr_expect(r_bytes == c->r_bytes, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", c->name, c->repr, c->r_bytes, r_bytes);
+        cr_expect(r_chars == c->r_chars, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", c->name, c->repr, c->r_chars, r_chars);
+        cr_expect(ret == c->count_ret, "%s: utf8_count('%s') return incorrect result: expect %d, got %d", c->name, c->repr, c->count_ret, ret);
     } // for
 
     // 异常用例
-    chars = b1_1.chars;
-    bytes = utf8_count(b1_1.str, b1_1.bytes, &chars);
-    cr_expect(bytes == -1, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", b1_1.name, b1_1.repr, -1, bytes);
-    cr_expect(chars == 0, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", b1_1.name, b1_1.repr, 0, chars);
-
-    chars = b1_2.chars;
-    bytes = utf8_count(b1_2.str, b1_2.bytes, &chars);
-    cr_expect(bytes == -1, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", b1_2.name, b1_2.repr, -1, bytes);
-    cr_expect(chars == 0, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", b1_2.name, b1_2.repr, 0, chars);
-
-    chars = b1_3.chars;
-    bytes = utf8_count(b1_3.str, b1_3.bytes, &chars);
-    cr_expect(bytes == -1, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", b1_3.name, b1_3.repr, -1, bytes);
-    cr_expect(chars == 0, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", b1_3.name, b1_3.repr, 0, chars);
-
-    chars = b1_4.chars;
-    bytes = utf8_count(b1_4.str, b1_4.bytes, &chars);
-    cr_expect(bytes == -1, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", b1_4.name, b1_4.repr, -1, bytes);
-    cr_expect(chars == 0, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", b1_4.name, b1_4.repr, 0, chars);
-
-    chars = b2.chars;
-    bytes = utf8_count(b2.str, b2.bytes, &chars);
-    cr_expect(bytes == -1, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", b2.name, b2.repr, -1, bytes);
-    cr_expect(chars == 0, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", b2.name, b2.repr, 0, chars);
-
-    chars = b3.chars;
-    bytes = utf8_count(b3.str, b3.bytes, &chars);
-    cr_expect(bytes == -1, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", b3.name, b3.repr, -1, bytes);
-    cr_expect(chars == 0, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", b3.name, b3.repr, 0, chars);
-
-    chars = b4.chars;
-    bytes = utf8_count(b4.str, b4.bytes, &chars);
-    cr_expect(bytes == -1, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", b4.name, b4.repr, -1, bytes);
-    cr_expect(chars == 0, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", b4.name, b4.repr, 0, chars);
-
-    chars = bz.chars;
-    bytes = utf8_count(bz.str, bz.bytes, &chars);
-    cr_expect(bytes == -1, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", bz.name, bz.repr, -1, bytes);
-    cr_expect(chars == 0, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", bz.name, bz.repr, 0, chars);
+    for (i = 0; i < sizeof(bc) / sizeof(bc[0]); ++i) {
+        c= &bc[i];
+        r_bytes = c->i_bytes;
+        r_chars = c->i_chars;
+        ret = utf8_count(c->str, &r_bytes, &r_chars);
+        cr_expect(r_bytes == c->r_bytes, "%s: utf8_count('%s') return incorrect bytes: expect %d, got %d", c->name, c->repr, c->r_bytes, r_bytes);
+        cr_expect(r_chars == c->r_chars, "%s: utf8_count('%s') return incorrect chars: expect %d, got %d", c->name, c->repr, c->r_chars, r_chars);
+        cr_expect(ret == c->count_ret, "%s: utf8_count('%s') return incorrect result: expect %d, got %d", c->name, c->repr, c->count_ret, ret);
+    } // for
 } // utf8_count
-*/
 
 typedef struct TEST_UNICODE_DATA {
     uchar_t ch;
