@@ -84,7 +84,11 @@ inline static uint32_t utf8_measure_by_addup(const char_t * pos)
 // 返回值：
 //     true         编码正确
 //     false        编码错误
-bool utf8_count(const char_t * start, uint32_t * bytes, uint32_t * chars);
+extern bool utf8_count(const char_t * start, uint32_t * bytes, uint32_t * chars);
+
+
+extern bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes);
+extern bool utf8_verify_by_lookup2(const char_t * start, uint32_t * bytes);
 
 // 功能：解码 UTF-8 字符
 // 参数：
