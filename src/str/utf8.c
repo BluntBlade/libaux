@@ -196,6 +196,7 @@ bool utf8_verify_by_lookup2(const char_t * start, uint32_t * bytes)
     // printf("%s: start=%p pos=%p leads=%d chunks=%d tails=%d last=%d\n", start, start, pos, leads, chunks, tails, last);
 
     ones.qword = pos->qword & (0xFFFFFFFFFFFFFFFF << (leads * 8));
+    chunks -= (leads == 0 && chunks > 0); // 没有前导字节且块数大于 0 ，则必须少循环 1 次
 
 UTF8_VERIFY_AGAIN:
     sts = next[sts][tbl[ones.bytes[0] >> 3]]; ok_bytes += (sts != VSS_ERROR); // printf("%s: ones[0]=%d sts=%d ok=%d\n", start, ones.bytes[0], sts, ok_bytes);
