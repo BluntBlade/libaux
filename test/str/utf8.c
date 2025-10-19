@@ -27,6 +27,10 @@ typedef struct UT_STRING_CASE {
 #define S3_REPR "\\xEA\\xBF\\x80"
 #define S4_STR "\xF2\xBF\x80\xA5" // 0b11110010 0b10111111 0b10000000 0b10100101
 #define S4_REPR "\\xF2\\xBF\\x80\\xA5"
+#define S8_STR S2_STR S1_STR S4_STR S1_STR
+#define S8_REPR S2_REPR S1_REPR S4_REPR S1_REPR
+#define S17_STR "ABCDEFG" S2_STR "JKLMNOPQ"
+#define S17_REPR "ABCDEFG" S2_REPR "JKLMNOPQ"
 
 static ut_string_case_t sc[] = {
     {.name = {"s1"}, .bytes = 1, .chars = 1, .i_bytes = 1, .i_chars = 1, .r_bytes = 1, .r_chars = 1, .measure_ret = 1, .count_ret = true, .str = {S1_STR}, .repr = {S1_REPR}},
@@ -53,6 +57,8 @@ static ut_string_case_t sc[] = {
     {.name = {"s42"}, .bytes = 6, .chars = 2, .i_bytes = 6, .i_chars = 2, .r_bytes = 6, .r_chars = 2, .measure_ret = 4, .count_ret = true, .str = {S4_STR S2_STR}, .repr = {S4_REPR S2_REPR}},
     {.name = {"s43"}, .bytes = 7, .chars = 2, .i_bytes = 7, .i_chars = 2, .r_bytes = 7, .r_chars = 2, .measure_ret = 4, .count_ret = true, .str = {S4_STR S3_STR}, .repr = {S4_REPR S3_REPR}},
     {.name = {"s44"}, .bytes = 8, .chars = 2, .i_bytes = 8, .i_chars = 2, .r_bytes = 8, .r_chars = 2, .measure_ret = 4, .count_ret = true, .str = {S4_STR S4_STR}, .repr = {S4_REPR S4_REPR}},
+
+    {.name = {"s17"}, .bytes = 17, .chars = 16, .i_bytes = 17, .i_chars = 16, .r_bytes = 17, .r_chars = 16, .measure_ret = 1, .count_ret = true, .str = {S17_STR}, .repr = {S17_REPR}},
 };
 
 #define B1_1_STR "\x80"                     // 0b10000000
@@ -206,7 +212,7 @@ Test(Function, utf8_verify_by_lookup2)
 
     // 正常用例
     for (i = 0; i < sizeof(sc) / sizeof(sc[0]); ++i) {
-        c= &sc[i];
+        c = &sc[i];
         r_bytes = c->i_bytes;
         ret = utf8_verify_by_lookup2(c->str, &r_bytes);
         cr_expect(r_bytes == c->r_bytes, "%s: utf8_verify_by_lookup2('%s') return incorrect bytes: expect %d, got %d", c->name, c->repr, c->r_bytes, r_bytes);
@@ -215,12 +221,28 @@ Test(Function, utf8_verify_by_lookup2)
 
     // 异常用例
     for (i = 0; i < sizeof(bc) / sizeof(bc[0]); ++i) {
-        c= &bc[i];
+        c = &bc[i];
         r_bytes = c->i_bytes;
         ret = utf8_verify_by_lookup2(c->str, &r_bytes);
         cr_expect(r_bytes == c->r_bytes, "%s: utf8_verify_by_lookup2('%s') return incorrect bytes: expect %d, got %d", c->name, c->repr, c->r_bytes, r_bytes);
         cr_expect(ret == false, "%s: utf8_verify_by_lookup2('%s') return incorrect result: expect %d, got %d", c->name, c->repr, false, ret);
     } // for
+
+    // Aligned strings
+    r_bytes = strlen(S1_STR);
+    ret = utf8_verify_by_lookup2((const char_t *)S1_STR, &r_bytes);
+    cr_expect(r_bytes == strlen(S1_STR), "%s: utf8_verify_by_lookup2('%s') return incorrect bytes: expect %lu, got %d", "s1-aligned", S1_REPR, strlen(S1_STR), r_bytes);
+    cr_expect(ret == true, "%s: utf8_verify_by_lookup2('%s') return incorrect result: expect %d, got %d", "s1-aligned", S1_REPR, true, ret);
+
+    r_bytes = strlen(S8_STR);
+    ret = utf8_verify_by_lookup2((const char_t *)S8_STR, &r_bytes);
+    cr_expect(r_bytes == strlen(S8_STR), "%s: utf8_verify_by_lookup2('%s') return incorrect bytes: expect %lu, got %d", "s8-aligned", S8_REPR, strlen(S8_STR), r_bytes);
+    cr_expect(ret == true, "%s: utf8_verify_by_lookup2('%s') return incorrect result: expect %d, got %d", "s8-aligned", S8_REPR, true, ret);
+
+    r_bytes = strlen(S17_STR);
+    ret = utf8_verify_by_lookup2((const char_t *)S17_STR, &r_bytes);
+    cr_expect(r_bytes == strlen(S17_STR), "%s: utf8_verify_by_lookup2('%s') return incorrect bytes: expect %lu, got %d", "s17-aligned", S17_REPR, strlen(S17_STR), r_bytes);
+    cr_expect(ret == true, "%s: utf8_verify_by_lookup2('%s') return incorrect result: expect %d, got %d", "s17-aligned", S17_REPR, true, ret);
 } // utf8_verify_by_lookup2
 
 typedef struct TEST_UNICODE_DATA {
