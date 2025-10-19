@@ -70,80 +70,12 @@ enum {
     VSS_ERROR = 4,
 };
 
-typedef union UTF8_BYTES {
+typedef union UTF8_CHUNK {
     uint64_t qword;
     uint8_t  bytes[8];
-} utf8_bytes_t, *utf8_bytes_p;
+} utf8_chunk_t, *utf8_chunk_p;
 
 bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes)
-{
-    static const uint16_t next[5][6] = {
-        // leading ones
-        // 0          1          2          3          4          5          
-        {  VSS_ASCII, VSS_ERROR, VSS_TAIL1, VSS_TAIL2, VSS_TAIL3, VSS_ERROR,  }, // curr = VSS_ASCII
-        {  VSS_ERROR, VSS_ASCII, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR,  }, // curr = VSS_TAIL1
-        {  VSS_ERROR, VSS_TAIL1, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR,  }, // curr = VSS_TAIL2
-        {  VSS_ERROR, VSS_TAIL2, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR,  }, // curr = VSS_TAIL3
-        {  VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR,  }, // curr = VSS_ERROR
-    };
-
-    uint16_t sts = VSS_ASCII;
-    utf8_bytes_t ones = {0};
-    utf8_bytes_t ena = {0};
-    utf8_bytes_p pos = NULL;
-    uint32_t ok_bytes = 0;
-    uint32_t leads = 0;
-    uint32_t tails = 0;
-    uint32_t chunks = 0;
-
-    if (*bytes == 0) return true;
-    if (*bytes == 1) return (*bytes = (start[0] <= 0x7F));
-
-    pos = (utf8_bytes_p)str_round_up((uint64_t)start, 8);
-    str_span(start, *bytes, 8, &leads, &chunks, &tails);
-    ena.qword = 0x0101010101010101 << (leads * 8);
-
-UTF8_VERIFY_AGAIN:
-    ones.qword = (pos->qword >> 7) & ena.qword;
-    ena.qword &= (pos->qword >> 7);
-    ones.qword += (pos->qword >> 6) & ena.qword;
-    ena.qword &= (pos->qword >> 6);
-    ones.qword += (pos->qword >> 5) & ena.qword;
-    ena.qword &= (pos->qword >> 5);
-    ones.qword += (pos->qword >> 4) & ena.qword;
-    ena.qword &= (pos->qword >> 4);
-    ones.qword += (pos->qword >> 3) & ena.qword;
-
-    sts = next[sts][ones.bytes[0]]; ok_bytes += sts != VSS_ERROR;
-    sts = next[sts][ones.bytes[1]]; ok_bytes += sts != VSS_ERROR;
-    sts = next[sts][ones.bytes[2]]; ok_bytes += sts != VSS_ERROR;
-    sts = next[sts][ones.bytes[3]]; ok_bytes += sts != VSS_ERROR;
-    sts = next[sts][ones.bytes[4]]; ok_bytes += sts != VSS_ERROR;
-    sts = next[sts][ones.bytes[5]]; ok_bytes += sts != VSS_ERROR;
-    sts = next[sts][ones.bytes[6]]; ok_bytes += sts != VSS_ERROR;
-    sts = next[sts][ones.bytes[7]]; ok_bytes += sts != VSS_ERROR;
-
-    if (sts != VSS_ERROR) {
-        pos += 1;
-        ena.qword = 0x0101010101010101;
-
-        if (chunks > 0) {
-            chunks -= 1;
-            ones.qword = pos->qword;
-            goto UTF8_VERIFY_AGAIN;
-        } // if
-        if (tails > 0) {
-            ena.qword >>= (tails * 8);
-            tails = 0;
-            goto UTF8_VERIFY_AGAIN;
-        } // if
-    } // if
-
-    *bytes = ok_bytes;
-    return sts == VSS_ASCII;
-} // utf8_verify_by_lookup
-
-bool utf8_verify_by_lookup2(const char_t * start, uint32_t * bytes)
 {
     static const uint16_t next[5][6] = {
         // leading ones
@@ -174,41 +106,45 @@ bool utf8_verify_by_lookup2(const char_t * start, uint32_t * bytes)
         0x5,
     };
 
-    utf8_bytes_t ones = {0};
-    utf8_bytes_p pos = NULL;
+    utf8_chunk_t ones = {0};
+    utf8_chunk_p pos = NULL;
     uint32_t ok_bytes = 0;
+    uint32_t ng_bytes = 0;
     uint32_t leads = 0;
     uint32_t tails = 0;
     uint32_t chunks = 0;
-    uint16_t sts = VSS_ASCII;
+    uint32_t chunk_size = sizeof(utf8_chunk_t);
+    uint16_t curr_sts = VSS_ASCII;
+    uint16_t prev_sts = VSS_ASCII;
     bool last = false;
 
     if (*bytes == 0) return true;
     if (*bytes == 1) return (*bytes = (start[0] <= 0x7F));
 
-    str_span(start, *bytes, 8, &leads, &chunks, &tails);
+    str_span(start, *bytes, chunk_size, &leads, &chunks, &tails);
 
-    pos = (utf8_bytes_p)str_round_up((uint64_t)start, 8);
-    last = pos != (utf8_bytes_p)str_round_up((uint64_t)start + *bytes, 8);
+    pos = (utf8_chunk_p)str_round_up((uint64_t)start, chunk_size);
+    last = pos != (utf8_chunk_p)str_round_up((uint64_t)start + *bytes, chunk_size);
 
-    if ((void *)pos != (void *)start) pos -= 1;
-
-    // printf("%s: start=%p pos=%p leads=%d chunks=%d tails=%d last=%d\n", start, start, pos, leads, chunks, tails, last);
-
-    ones.qword = pos->qword & (0xFFFFFFFFFFFFFFFF << (leads * 8));
+    pos -= (void *)pos != (void *)start;
     chunks -= (leads == 0 && chunks > 0); // 没有前导字节且块数大于 0 ，则必须少循环 1 次
 
-UTF8_VERIFY_AGAIN:
-    sts = next[sts][tbl[ones.bytes[0] >> 3]]; ok_bytes += (sts != VSS_ERROR); // printf("%s: ones[0]=%d sts=%d ok=%d\n", start, ones.bytes[0], sts, ok_bytes);
-    sts = next[sts][tbl[ones.bytes[1] >> 3]]; ok_bytes += (sts != VSS_ERROR); // printf("%s: ones[1]=%d sts=%d ok=%d\n", start, ones.bytes[1], sts, ok_bytes);
-    sts = next[sts][tbl[ones.bytes[2] >> 3]]; ok_bytes += (sts != VSS_ERROR); // printf("%s: ones[2]=%d sts=%d ok=%d\n", start, ones.bytes[2], sts, ok_bytes);
-    sts = next[sts][tbl[ones.bytes[3] >> 3]]; ok_bytes += (sts != VSS_ERROR); // printf("%s: ones[3]=%d sts=%d ok=%d\n", start, ones.bytes[3], sts, ok_bytes);
-    sts = next[sts][tbl[ones.bytes[4] >> 3]]; ok_bytes += (sts != VSS_ERROR); // printf("%s: ones[4]=%d sts=%d ok=%d\n", start, ones.bytes[4], sts, ok_bytes);
-    sts = next[sts][tbl[ones.bytes[5] >> 3]]; ok_bytes += (sts != VSS_ERROR); // printf("%s: ones[5]=%d sts=%d ok=%d\n", start, ones.bytes[5], sts, ok_bytes);
-    sts = next[sts][tbl[ones.bytes[6] >> 3]]; ok_bytes += (sts != VSS_ERROR); // printf("%s: ones[6]=%d sts=%d ok=%d\n", start, ones.bytes[6], sts, ok_bytes);
-    sts = next[sts][tbl[ones.bytes[7] >> 3]]; ok_bytes += (sts != VSS_ERROR); // printf("%s: ones[7]=%d sts=%d ok=%d\n", start, ones.bytes[7], sts, ok_bytes);
+    ones.qword = pos->qword & (0xFFFFFFFFFFFFFFFF << (leads * chunk_size));
 
-    if (sts != VSS_ERROR) {
+UTF8_VERIFY_AGAIN:
+    ok_bytes += chunk_size;
+
+    curr_sts = next[curr_sts][tbl[ones.bytes[0] >> 3]];
+    curr_sts = next[curr_sts][tbl[ones.bytes[1] >> 3]];
+    curr_sts = next[curr_sts][tbl[ones.bytes[2] >> 3]];
+    curr_sts = next[curr_sts][tbl[ones.bytes[3] >> 3]];
+    curr_sts = next[curr_sts][tbl[ones.bytes[4] >> 3]];
+    curr_sts = next[curr_sts][tbl[ones.bytes[5] >> 3]];
+    curr_sts = next[curr_sts][tbl[ones.bytes[6] >> 3]];
+    curr_sts = next[curr_sts][tbl[ones.bytes[7] >> 3]];
+
+    if (curr_sts != VSS_ERROR) {
+        prev_sts = curr_sts;
         pos += 1;
 
         if (chunks > 0) {
@@ -218,11 +154,21 @@ UTF8_VERIFY_AGAIN:
         } // if
         if (last) {
             last = false;
-            ones.qword = pos->qword & (0xFFFFFFFFFFFFFFFF >> (tails * 8));
+            ones.qword = pos->qword & (0xFFFFFFFFFFFFFFFF >> (tails * chunk_size));
             goto UTF8_VERIFY_AGAIN;
         } // if
+    } else {
+        curr_sts = prev_sts;
+        curr_sts = next[curr_sts][tbl[ones.bytes[0] >> 3]]; ng_bytes += curr_sts == VSS_ERROR;
+        curr_sts = next[curr_sts][tbl[ones.bytes[1] >> 3]]; ng_bytes += curr_sts == VSS_ERROR;
+        curr_sts = next[curr_sts][tbl[ones.bytes[2] >> 3]]; ng_bytes += curr_sts == VSS_ERROR;
+        curr_sts = next[curr_sts][tbl[ones.bytes[3] >> 3]]; ng_bytes += curr_sts == VSS_ERROR;
+        curr_sts = next[curr_sts][tbl[ones.bytes[4] >> 3]]; ng_bytes += curr_sts == VSS_ERROR;
+        curr_sts = next[curr_sts][tbl[ones.bytes[5] >> 3]]; ng_bytes += curr_sts == VSS_ERROR;
+        curr_sts = next[curr_sts][tbl[ones.bytes[6] >> 3]]; ng_bytes += curr_sts == VSS_ERROR;
+        curr_sts = next[curr_sts][tbl[ones.bytes[7] >> 3]]; ng_bytes += curr_sts == VSS_ERROR;
     } // if
 
-    *bytes = ok_bytes - leads - (sts == VSS_ASCII ? tails : 0);
-    return sts == VSS_ASCII;
-} // utf8_verify_by_lookup2
+    *bytes = ok_bytes - leads - (curr_sts == VSS_ASCII ? tails : ng_bytes);
+    return curr_sts == VSS_ASCII;
+} // utf8_verify_by_lookup
