@@ -186,19 +186,22 @@ bool utf8_verify_by_lookup2(const char_t * start, uint32_t * bytes)
     if (*bytes == 1) return (*bytes = (start[0] <= 0x7F));
 
     pos = (utf8_bytes_p)str_round_up((uint64_t)start, 8);
+    if ((void *)pos != (void *)start) pos -= 1;
     str_span(start, *bytes, 8, &leads, &chunks, &tails);
+
+    // printf("%s: start=%p pos=%p leads=%d chunks=%d tails=%d\n", start, start, pos, leads, chunks, tails);
 
     ones.qword = pos->qword & (0xFFFFFFFFFFFFFFFF << (leads * 8));
 
 UTF8_VERIFY_AGAIN:
-    sts = next[sts][tbl[ones.bytes[0] >> 3]]; ok_bytes += sts != VSS_ERROR;
-    sts = next[sts][tbl[ones.bytes[1] >> 3]]; ok_bytes += sts != VSS_ERROR;
-    sts = next[sts][tbl[ones.bytes[2] >> 3]]; ok_bytes += sts != VSS_ERROR;
-    sts = next[sts][tbl[ones.bytes[3] >> 3]]; ok_bytes += sts != VSS_ERROR;
-    sts = next[sts][tbl[ones.bytes[4] >> 3]]; ok_bytes += sts != VSS_ERROR;
-    sts = next[sts][tbl[ones.bytes[5] >> 3]]; ok_bytes += sts != VSS_ERROR;
-    sts = next[sts][tbl[ones.bytes[6] >> 3]]; ok_bytes += sts != VSS_ERROR;
-    sts = next[sts][tbl[ones.bytes[7] >> 3]]; ok_bytes += sts != VSS_ERROR;
+    sts = next[sts][tbl[ones.bytes[0] >> 3]]; ok_bytes += (ones.bytes[0] != 0) & (sts != VSS_ERROR); // printf("%s: ones[0]=%d sts=%d ok=%d\n", start, ones.bytes[0], sts, ok_bytes);
+    sts = next[sts][tbl[ones.bytes[1] >> 3]]; ok_bytes += (ones.bytes[1] != 0) & (sts != VSS_ERROR); // printf("%s: ones[1]=%d sts=%d ok=%d\n", start, ones.bytes[1], sts, ok_bytes);
+    sts = next[sts][tbl[ones.bytes[2] >> 3]]; ok_bytes += (ones.bytes[2] != 0) & (sts != VSS_ERROR); // printf("%s: ones[2]=%d sts=%d ok=%d\n", start, ones.bytes[2], sts, ok_bytes);
+    sts = next[sts][tbl[ones.bytes[3] >> 3]]; ok_bytes += (ones.bytes[3] != 0) & (sts != VSS_ERROR); // printf("%s: ones[3]=%d sts=%d ok=%d\n", start, ones.bytes[3], sts, ok_bytes);
+    sts = next[sts][tbl[ones.bytes[4] >> 3]]; ok_bytes += (ones.bytes[4] != 0) & (sts != VSS_ERROR); // printf("%s: ones[4]=%d sts=%d ok=%d\n", start, ones.bytes[4], sts, ok_bytes);
+    sts = next[sts][tbl[ones.bytes[5] >> 3]]; ok_bytes += (ones.bytes[5] != 0) & (sts != VSS_ERROR); // printf("%s: ones[5]=%d sts=%d ok=%d\n", start, ones.bytes[5], sts, ok_bytes);
+    sts = next[sts][tbl[ones.bytes[6] >> 3]]; ok_bytes += (ones.bytes[6] != 0) & (sts != VSS_ERROR); // printf("%s: ones[6]=%d sts=%d ok=%d\n", start, ones.bytes[6], sts, ok_bytes);
+    sts = next[sts][tbl[ones.bytes[7] >> 3]]; ok_bytes += (ones.bytes[7] != 0) & (sts != VSS_ERROR); // printf("%s: ones[7]=%d sts=%d ok=%d\n", start, ones.bytes[7], sts, ok_bytes);
 
     if (sts != VSS_ERROR) {
         pos += 1;

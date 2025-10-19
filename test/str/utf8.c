@@ -197,6 +197,32 @@ Test(Function, utf8_count)
     } // for
 } // utf8_count
 
+Test(Function, utf8_verify_by_lookup2)
+{
+    ut_string_case_p c = NULL;
+    int32_t i = 0;
+    uint32_t r_bytes = 0;
+    bool ret = false;
+
+    // 正常用例
+    for (i = 0; i < sizeof(sc) / sizeof(sc[0]); ++i) {
+        c= &sc[i];
+        r_bytes = c->i_bytes;
+        ret = utf8_verify_by_lookup2(c->str, &r_bytes);
+        cr_expect(r_bytes == c->r_bytes, "%s: utf8_verify_by_lookup2('%s') return incorrect bytes: expect %d, got %d", c->name, c->repr, c->r_bytes, r_bytes);
+        cr_expect(ret == true, "%s: utf8_verify_by_lookup2('%s') return incorrect result: expect %d, got %d", c->name, c->repr, true, ret);
+    } // for
+
+    // 异常用例
+    for (i = 0; i < sizeof(bc) / sizeof(bc[0]); ++i) {
+        c= &bc[i];
+        r_bytes = c->i_bytes;
+        ret = utf8_verify_by_lookup2(c->str, &r_bytes);
+        cr_expect(r_bytes == c->r_bytes, "%s: utf8_verify_by_lookup2('%s') return incorrect bytes: expect %d, got %d", c->name, c->repr, c->r_bytes, r_bytes);
+        cr_expect(ret == false, "%s: utf8_verify_by_lookup2('%s') return incorrect result: expect %d, got %d", c->name, c->repr, false, ret);
+    } // for
+} // utf8_verify_by_lookup2
+
 typedef struct TEST_UNICODE_DATA {
     uchar_t ch;
     int32_t bytes;
