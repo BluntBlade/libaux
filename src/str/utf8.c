@@ -165,6 +165,8 @@ bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes)
 
     utf8_chunk_t ones = {0};
     utf8_chunk_p pos = NULL;
+    const char_t * begin = NULL;
+    const char_t * end = NULL;
     uint32_t ok_bytes = 0;
     uint32_t ng_bytes = 0;
     uint32_t leads = 0;
@@ -173,20 +175,24 @@ bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes)
     uint32_t chunk_size = sizeof(utf8_chunk_t);
     uint16_t curr_sts = VSS_ASCII;
     uint16_t prev_sts = VSS_ASCII;
-    bool last = false;
+    bool check_last = false;
 
     if (*bytes == 0) return true;
     if (*bytes == 1) return (*bytes = (start[0] <= 0x7F));
 
-    str_span(start, *bytes, chunk_size, &leads, &chunks, &tails);
-
-    pos = (utf8_chunk_p)str_round_up((uint64_t)start, chunk_size);
-    last = pos != (utf8_chunk_p)str_round_up((uint64_t)start + *bytes, chunk_size);
-
-    pos -= (void *)pos != (void *)start;
+    str_span(start, *bytes, chunk_size, &begin, &leads, &chunks, &tails, &end);
     chunks -= (leads == 0 && chunks > 0); // 没有前导字节且块数大于 0 ，则必须少循环 1 次
+    check_last = ((end - begin) > chunk_size) && (tails > 0);
 
-    ones.qword = pos->qword & (0xFFFFFFFFFFFFFFFF << (leads * chunk_size));
+    pos = (utf8_chunk_p)begin;
+    ones.qword = pos->qword;
+
+    if (leads > 0) {
+        ones.qword &= (0xFFFFFFFFFFFFFFFF << (leads * chunk_size));
+    } // if
+    if (!check_last && tails > 0) {
+        ones.qword &= (0xFFFFFFFFFFFFFFFF >> (tails * chunk_size));
+    } // if
 
 UTF8_VERIFY_AGAIN:
     ok_bytes += chunk_size;
@@ -202,19 +208,19 @@ UTF8_VERIFY_AGAIN:
 
     if (curr_sts != VSS_ERROR) {
         prev_sts = curr_sts;
-        pos += 1;
-
         if (chunks > 0) {
             chunks -= 1;
-            ones.qword = pos->qword;
+            ones.qword = (++pos)->qword;
             goto UTF8_VERIFY_AGAIN;
         } // if
-        if (last) {
-            last = false;
-            ones.qword = pos->qword & (0xFFFFFFFFFFFFFFFF >> (tails * chunk_size));
+        if (check_last) {
+            check_last = false;
+            ones.qword = (++pos)->qword & (0xFFFFFFFFFFFFFFFF >> (tails * chunk_size));
             goto UTF8_VERIFY_AGAIN;
         } // if
-    } else {
+    } // if
+
+    if (curr_sts == VSS_ERROR) {
         curr_sts = prev_sts;
         curr_sts = next[curr_sts][tbl[ones.bytes[0] >> 3]]; ng_bytes += curr_sts == VSS_ERROR;
         curr_sts = next[curr_sts][tbl[ones.bytes[1] >> 3]]; ng_bytes += curr_sts == VSS_ERROR;

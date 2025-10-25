@@ -32,14 +32,16 @@ static ut_span_t sc[] = {
     {.name = {"cross2_full"},  .start = (const char_t *)0x0, .bytes = 24, .alignment = 8, .r_leads = 0, .r_chunks = 3, .r_tails = 0},
 };
 
-static void str_span_wrapper(const char_t * start, const uint32_t bytes, const uint32_t alignment, uint32_t * leads, uint32_t * chunks, uint32_t * tails)
+static void str_span_wrapper(const char_t * start, const uint32_t bytes, const uint32_t alignment, const char_t ** begin, uint32_t * leads, uint32_t * chunks, uint32_t * tails, const char_t ** end)
 {
-    str_span(start, bytes, alignment, leads, chunks, tails);
+    str_span(start, bytes, alignment, begin, leads, chunks, tails, end);
 } // str_span_wrapper
 
 Test(Function, str_span)
 {
     ut_span_p c = NULL;
+    const char_t * r_begin = NULL;
+    const char_t * r_end = NULL;
     uint32_t r_leads = 0;
     uint32_t r_chunks = 0;
     uint32_t r_tails = 0;
@@ -48,7 +50,7 @@ Test(Function, str_span)
     // 正常用例
     for (i = 0; i < sizeof(sc) / sizeof(sc[0]); ++i) {
         c = &sc[i];
-        str_span_wrapper(c->start, c->bytes, c->alignment, &r_leads, &r_chunks, &r_tails);
+        str_span_wrapper(c->start, c->bytes, c->alignment, &r_begin, &r_leads, &r_chunks, &r_tails, &r_end);
         cr_expect(r_leads == c->r_leads, "%s: str_span(%p, %u, %u) returns incorrect leads: expect %u, got %u", c->name, c->start, c->bytes, c->alignment, c->r_leads, r_leads);
         cr_expect(r_chunks == c->r_chunks, "%s: str_span(%p, %u, %u) returns incorrect chunks: expect %u, got %u", c->name, c->start, c->bytes, c->alignment, c->r_chunks, r_chunks);
         cr_expect(r_tails == c->r_tails, "%s: str_span(%p, %u, %u) returns incorrect tails: expect %u, got %u", c->name, c->start, c->bytes, c->alignment, c->r_tails, r_tails);

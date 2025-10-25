@@ -30,7 +30,7 @@ inline static uint64_t str_round_up(uint64_t integer, uint64_t alignment)
 //     B = 有效字节（范围内）
 //     L = 前导字节
 //     T = 后随字节
-inline static void str_span(const char_t * start, const uint32_t bytes, const uint32_t alignment, uint32_t * leads, uint32_t * chunks, uint32_t * tails)
+inline static void str_span(const char_t * start, const uint32_t bytes, const uint32_t alignment, const char_t ** begin, uint32_t * leads, uint32_t * chunks, uint32_t * tails, const char_t ** end)
 {
     //    +--> begin
     //   /    +--> start
@@ -40,22 +40,19 @@ inline static void str_span(const char_t * start, const uint32_t bytes, const ui
     // |   BBB  |        |
     // +--------+--------+
 
-    const char_t * begin = NULL;
-    const char_t * end = NULL;
+    *begin = (const char_t *)str_round_up((uint64_t)start, alignment);
+    *end = (const char_t *)str_round_up((uint64_t)start + bytes, alignment);
+    *chunks = *end - *begin;
 
-    begin = (const char_t *)str_round_up((uint64_t)start, alignment);
-    end = (const char_t *)str_round_up((uint64_t)start + bytes, alignment);
-    *chunks = end - begin;
-
-    begin = begin == start ? begin : begin - alignment; 
+    *begin = *begin == start ? *begin : *begin - alignment; 
 
 #ifdef AUX_TESTING
-    assert(end - begin > bytes);
+    assert(*end - *begin > bytes);
 #endif
 
-    *leads = start - begin;
-    *tails = (end - begin) - *leads - bytes;
-    *chunks = (*chunks == 0) ? *chunks : (end - begin - str_round_up(*leads, alignment) - str_round_up(*tails, alignment)) / alignment;
+    *leads = start - *begin;
+    *tails = (*end - *begin) - *leads - bytes;
+    *chunks = (*chunks == 0) ? *chunks : (*end - *begin - str_round_up(*leads, alignment) - str_round_up(*tails, alignment)) / alignment;
 } // str_span
 
 #endif // _AUX_STR_MISC_H_
