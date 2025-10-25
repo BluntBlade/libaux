@@ -62,6 +62,63 @@ bool utf8_count(const char_t * start, uint32_t * bytes, uint32_t * chars)
     return i == max || pos == end;
 } // utf8_count
 
+bool utf8_verify_plain(const char_t * start, uint32_t * bytes)
+{
+    int i = 0;
+    while (i < *bytes) {
+        if (start[i] <= 0x7F) {
+            i += 1;
+            continue;
+        } // if
+
+        if ((start[i] >> 6) == 0x02 || (start[i] >> 3) == 0x1F) {
+            *bytes = i;
+            return false;
+        } // if
+
+        if ((start[i] >> 5) == 0x06) {
+            if ((start[i + 1] >> 6) != 0x02) {
+                *bytes = i + 1;
+                return false;
+            } // if
+            i += 2;
+            continue;
+        } // if
+
+        if ((start[i] >> 4) == 0x0E) {
+            if ((start[i + 1] >> 6) != 0x02) {
+                *bytes = i + 1;
+                return false;
+            } // if
+            if ((start[i + 2] >> 6) != 0x02) {
+                *bytes = i + 2;
+                return false;
+            } // if
+            i += 3;
+            continue;
+        } // if
+
+        if ((start[i] >> 3) == 0x1E) {
+            if ((start[i + 1] >> 6) != 0x02) {
+                *bytes = i + 1;
+                return false;
+            } // if
+            if ((start[i + 2] >> 6) != 0x02) {
+                *bytes = i + 2;
+                return false;
+            } // if
+            if ((start[i + 3] >> 6) != 0x02) {
+                *bytes = i + 3;
+                return false;
+            } // if
+            i += 4;
+            continue;
+        } // if
+    } // while
+
+    return i == *bytes;
+} // utf8_verify_plain
+
 enum {
     VSS_ASCII = 0,
     VSS_TAIL1 = 1,

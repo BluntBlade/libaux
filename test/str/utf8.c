@@ -203,6 +203,48 @@ Test(Function, utf8_count)
     } // for
 } // utf8_count
 
+Test(Function, utf8_verify_plain)
+{
+    ut_string_case_p c = NULL;
+    int32_t i = 0;
+    uint32_t r_bytes = 0;
+    bool ret = false;
+
+    // 正常用例
+    for (i = 0; i < sizeof(sc) / sizeof(sc[0]); ++i) {
+        c = &sc[i];
+        r_bytes = c->i_bytes;
+        ret = utf8_verify_plain(c->str, &r_bytes);
+        cr_expect(r_bytes == c->r_bytes, "%s: utf8_verify_plain('%s') return incorrect bytes: expect %d, got %d", c->name, c->repr, c->r_bytes, r_bytes);
+        cr_expect(ret == true, "%s: utf8_verify_plain('%s') return incorrect result: expect %d, got %d", c->name, c->repr, true, ret);
+    } // for
+
+    // 异常用例
+    for (i = 0; i < sizeof(bc) / sizeof(bc[0]); ++i) {
+        c = &bc[i];
+        r_bytes = c->i_bytes;
+        ret = utf8_verify_plain(c->str, &r_bytes);
+        cr_expect(r_bytes == c->r_bytes, "%s: utf8_verify_plain('%s') return incorrect bytes: expect %d, got %d", c->name, c->repr, c->r_bytes, r_bytes);
+        cr_expect(ret == false, "%s: utf8_verify_plain('%s') return incorrect result: expect %d, got %d", c->name, c->repr, false, ret);
+    } // for
+
+    // Aligned strings
+    r_bytes = strlen(S1_STR);
+    ret = utf8_verify_plain((const char_t *)S1_STR, &r_bytes);
+    cr_expect(r_bytes == strlen(S1_STR), "%s: utf8_verify_plain('%s') return incorrect bytes: expect %lu, got %d", "s1-aligned", S1_REPR, strlen(S1_STR), r_bytes);
+    cr_expect(ret == true, "%s: utf8_verify_plain('%s') return incorrect result: expect %d, got %d", "s1-aligned", S1_REPR, true, ret);
+
+    r_bytes = strlen(S8_STR);
+    ret = utf8_verify_plain((const char_t *)S8_STR, &r_bytes);
+    cr_expect(r_bytes == strlen(S8_STR), "%s: utf8_verify_plain('%s') return incorrect bytes: expect %lu, got %d", "s8-aligned", S8_REPR, strlen(S8_STR), r_bytes);
+    cr_expect(ret == true, "%s: utf8_verify_plain('%s') return incorrect result: expect %d, got %d", "s8-aligned", S8_REPR, true, ret);
+
+    r_bytes = strlen(S17_STR);
+    ret = utf8_verify_plain((const char_t *)S17_STR, &r_bytes);
+    cr_expect(r_bytes == strlen(S17_STR), "%s: utf8_verify_plain('%s') return incorrect bytes: expect %lu, got %d", "s17-aligned", S17_REPR, strlen(S17_STR), r_bytes);
+    cr_expect(ret == true, "%s: utf8_verify_plain('%s') return incorrect result: expect %d, got %d", "s17-aligned", S17_REPR, true, ret);
+} // utf8_verify_plain
+
 Test(Function, utf8_verify_by_lookup)
 {
     ut_string_case_p c = NULL;
