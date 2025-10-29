@@ -165,7 +165,7 @@ typedef union UTF8_CHUNK {
     uint8_t  bytes[8];
 } utf8_chunk_t, *utf8_chunk_p;
 
-uint16_t verify_part(uint16_t sts, const char * pos, const uint32_t bytes, uint32_t * ng_bytes)
+uint16_t verify_part(uint16_t sts, const char_t * pos, const uint32_t bytes, uint32_t * ng_bytes)
 {
     switch(bytes) {
         case 8: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR;
@@ -176,6 +176,7 @@ uint16_t verify_part(uint16_t sts, const char * pos, const uint32_t bytes, uint3
         case 3: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR;
         case 2: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR;
         case 1: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR;
+        default: break;
     } // switch
     return sts;
 } // verify_part
@@ -196,8 +197,11 @@ bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes)
     uint16_t prev_sts = VSS_ASCII;
     bool check_last = false;
 
-    if (*bytes == 0) return true;
-    if (*bytes == 1) return (*bytes = (start[0] <= 0x7F));
+    if (*bytes <= chunk_size) {
+        curr_sts = verify_part(VSS_ASCII, start, *bytes, &ng_bytes);
+        *bytes -= ng_bytes;
+        return curr_sts == VSS_ASCII;
+    } // if
 
     str_span(start, *bytes, chunk_size, &begin, &leads, &chunks, &tails, &end);
     chunks -= (leads == 0 && chunks > 0); // 没有前导字节且块数大于 0 ，则必须少循环 1 次
