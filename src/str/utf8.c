@@ -127,12 +127,7 @@ enum {
     VSS_ERROR = 4,
 };
 
-typedef union UTF8_CHUNK {
-    uint64_t qword;
-    uint8_t  bytes[8];
-} utf8_chunk_t, *utf8_chunk_p;
-
-bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes)
+inline static uint16_t move_next(const uint16_t sts, const char_t ch)
 {
     static const uint16_t next[5][6] = {
         // leading ones
@@ -143,7 +138,7 @@ bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes)
         {  VSS_ERROR, VSS_TAIL2, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR,  }, // curr = VSS_TAIL3
         {  VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR,  }, // curr = VSS_ERROR
     };
-    static const uint8_t tbl[32] = {
+    static const uint8_t ones[32] = {
         // 00000 ~ 01111
         0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
 
@@ -162,7 +157,31 @@ bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes)
         // 11111
         0x5,
     };
+    return next[sts][ones[ch >> 3]];
+} // move_next
 
+typedef union UTF8_CHUNK {
+    uint64_t qword;
+    uint8_t  bytes[8];
+} utf8_chunk_t, *utf8_chunk_p;
+
+uint16_t verify_part(uint16_t sts, const char * pos, const uint32_t bytes, uint32_t * ng_bytes)
+{
+    switch(bytes) {
+        case 8: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR;
+        case 7: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR;
+        case 6: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR;
+        case 5: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR;
+        case 4: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR;
+        case 3: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR;
+        case 2: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR;
+        case 1: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR;
+    } // switch
+    return sts;
+} // verify_part
+
+bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes)
+{
     utf8_chunk_t ones = {0};
     utf8_chunk_p pos = NULL;
     const char_t * begin = NULL;
@@ -197,14 +216,14 @@ bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes)
 UTF8_VERIFY_AGAIN:
     ok_bytes += chunk_size;
 
-    curr_sts = next[curr_sts][tbl[ones.bytes[0] >> 3]];
-    curr_sts = next[curr_sts][tbl[ones.bytes[1] >> 3]];
-    curr_sts = next[curr_sts][tbl[ones.bytes[2] >> 3]];
-    curr_sts = next[curr_sts][tbl[ones.bytes[3] >> 3]];
-    curr_sts = next[curr_sts][tbl[ones.bytes[4] >> 3]];
-    curr_sts = next[curr_sts][tbl[ones.bytes[5] >> 3]];
-    curr_sts = next[curr_sts][tbl[ones.bytes[6] >> 3]];
-    curr_sts = next[curr_sts][tbl[ones.bytes[7] >> 3]];
+    curr_sts = move_next(curr_sts, ones.bytes[0]);
+    curr_sts = move_next(curr_sts, ones.bytes[1]);
+    curr_sts = move_next(curr_sts, ones.bytes[2]);
+    curr_sts = move_next(curr_sts, ones.bytes[3]);
+    curr_sts = move_next(curr_sts, ones.bytes[4]);
+    curr_sts = move_next(curr_sts, ones.bytes[5]);
+    curr_sts = move_next(curr_sts, ones.bytes[6]);
+    curr_sts = move_next(curr_sts, ones.bytes[7]);
 
     if (curr_sts != VSS_ERROR) {
         prev_sts = curr_sts;
@@ -222,14 +241,14 @@ UTF8_VERIFY_AGAIN:
 
     if (curr_sts == VSS_ERROR) {
         curr_sts = prev_sts;
-        curr_sts = next[curr_sts][tbl[ones.bytes[0] >> 3]]; ng_bytes += curr_sts == VSS_ERROR;
-        curr_sts = next[curr_sts][tbl[ones.bytes[1] >> 3]]; ng_bytes += curr_sts == VSS_ERROR;
-        curr_sts = next[curr_sts][tbl[ones.bytes[2] >> 3]]; ng_bytes += curr_sts == VSS_ERROR;
-        curr_sts = next[curr_sts][tbl[ones.bytes[3] >> 3]]; ng_bytes += curr_sts == VSS_ERROR;
-        curr_sts = next[curr_sts][tbl[ones.bytes[4] >> 3]]; ng_bytes += curr_sts == VSS_ERROR;
-        curr_sts = next[curr_sts][tbl[ones.bytes[5] >> 3]]; ng_bytes += curr_sts == VSS_ERROR;
-        curr_sts = next[curr_sts][tbl[ones.bytes[6] >> 3]]; ng_bytes += curr_sts == VSS_ERROR;
-        curr_sts = next[curr_sts][tbl[ones.bytes[7] >> 3]]; ng_bytes += curr_sts == VSS_ERROR;
+        curr_sts = move_next(curr_sts, ones.bytes[0]); ng_bytes += curr_sts == VSS_ERROR;
+        curr_sts = move_next(curr_sts, ones.bytes[1]); ng_bytes += curr_sts == VSS_ERROR;
+        curr_sts = move_next(curr_sts, ones.bytes[2]); ng_bytes += curr_sts == VSS_ERROR;
+        curr_sts = move_next(curr_sts, ones.bytes[3]); ng_bytes += curr_sts == VSS_ERROR;
+        curr_sts = move_next(curr_sts, ones.bytes[4]); ng_bytes += curr_sts == VSS_ERROR;
+        curr_sts = move_next(curr_sts, ones.bytes[5]); ng_bytes += curr_sts == VSS_ERROR;
+        curr_sts = move_next(curr_sts, ones.bytes[6]); ng_bytes += curr_sts == VSS_ERROR;
+        curr_sts = move_next(curr_sts, ones.bytes[7]); ng_bytes += curr_sts == VSS_ERROR;
     } // if
 
     *bytes = ok_bytes - leads - (curr_sts == VSS_ASCII ? tails : ng_bytes);
