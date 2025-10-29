@@ -160,11 +160,6 @@ inline static uint16_t move_next(const uint16_t sts, const char_t ch)
     return next[sts][ones[ch >> 3]];
 } // move_next
 
-typedef union UTF8_CHUNK {
-    uint64_t qword;
-    uint8_t  bytes[8];
-} utf8_chunk_t, *utf8_chunk_p;
-
 uint16_t verify_part(uint16_t sts, const char_t * pos, const uint32_t bytes, uint32_t * ng_bytes)
 {
     switch(bytes) {
@@ -183,8 +178,7 @@ uint16_t verify_part(uint16_t sts, const char_t * pos, const uint32_t bytes, uin
 
 bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes)
 {
-    utf8_chunk_t ones = {0};
-    utf8_chunk_p pos = NULL;
+    const char_t * pos = NULL;
     const char_t * begin = NULL;
     const char_t * end = NULL;
     uint32_t ok_bytes = 0;
@@ -192,69 +186,53 @@ bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes)
     uint32_t leads = 0;
     uint32_t tails = 0;
     uint32_t chunks = 0;
-    uint32_t chunk_size = sizeof(utf8_chunk_t);
     uint16_t curr_sts = VSS_ASCII;
     uint16_t prev_sts = VSS_ASCII;
-    bool check_last = false;
+    const uint32_t chunk_size = 8;
 
+    pos = start;
     if (*bytes <= chunk_size) {
-        curr_sts = verify_part(VSS_ASCII, start, *bytes, &ng_bytes);
+        curr_sts = verify_part(curr_sts, pos, *bytes, &ng_bytes);
         *bytes -= ng_bytes;
         return curr_sts == VSS_ASCII;
     } // if
 
     str_span(start, *bytes, chunk_size, &begin, &leads, &chunks, &tails, &end);
-    chunks -= (leads == 0 && chunks > 0); // 没有前导字节且块数大于 0 ，则必须少循环 1 次
-    check_last = ((end - begin) > chunk_size) && (tails > 0);
-
-    pos = (utf8_chunk_p)begin;
-    ones.qword = pos->qword;
 
     if (leads > 0) {
-        ones.qword &= (0xFFFFFFFFFFFFFFFF << (leads * chunk_size));
+        ok_bytes = chunk_size - leads;
+        curr_sts = verify_part(curr_sts, pos, ok_bytes, &ng_bytes);
+        if (curr_sts == VSS_ERROR) goto UTF8_VERIFY_BY_LOOKUP_END;
+        pos += ok_bytes;
     } // if
-    if (!check_last && tails > 0) {
-        ones.qword &= (0xFFFFFFFFFFFFFFFF >> (tails * chunk_size));
-    } // if
 
-UTF8_VERIFY_AGAIN:
-    ok_bytes += chunk_size;
-
-    curr_sts = move_next(curr_sts, ones.bytes[0]);
-    curr_sts = move_next(curr_sts, ones.bytes[1]);
-    curr_sts = move_next(curr_sts, ones.bytes[2]);
-    curr_sts = move_next(curr_sts, ones.bytes[3]);
-    curr_sts = move_next(curr_sts, ones.bytes[4]);
-    curr_sts = move_next(curr_sts, ones.bytes[5]);
-    curr_sts = move_next(curr_sts, ones.bytes[6]);
-    curr_sts = move_next(curr_sts, ones.bytes[7]);
-
-    if (curr_sts != VSS_ERROR) {
+    while (chunks > 0) {
         prev_sts = curr_sts;
-        if (chunks > 0) {
-            chunks -= 1;
-            ones.qword = (++pos)->qword;
-            goto UTF8_VERIFY_AGAIN;
+        curr_sts = move_next(curr_sts, pos[0]);
+        curr_sts = move_next(curr_sts, pos[1]);
+        curr_sts = move_next(curr_sts, pos[2]);
+        curr_sts = move_next(curr_sts, pos[3]);
+        curr_sts = move_next(curr_sts, pos[4]);
+        curr_sts = move_next(curr_sts, pos[5]);
+        curr_sts = move_next(curr_sts, pos[6]);
+        curr_sts = move_next(curr_sts, pos[7]);
+
+        ok_bytes += chunk_size;
+        if (curr_sts == VSS_ERROR) {
+            curr_sts = verify_part(prev_sts, pos, chunk_size, &ng_bytes);
+            goto UTF8_VERIFY_BY_LOOKUP_END;
         } // if
-        if (check_last) {
-            check_last = false;
-            ones.qword = (++pos)->qword & (0xFFFFFFFFFFFFFFFF >> (tails * chunk_size));
-            goto UTF8_VERIFY_AGAIN;
-        } // if
+
+        pos += chunk_size;
+        chunks -= 1;
+    } // while
+
+    if (tails > 0) {
+        ok_bytes += chunk_size - tails;
+        curr_sts = verify_part(curr_sts, pos, chunk_size - tails, &ng_bytes);
     } // if
 
-    if (curr_sts == VSS_ERROR) {
-        curr_sts = prev_sts;
-        curr_sts = move_next(curr_sts, ones.bytes[0]); ng_bytes += curr_sts == VSS_ERROR;
-        curr_sts = move_next(curr_sts, ones.bytes[1]); ng_bytes += curr_sts == VSS_ERROR;
-        curr_sts = move_next(curr_sts, ones.bytes[2]); ng_bytes += curr_sts == VSS_ERROR;
-        curr_sts = move_next(curr_sts, ones.bytes[3]); ng_bytes += curr_sts == VSS_ERROR;
-        curr_sts = move_next(curr_sts, ones.bytes[4]); ng_bytes += curr_sts == VSS_ERROR;
-        curr_sts = move_next(curr_sts, ones.bytes[5]); ng_bytes += curr_sts == VSS_ERROR;
-        curr_sts = move_next(curr_sts, ones.bytes[6]); ng_bytes += curr_sts == VSS_ERROR;
-        curr_sts = move_next(curr_sts, ones.bytes[7]); ng_bytes += curr_sts == VSS_ERROR;
-    } // if
-
-    *bytes = ok_bytes - leads - (curr_sts == VSS_ASCII ? tails : ng_bytes);
+UTF8_VERIFY_BY_LOOKUP_END:
+    *bytes = ok_bytes - ng_bytes;
     return curr_sts == VSS_ASCII;
 } // utf8_verify_by_lookup
