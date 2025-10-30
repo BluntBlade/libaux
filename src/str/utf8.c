@@ -160,23 +160,23 @@ inline static uint16_t move_next(const uint16_t sts, const char_t ch)
     return next[sts][ones[ch >> 3]];
 } // move_next
 
-uint16_t verify_part(uint16_t sts, const char_t * pos, const uint32_t bytes, uint32_t * ng_bytes)
+uint16_t verify_part(uint16_t sts, const char_t * pos, const uint32_t bytes, uint32_t * ng_bytes, uint32_t * chars)
 {
     switch(bytes) {
-        case 8: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR;
-        case 7: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR;
-        case 6: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR;
-        case 5: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR;
-        case 4: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR;
-        case 3: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR;
-        case 2: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR;
-        case 1: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR;
+        case 8: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR; *chars += sts == VSS_ASCII;
+        case 7: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR; *chars += sts == VSS_ASCII;
+        case 6: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR; *chars += sts == VSS_ASCII;
+        case 5: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR; *chars += sts == VSS_ASCII;
+        case 4: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR; *chars += sts == VSS_ASCII;
+        case 3: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR; *chars += sts == VSS_ASCII;
+        case 2: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR; *chars += sts == VSS_ASCII;
+        case 1: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR; *chars += sts == VSS_ASCII;
         default: break;
     } // switch
     return sts;
 } // verify_part
 
-bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes)
+bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes, uint32_t * chars)
 {
     const char_t * pos = NULL;
     const char_t * begin = NULL;
@@ -190,9 +190,10 @@ bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes)
     uint16_t prev_sts = VSS_ASCII;
     const uint32_t chunk_size = 8;
 
+    *chars = 0;
     pos = start;
     if (*bytes <= chunk_size) {
-        curr_sts = verify_part(curr_sts, pos, *bytes, &ng_bytes);
+        curr_sts = verify_part(curr_sts, pos, *bytes, &ng_bytes, chars);
         *bytes -= ng_bytes;
         return curr_sts == VSS_ASCII;
     } // if
@@ -201,25 +202,25 @@ bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes)
 
     if (leads > 0) {
         ok_bytes = chunk_size - leads;
-        curr_sts = verify_part(curr_sts, pos, ok_bytes, &ng_bytes);
+        curr_sts = verify_part(curr_sts, pos, ok_bytes, &ng_bytes, chars);
         if (curr_sts == VSS_ERROR) goto UTF8_VERIFY_BY_LOOKUP_END;
         pos += ok_bytes;
     } // if
 
     while (chunks > 0) {
         prev_sts = curr_sts;
-        curr_sts = move_next(curr_sts, pos[0]);
-        curr_sts = move_next(curr_sts, pos[1]);
-        curr_sts = move_next(curr_sts, pos[2]);
-        curr_sts = move_next(curr_sts, pos[3]);
-        curr_sts = move_next(curr_sts, pos[4]);
-        curr_sts = move_next(curr_sts, pos[5]);
-        curr_sts = move_next(curr_sts, pos[6]);
-        curr_sts = move_next(curr_sts, pos[7]);
+        curr_sts = move_next(curr_sts, pos[0]); *chars += curr_sts == VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[1]); *chars += curr_sts == VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[2]); *chars += curr_sts == VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[3]); *chars += curr_sts == VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[4]); *chars += curr_sts == VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[5]); *chars += curr_sts == VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[6]); *chars += curr_sts == VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[7]); *chars += curr_sts == VSS_ASCII;
 
         ok_bytes += chunk_size;
         if (curr_sts == VSS_ERROR) {
-            curr_sts = verify_part(prev_sts, pos, chunk_size, &ng_bytes);
+            curr_sts = verify_part(prev_sts, pos, chunk_size, &ng_bytes, chars);
             goto UTF8_VERIFY_BY_LOOKUP_END;
         } // if
 
@@ -229,7 +230,7 @@ bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes)
 
     if (tails > 0) {
         ok_bytes += chunk_size - tails;
-        curr_sts = verify_part(curr_sts, pos, chunk_size - tails, &ng_bytes);
+        curr_sts = verify_part(curr_sts, pos, chunk_size - tails, &ng_bytes, chars);
     } // if
 
 UTF8_VERIFY_BY_LOOKUP_END:
