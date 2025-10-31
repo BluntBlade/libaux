@@ -145,47 +145,30 @@ bool utf8_verify_plain(const char_t * start, uint32_t * bytes, uint32_t * chars)
 } // utf8_verify_plain
 
 enum {
-    VSS_ASCII = 0,
-    VSS_TAIL1 = 1,
-    VSS_TAIL2 = 2,
-    VSS_TAIL3 = 3,
-    VSS_ERROR = 4,
+    VSS_END = 0,
+    VSS_ASCII = 1,
+    VSS_TAIL1 = 2,
+    VSS_TAIL2 = 3,
+    VSS_TAIL3 = 4,
+    VSS_ERROR = 5,
 };
 
-inline static uint16_t move_next(const uint16_t sts, const char_t ch)
+inline static uint8_t move_next(const uint8_t sts, const char_t ch)
 {
-    static const uint16_t next[5][6] = {
-        // leading ones
-        // 0          1          2          3          4          5          
-        {  VSS_ASCII, VSS_ERROR, VSS_TAIL1, VSS_TAIL2, VSS_TAIL3, VSS_ERROR,  }, // curr = VSS_ASCII
-        {  VSS_ERROR, VSS_ASCII, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR,  }, // curr = VSS_TAIL1
-        {  VSS_ERROR, VSS_TAIL1, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR,  }, // curr = VSS_TAIL2
-        {  VSS_ERROR, VSS_TAIL2, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR,  }, // curr = VSS_TAIL3
-        {  VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR,  }, // curr = VSS_ERROR
+    static const uint8_t next[6][7] = {
+        // input token
+        // TKN_NUL    TKN_ASCII  TKN_HEAD2  TKN_HEAD3  TKN_HEAD4  TKN_TAIL1  TKN_ERROR
+        {  VSS_END,   VSS_END,   VSS_END,   VSS_END,   VSS_END,   VSS_END,   VSS_END,   }, // curr = VSS_END
+        {  VSS_END,   VSS_ASCII, VSS_TAIL1, VSS_TAIL2, VSS_TAIL3, VSS_ERROR, VSS_ERROR, }, // curr = VSS_ASCII
+        {  VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ASCII, VSS_ERROR, }, // curr = VSS_TAIL1
+        {  VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_TAIL1, VSS_ERROR, }, // curr = VSS_TAIL2
+        {  VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_TAIL2, VSS_ERROR, }, // curr = VSS_TAIL3
+        {  VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, }, // curr = VSS_ERROR
     };
-    static const uint8_t ones[32] = {
-        // 00000 ~ 01111
-        0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-
-        // 10000 ~ 10111
-        0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1,
-
-        // 11000 ~ 11011
-        0x2, 0x2, 0x2, 0x2,
-
-        // 11100 ~ 11101
-        0x3, 0x3,
-
-        // 11110
-        0x4,
-
-        // 11111
-        0x5,
-    };
-    return next[sts][ones[ch >> 3]];
+    return next[sts][get_token(ch)];
 } // move_next
 
-uint16_t verify_part(uint16_t sts, const char_t * pos, const uint32_t bytes, uint32_t * ng_bytes, uint32_t * chars)
+uint8_t verify_part(uint8_t sts, const char_t * pos, const uint32_t bytes, uint32_t * ng_bytes, uint32_t * chars)
 {
     switch(bytes) {
         case 8: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR; *chars += sts == VSS_ASCII;
@@ -211,8 +194,8 @@ bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes, uint32_t * ch
     uint32_t leads = 0;
     uint32_t tails = 0;
     uint32_t chunks = 0;
-    uint16_t curr_sts = VSS_ASCII;
-    uint16_t prev_sts = VSS_ASCII;
+    uint8_t curr_sts = VSS_ASCII;
+    uint8_t prev_sts = VSS_ASCII;
     const uint32_t chunk_size = 8;
 
     *chars = 0;
