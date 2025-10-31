@@ -62,12 +62,14 @@ bool utf8_count(const char_t * start, uint32_t * bytes, uint32_t * chars)
     return i == max || pos == end;
 } // utf8_count
 
-bool utf8_verify_plain(const char_t * start, uint32_t * bytes)
+bool utf8_verify_plain(const char_t * start, uint32_t * bytes, uint32_t * chars)
 {
     int i = 0;
+    *chars = 0;
     while (i < *bytes) {
         if (start[i] <= 0x7F) {
             i += 1;
+            *chars += 1;
             continue;
         } // if
 
@@ -82,6 +84,7 @@ bool utf8_verify_plain(const char_t * start, uint32_t * bytes)
                 return false;
             } // if
             i += 2;
+            *chars += 1;
             continue;
         } // if
 
@@ -95,6 +98,7 @@ bool utf8_verify_plain(const char_t * start, uint32_t * bytes)
                 return false;
             } // if
             i += 3;
+            *chars += 1;
             continue;
         } // if
 
@@ -112,6 +116,7 @@ bool utf8_verify_plain(const char_t * start, uint32_t * bytes)
                 return false;
             } // if
             i += 4;
+            *chars += 1;
             continue;
         } // if
     } // while
