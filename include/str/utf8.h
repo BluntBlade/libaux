@@ -19,8 +19,6 @@
 
 #include "types.h"
 
-extern uint8_t utf8_bytes_map[128];
-
 // 功能：测量单个 UTF-8 字符包含的字节数
 // 参数：
 //     pos      IN  字符串指针，不能为 NULL
@@ -84,7 +82,26 @@ inline static uint32_t utf8_measure_by_addup(const char_t * pos)
 extern bool utf8_count(const char_t * start, uint32_t * bytes, uint32_t * chars);
 
 extern bool utf8_verify_plain(const char_t * start, uint32_t * bytes, uint32_t * chars);
-extern bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes, uint32_t * chars);
+
+enum {
+    UTF8_VSS_START = 0,
+    UTF8_VSS_ASCII = 0,
+    UTF8_VSS_TAIL1 = 1,
+    UTF8_VSS_TAIL2 = 2,
+    UTF8_VSS_TAIL3 = 3,
+    UTF8_VSS_END   = 4,
+    UTF8_VSS_ERROR = 5,
+};
+
+extern uint8_t utf8_verify_by_lookup_in_stream(const uint8_t sts, const char_t * const start, uint32_t * const bytes, uint32_t * const chars);
+
+inline static bool utf8_verify_by_lookup(const char_t * const start, uint32_t * const bytes, uint32_t * const chars)
+{
+    uint8_t sts = 0;
+    *chars = 0;
+    sts = utf8_verify_by_lookup_in_stream(UTF8_VSS_START, start, bytes, chars);
+    return sts == UTF8_VSS_ASCII;
+} // utf8_verify_by_lookup
 
 // 功能：解码 UTF-8 字符
 // 参数：

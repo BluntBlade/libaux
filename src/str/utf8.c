@@ -144,27 +144,17 @@ bool utf8_verify_plain(const char_t * start, uint32_t * bytes, uint32_t * chars)
     return i == *bytes;
 } // utf8_verify_plain
 
-enum {
-    VSS_START = 0,
-    VSS_ASCII = 0,
-    VSS_TAIL1 = 1,
-    VSS_TAIL2 = 2,
-    VSS_TAIL3 = 3,
-    VSS_END   = 4,
-    VSS_ERROR = 5,
-};
-
 inline static uint8_t move_next(const uint8_t sts, const char_t ch)
 {
     static const uint8_t next[6][7] = {
         // input token
         // TKN_NUL    TKN_ASCII  TKN_HEAD2  TKN_HEAD3  TKN_HEAD4  TKN_TAIL1  TKN_ERROR
-        {  VSS_END,   VSS_ASCII, VSS_TAIL1, VSS_TAIL2, VSS_TAIL3, VSS_ERROR, VSS_ERROR, }, // curr = VSS_ASCII
-        {  VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ASCII, VSS_ERROR, }, // curr = VSS_TAIL1
-        {  VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_TAIL1, VSS_ERROR, }, // curr = VSS_TAIL2
-        {  VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_TAIL2, VSS_ERROR, }, // curr = VSS_TAIL3
-        {  VSS_END,   VSS_END,   VSS_END,   VSS_END,   VSS_END,   VSS_END,   VSS_END,   }, // curr = VSS_END
-        {  VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, }, // curr = VSS_ERROR
+        {  UTF8_VSS_END,   UTF8_VSS_ASCII, UTF8_VSS_TAIL1, UTF8_VSS_TAIL2, UTF8_VSS_TAIL3, UTF8_VSS_ERROR, UTF8_VSS_ERROR, }, // curr = UTF8_VSS_ASCII
+        {  UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ASCII, UTF8_VSS_ERROR, }, // curr = UTF8_VSS_TAIL1
+        {  UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_TAIL1, UTF8_VSS_ERROR, }, // curr = UTF8_VSS_TAIL2
+        {  UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_TAIL2, UTF8_VSS_ERROR, }, // curr = UTF8_VSS_TAIL3
+        {  UTF8_VSS_END,   UTF8_VSS_END,   UTF8_VSS_END,   UTF8_VSS_END,   UTF8_VSS_END,   UTF8_VSS_END,   UTF8_VSS_END,   }, // curr = UTF8_VSS_END
+        {  UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ERROR, }, // curr = UTF8_VSS_ERROR
     };
     return next[sts][get_token(ch)];
 } // move_next
@@ -172,20 +162,20 @@ inline static uint8_t move_next(const uint8_t sts, const char_t ch)
 uint8_t verify_part(uint8_t sts, const char_t * pos, const uint32_t bytes, uint32_t * ng_bytes, uint32_t * chars)
 {
     switch(bytes) {
-        case 8: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR; *chars += sts == VSS_ASCII;
-        case 7: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR; *chars += sts == VSS_ASCII;
-        case 6: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR; *chars += sts == VSS_ASCII;
-        case 5: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR; *chars += sts == VSS_ASCII;
-        case 4: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR; *chars += sts == VSS_ASCII;
-        case 3: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR; *chars += sts == VSS_ASCII;
-        case 2: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR; *chars += sts == VSS_ASCII;
-        case 1: sts = move_next(sts, *pos++); *ng_bytes += sts == VSS_ERROR; *chars += sts == VSS_ASCII;
+        case 8: sts = move_next(sts, *pos++); *ng_bytes += sts == UTF8_VSS_ERROR; *chars += sts == UTF8_VSS_ASCII;
+        case 7: sts = move_next(sts, *pos++); *ng_bytes += sts == UTF8_VSS_ERROR; *chars += sts == UTF8_VSS_ASCII;
+        case 6: sts = move_next(sts, *pos++); *ng_bytes += sts == UTF8_VSS_ERROR; *chars += sts == UTF8_VSS_ASCII;
+        case 5: sts = move_next(sts, *pos++); *ng_bytes += sts == UTF8_VSS_ERROR; *chars += sts == UTF8_VSS_ASCII;
+        case 4: sts = move_next(sts, *pos++); *ng_bytes += sts == UTF8_VSS_ERROR; *chars += sts == UTF8_VSS_ASCII;
+        case 3: sts = move_next(sts, *pos++); *ng_bytes += sts == UTF8_VSS_ERROR; *chars += sts == UTF8_VSS_ASCII;
+        case 2: sts = move_next(sts, *pos++); *ng_bytes += sts == UTF8_VSS_ERROR; *chars += sts == UTF8_VSS_ASCII;
+        case 1: sts = move_next(sts, *pos++); *ng_bytes += sts == UTF8_VSS_ERROR; *chars += sts == UTF8_VSS_ASCII;
         default: break;
     } // switch
     return sts;
 } // verify_part
 
-bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes, uint32_t * chars)
+uint8_t utf8_verify_by_lookup_in_stream(const uint8_t sts, const char_t * const start, uint32_t * const bytes, uint32_t * const chars)
 {
     const char_t * pos = NULL;
     const char_t * begin = NULL;
@@ -195,16 +185,15 @@ bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes, uint32_t * ch
     uint32_t leads = 0;
     uint32_t tails = 0;
     uint32_t chunks = 0;
-    uint8_t curr_sts = VSS_ASCII;
-    uint8_t prev_sts = VSS_ASCII;
+    uint8_t curr_sts = sts;
+    uint8_t prev_sts = sts;
     const uint32_t chunk_size = 8;
 
-    *chars = 0;
     pos = start;
     if (*bytes <= chunk_size) {
         curr_sts = verify_part(curr_sts, pos, *bytes, &ng_bytes, chars);
         *bytes -= ng_bytes;
-        return curr_sts == VSS_ASCII;
+        return curr_sts;
     } // if
 
     str_span(start, *bytes, chunk_size, &begin, &leads, &chunks, &tails, &end);
@@ -212,23 +201,23 @@ bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes, uint32_t * ch
     if (leads > 0) {
         ok_bytes = chunk_size - leads;
         curr_sts = verify_part(curr_sts, pos, ok_bytes, &ng_bytes, chars);
-        if (curr_sts == VSS_ERROR) goto UTF8_VERIFY_BY_LOOKUP_END;
+        if (curr_sts == UTF8_VSS_ERROR) goto UTF8_VERIFY_BY_LOOKUP_END;
         pos += ok_bytes;
     } // if
 
     while (chunks > 0) {
         prev_sts = curr_sts;
-        curr_sts = move_next(curr_sts, pos[0]); *chars += curr_sts == VSS_ASCII;
-        curr_sts = move_next(curr_sts, pos[1]); *chars += curr_sts == VSS_ASCII;
-        curr_sts = move_next(curr_sts, pos[2]); *chars += curr_sts == VSS_ASCII;
-        curr_sts = move_next(curr_sts, pos[3]); *chars += curr_sts == VSS_ASCII;
-        curr_sts = move_next(curr_sts, pos[4]); *chars += curr_sts == VSS_ASCII;
-        curr_sts = move_next(curr_sts, pos[5]); *chars += curr_sts == VSS_ASCII;
-        curr_sts = move_next(curr_sts, pos[6]); *chars += curr_sts == VSS_ASCII;
-        curr_sts = move_next(curr_sts, pos[7]); *chars += curr_sts == VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[0]); *chars += curr_sts == UTF8_VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[1]); *chars += curr_sts == UTF8_VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[2]); *chars += curr_sts == UTF8_VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[3]); *chars += curr_sts == UTF8_VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[4]); *chars += curr_sts == UTF8_VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[5]); *chars += curr_sts == UTF8_VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[6]); *chars += curr_sts == UTF8_VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[7]); *chars += curr_sts == UTF8_VSS_ASCII;
 
         ok_bytes += chunk_size;
-        if (curr_sts == VSS_ERROR) {
+        if (curr_sts == UTF8_VSS_ERROR) {
             curr_sts = verify_part(prev_sts, pos, chunk_size, &ng_bytes, chars);
             goto UTF8_VERIFY_BY_LOOKUP_END;
         } // if
@@ -244,5 +233,5 @@ bool utf8_verify_by_lookup(const char_t * start, uint32_t * bytes, uint32_t * ch
 
 UTF8_VERIFY_BY_LOOKUP_END:
     *bytes = ok_bytes - ng_bytes;
-    return curr_sts == VSS_ASCII;
-} // utf8_verify_by_lookup
+    return curr_sts;
+} // utf8_verify_by_lookup_in_stream
