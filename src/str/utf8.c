@@ -148,7 +148,7 @@ inline static uint8_t move_next(const uint8_t sts, const char_t ch)
 {
     static const uint8_t next[6][7] = {
         // input token
-        // TKN_NUL    TKN_ASCII  TKN_HEAD2  TKN_HEAD3  TKN_HEAD4  TKN_TAIL1  TKN_ERROR
+        // TKN_NUL         TKN_ASCII       TKN_HEAD2       TKN_HEAD3       TKN_HEAD4       TKN_TAIL1       TKN_ERROR
         {  UTF8_VSS_END,   UTF8_VSS_ASCII, UTF8_VSS_TAIL1, UTF8_VSS_TAIL2, UTF8_VSS_TAIL3, UTF8_VSS_ERROR, UTF8_VSS_ERROR, }, // curr = UTF8_VSS_ASCII
         {  UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ASCII, UTF8_VSS_ERROR, }, // curr = UTF8_VSS_TAIL1
         {  UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_ERROR, UTF8_VSS_TAIL1, UTF8_VSS_ERROR, }, // curr = UTF8_VSS_TAIL2
