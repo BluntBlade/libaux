@@ -48,10 +48,7 @@ inline static uint32_t utf8_measure_plain(const char_t * pos)
 //     0            存在异常字节
 // 说明：
 //     逻辑最简单，需加载表格到缓存中，会影响性能。
-inline static uint32_t utf8_measure_by_lookup(const char_t * pos)
-{
-    return (utf8_bytes_map[pos[0] / 2] >> ((pos[0] & 0x1) * 4)) & 0x7;
-} // utf8_measure_by_lookup
+extern uint32_t utf8_measure_by_lookup(const char_t * pos);
 
 // 功能：测量单个 UTF-8 字符包含的字节数（累加法）
 // 参数：
