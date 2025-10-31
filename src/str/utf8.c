@@ -145,11 +145,12 @@ bool utf8_verify_plain(const char_t * start, uint32_t * bytes, uint32_t * chars)
 } // utf8_verify_plain
 
 enum {
-    VSS_END = 0,
-    VSS_ASCII = 1,
-    VSS_TAIL1 = 2,
-    VSS_TAIL2 = 3,
-    VSS_TAIL3 = 4,
+    VSS_START = 0,
+    VSS_ASCII = 0,
+    VSS_TAIL1 = 1,
+    VSS_TAIL2 = 2,
+    VSS_TAIL3 = 3,
+    VSS_END   = 4,
     VSS_ERROR = 5,
 };
 
@@ -158,11 +159,11 @@ inline static uint8_t move_next(const uint8_t sts, const char_t ch)
     static const uint8_t next[6][7] = {
         // input token
         // TKN_NUL    TKN_ASCII  TKN_HEAD2  TKN_HEAD3  TKN_HEAD4  TKN_TAIL1  TKN_ERROR
-        {  VSS_END,   VSS_END,   VSS_END,   VSS_END,   VSS_END,   VSS_END,   VSS_END,   }, // curr = VSS_END
         {  VSS_END,   VSS_ASCII, VSS_TAIL1, VSS_TAIL2, VSS_TAIL3, VSS_ERROR, VSS_ERROR, }, // curr = VSS_ASCII
         {  VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ASCII, VSS_ERROR, }, // curr = VSS_TAIL1
         {  VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_TAIL1, VSS_ERROR, }, // curr = VSS_TAIL2
         {  VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_TAIL2, VSS_ERROR, }, // curr = VSS_TAIL3
+        {  VSS_END,   VSS_END,   VSS_END,   VSS_END,   VSS_END,   VSS_END,   VSS_END,   }, // curr = VSS_END
         {  VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, VSS_ERROR, }, // curr = VSS_ERROR
     };
     return next[sts][get_token(ch)];
