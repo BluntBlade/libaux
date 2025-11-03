@@ -182,6 +182,7 @@ uint8_t utf8_verify_by_lookup_in_stream(const uint8_t sts, const char_t * const 
     const char_t * end = NULL;
     uint32_t ok_bytes = 0;
     uint32_t ng_bytes = 0;
+    uint32_t ok_chars = 0;
     uint32_t leads = 0;
     uint32_t tails = 0;
     uint32_t chunks = 0;
@@ -207,14 +208,14 @@ uint8_t utf8_verify_by_lookup_in_stream(const uint8_t sts, const char_t * const 
 
     while (chunks > 0) {
         prev_sts = curr_sts;
-        curr_sts = move_next(curr_sts, pos[0]); *chars += curr_sts == UTF8_VSS_ASCII;
-        curr_sts = move_next(curr_sts, pos[1]); *chars += curr_sts == UTF8_VSS_ASCII;
-        curr_sts = move_next(curr_sts, pos[2]); *chars += curr_sts == UTF8_VSS_ASCII;
-        curr_sts = move_next(curr_sts, pos[3]); *chars += curr_sts == UTF8_VSS_ASCII;
-        curr_sts = move_next(curr_sts, pos[4]); *chars += curr_sts == UTF8_VSS_ASCII;
-        curr_sts = move_next(curr_sts, pos[5]); *chars += curr_sts == UTF8_VSS_ASCII;
-        curr_sts = move_next(curr_sts, pos[6]); *chars += curr_sts == UTF8_VSS_ASCII;
-        curr_sts = move_next(curr_sts, pos[7]); *chars += curr_sts == UTF8_VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[0]); ok_chars += curr_sts == UTF8_VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[1]); ok_chars += curr_sts == UTF8_VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[2]); ok_chars += curr_sts == UTF8_VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[3]); ok_chars += curr_sts == UTF8_VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[4]); ok_chars += curr_sts == UTF8_VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[5]); ok_chars += curr_sts == UTF8_VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[6]); ok_chars += curr_sts == UTF8_VSS_ASCII;
+        curr_sts = move_next(curr_sts, pos[7]); ok_chars += curr_sts == UTF8_VSS_ASCII;
 
         ok_bytes += chunk_size;
         if (curr_sts == UTF8_VSS_ERROR) {
@@ -222,6 +223,8 @@ uint8_t utf8_verify_by_lookup_in_stream(const uint8_t sts, const char_t * const 
             goto UTF8_VERIFY_BY_LOOKUP_END;
         } // if
 
+        *chars += ok_chars;
+        ok_chars = 0;
         pos += chunk_size;
         chunks -= 1;
     } // while
